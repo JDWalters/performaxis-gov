@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+:root {
+  --color-ink: #17313a;
+  --color-ink2: #3c5560;
+  --color-paper: #eef1f1;
+  --color-line: #d8e0dd;
+  --color-gold: #a97f2a;
+  --color-gold-bg: #f6efdf;
+  --color-met: #1f7a4d;
+  --color-met-bg: #e4f3ea;
+  --color-okk: #3d7f5f;
+  --color-okk-bg: #e8f2ec;
+  --color-missed: #b3362b;
+  --color-missed-bg: #fbe9e6;
+  --color-pending: #6b7680;
+  --color-pending-bg: #e9edf0;
+  --color-na: #8b959c;
+  --color-blue: #1d4e89;
+  --color-blue-bg: #e2ebf6;
+  --color-almost: #c2410c;
+  --color-almost-bg: #fdebdd;
+
+  --background: var(--color-paper);
+  --foreground: var(--color-ink);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-ink: var(--color-ink);
+  --color-ink2: var(--color-ink2);
+  --color-paper: var(--color-paper);
+  --color-line: var(--color-line);
+  --color-gold: var(--color-gold);
+  --color-gold-bg: var(--color-gold-bg);
+  --color-met: var(--color-met);
+  --color-met-bg: var(--color-met-bg);
+  --color-okk: var(--color-okk);
+  --color-okk-bg: var(--color-okk-bg);
+  --color-missed: var(--color-missed);
+  --color-missed-bg: var(--color-missed-bg);
+  --color-pending: var(--color-pending);
+  --color-pending-bg: var(--color-pending-bg);
+  --color-na: var(--color-na);
+  --color-blue: var(--color-blue);
+  --color-blue-bg: var(--color-blue-bg);
+  --color-almost: var(--color-almost);
+  --color-almost-bg: var(--color-almost-bg);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Status tag pills - shared across scorecards and appraisal ratings */
+.stag {
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  display: inline-block;
+}
+.stag-blue { color: var(--color-blue); background: var(--color-blue-bg); }
+.stag-met { color: var(--color-met); background: var(--color-met-bg); }
+.stag-okk { color: var(--color-okk); background: var(--color-okk-bg); }
+.stag-almost { color: var(--color-almost); background: var(--color-almost-bg); }
+.stag-missed { color: var(--color-missed); background: var(--color-missed-bg); }
+.stag-pending { color: var(--color-pending); background: var(--color-pending-bg); }
