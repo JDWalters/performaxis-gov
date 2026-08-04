@@ -1,5 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
 
+/**
+ * Natural sort for ref codes like "FMS2" / "FMS11" / "CMS5.1" - plain string
+ * sort puts "FMS11" before "FMS2" because "1" < "2" lexicographically. This
+ * compares the letter and number segments separately so numbers compare
+ * numerically.
+ */
+function naturalCompare(a: string, b: string): number {
+  const tokenize = (s: string) => s.match(/(\d+(?:\.\d+)?)|(\D+)/g) ?? [];
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  const len = Math.max(ta.length, tb.length);
+  for (let i = 0; i < len; i++) {
+    const xa = ta[i] ?? "";
+    const xb = tb[i] ?? "";
+    const na = Number(xa);
+    const nb = Number(xb);
+    const bothNumeric = xa !== "" && xb !== "" && !Number.isNaN(na) && !Number.isNaN(nb);
+    if (bothNumeric) {
+      if (na !== nb) return na - nb;
+    } else if (xa !== xb) {
+      return xa < xb ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
 export type ScorecardListItem = {
   scorecardId: string;
   orgId: string;
@@ -127,8 +153,7 @@ export async function getScorecardDetail(
     .select(
       "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library:kpi_library_id(calc_config), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, comment, corrective_action)"
     )
-    .eq("scorecard_id", scorecardId)
-    .order("ref_code");
+    .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
 
   // Cast: same pragmatic workaround as the upsert cast in scorecards/actions.ts -
@@ -146,29 +171,31 @@ export async function getScorecardDetail(
 
   const kpiRows = (kpis ?? []) as unknown as ScorecardKpiRow[];
 
-  const rows: CaptureKpi[] = kpiRows.map((k) => {
-    const target = (k.kpi_targets ?? []).find((t) => t.quarter === quarter);
-    const result = (k.kpi_results ?? []).find((r) => r.quarter === quarter);
-    return {
-      id: k.id,
-      refCode: k.ref_code,
-      name: k.name,
-      kpa: k.kpa,
-      unitOfMeasure: k.unit_of_measure,
-      targetType: k.target_type,
-      target: target?.target_value ?? null,
-      calc: k.kpi_library?.calc_config?.calc ?? null,
-      result: result
-        ? {
-            actual: result.actual,
-            inputs: result.inputs ?? {},
-            evidenceUrl: result.evidence_url,
-            comment: result.comment,
-            correctiveAction: result.corrective_action,
-          }
-        : null,
-    };
-  });
+  const rows: CaptureKpi[] = kpiRows
+    .map((k) => {
+      const target = (k.kpi_targets ?? []).find((t) => t.quarter === quarter);
+      const result = (k.kpi_results ?? []).find((r) => r.quarter === quarter);
+      return {
+        id: k.id,
+        refCode: k.ref_code,
+        name: k.name,
+        kpa: k.kpa,
+        unitOfMeasure: k.unit_of_measure,
+        targetType: k.target_type,
+        target: target?.target_value ?? null,
+        calc: k.kpi_library?.calc_config?.calc ?? null,
+        result: result
+          ? {
+              actual: result.actual,
+              inputs: result.inputs ?? {},
+              evidenceUrl: result.evidence_url,
+              comment: result.comment,
+              correctiveAction: result.corrective_action,
+            }
+          : null,
+      };
+    })
+    .sort((a, b) => naturalCompare(a.refCode ?? "", b.refCode ?? ""));
 
   return {
     scorecardId: header.id,

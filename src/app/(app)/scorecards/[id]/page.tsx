@@ -66,8 +66,8 @@ export default async function ScorecardDetailPage({
         <div className="flex flex-col gap-3">
           {detail.kpis.map((kpi) => (
             <div key={kpi.id} className="rounded-xl border border-line bg-white p-4">
-              <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-                <div>
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     {kpi.refCode && (
                       <span className="stag stag-pending text-[10px]">{kpi.refCode}</span>
@@ -78,12 +78,12 @@ export default async function ScorecardDetailPage({
                       </span>
                     )}
                   </div>
-                  <div className="mt-1 text-sm font-semibold text-ink">{kpi.name}</div>
+                  <div className="mt-1 break-words text-sm font-semibold text-ink">{kpi.name}</div>
                   {kpi.unitOfMeasure && (
                     <div className="mt-0.5 text-xs text-ink2">{kpi.unitOfMeasure}</div>
                   )}
                 </div>
-                <div className="text-right text-xs text-ink2">
+                <div className="flex-none text-xs text-ink2 sm:text-right">
                   <div className="font-bold uppercase tracking-wide">Q{quarter} target</div>
                   <div className="mt-0.5 font-mono text-sm text-ink">{kpi.target ?? "—"}</div>
                 </div>
