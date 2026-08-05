@@ -92,12 +92,19 @@ export function KpiCaptureCard({
 
   const [answer, setAnswer] = useState(kpi.result?.actual ?? "");
   const [rating, setRating] = useState(kpi.result?.actual ?? "");
-  const [value, setValue] = useState((inputs.value as string) ?? kpi.result?.actual ?? "");
-  const [numerator, setNumerator] = useState((inputs.numerator as string) ?? "");
-  const [denominator, setDenominator] = useState((inputs.denominator as string) ?? "");
-  const [a, setA] = useState((inputs.a as string) ?? "");
-  const [b, setB] = useState((inputs.b as string) ?? "");
-  const [c, setC] = useState((inputs.c as string) ?? "");
+  // `inputs` is a jsonb blob - historically the ratio/three/rating branches of
+  // computeCalcResult() stored these as JS numbers (Number(...)), not
+  // strings. An unsafe `as string` cast here left the number in place, and
+  // any later .trim() call on it (e.g. inside computeCalcResult while
+  // recomputing the live result) throws "x.trim is not a function". Coerce
+  // properly instead of casting.
+  const toStr = (v: unknown): string => (v == null ? "" : String(v));
+  const [value, setValue] = useState(inputs.value != null ? toStr(inputs.value) : (kpi.result?.actual ?? ""));
+  const [numerator, setNumerator] = useState(toStr(inputs.numerator));
+  const [denominator, setDenominator] = useState(toStr(inputs.denominator));
+  const [a, setA] = useState(toStr(inputs.a));
+  const [b, setB] = useState(toStr(inputs.b));
+  const [c, setC] = useState(toStr(inputs.c));
   const [fallbackActual, setFallbackActual] = useState(kpi.result?.actual ?? "");
   const [evidenceUrl, setEvidenceUrl] = useState(kpi.result?.evidenceUrl ?? "");
   const [comment, setComment] = useState(kpi.result?.comment ?? "");
