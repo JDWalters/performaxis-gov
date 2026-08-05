@@ -109,3 +109,32 @@ export function friendlyActualValue(actual: string | null | undefined, calc: Kpi
   }
   return actual;
 }
+
+// A bare number, comma or dot decimal, optional trailing % or a single unit word
+// (e.g. "45.5%", "0,04", "3.2 months", "12"). Anything else - narrative text like
+// "Submitted on time" or "Error in claculation" - was typed before this KPI had a
+// structured answer type and needs a human to re-capture it properly.
+const CANONICAL_VALUE_RE = /^-?[0-9]+([.,][0-9]+)?\s*%?[a-zA-Z]*$/;
+
+/**
+ * True when a stored `actual` doesn't match what this KPI's calc.type expects -
+ * a legacy free-text value captured before the type-aware form existed. Used to
+ * surface a "needs review" flag instead of silently hiding (yesno/ratio/three)
+ * or quietly showing (single) an un-parseable historic value.
+ */
+export function needsReview(actual: string | null | undefined, calc: KpiCalc | null): boolean {
+  if (!actual) return false;
+  const type = calc?.type;
+  const value = actual.trim();
+
+  if (type === "yesno") return value !== "1" && value !== "0";
+
+  if (type === "rating") {
+    const scale = calc?.scale ?? 5;
+    const n = Number(value);
+    return !(Number.isFinite(n) && n >= 1 && n <= scale && String(Math.round(n)) === value);
+  }
+
+  // single / ratio / three / no calc type yet - all store a plain formatted number.
+  return !CANONICAL_VALUE_RE.test(value);
+}

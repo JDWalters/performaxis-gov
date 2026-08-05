@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { saveKpiResult } from "../actions";
-import { friendlyActual, type CaptureKpi } from "@/lib/data/scorecards-shared";
+import { friendlyActual, kpiNeedsReview, type CaptureKpi } from "@/lib/data/scorecards-shared";
+import { NeedsReviewBanner } from "@/components/NeedsReviewBanner";
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
@@ -110,9 +111,12 @@ export function KpiCaptureCard({
   }
 
   const currentLabel = friendlyActual(kpi);
+  const flagged = kpiNeedsReview(kpi);
 
   return (
     <div className="flex flex-col gap-3">
+      {flagged && kpi.result?.actual && <NeedsReviewBanner rawValue={kpi.result.actual} />}
+
       {calc?.type === "yesno" && (
         <div className={LABEL_CLASS}>
           Achieved this quarter?

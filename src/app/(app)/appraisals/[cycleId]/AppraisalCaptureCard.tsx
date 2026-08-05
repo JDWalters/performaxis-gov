@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { saveAppraisalResult } from "../actions";
-import { friendlyAppraisalActual, type AppraisalKpi } from "@/lib/data/appraisals-shared";
+import { friendlyAppraisalActual, appraisalKpiNeedsReview, type AppraisalKpi } from "@/lib/data/appraisals-shared";
+import { NeedsReviewBanner } from "@/components/NeedsReviewBanner";
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
@@ -114,9 +115,12 @@ export function AppraisalCaptureCard({
     ["Panel", kpi.result?.panelRating],
   ] as const;
   const hasRatings = ratings.some(([, v]) => v != null);
+  const flagged = appraisalKpiNeedsReview(kpi);
 
   return (
     <div className="flex flex-col gap-3">
+      {flagged && kpi.result?.actual && <NeedsReviewBanner rawValue={kpi.result.actual} />}
+
       {calc?.type === "yesno" && (
         <div className={LABEL_CLASS}>
           Achieved this quarter?

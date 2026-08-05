@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
+import { needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -11,13 +12,18 @@ export type AppraisalListItem = {
   orgName: string;
   fyLabel: string;
   kpiCount: number;
+  needsReviewCount: number;
 };
 
 type AppraisalListRow = {
   id: string;
   employee: { name: string; position: string | null; org: { name: string } | null } | null;
   financial_year: { label: string } | null;
-  appraisal_kpis: { id: string }[];
+  appraisal_kpis: {
+    id: string;
+    calc_config: { calc?: KpiCalc } | null;
+    appraisal_ratings: { actual: string | null }[];
+  }[];
 };
 
 /** Every appraisal cycle the signed-in user can see (RLS-scoped via has_employee_access). */
@@ -26,7 +32,7 @@ export async function getAppraisalsList(): Promise<AppraisalListItem[]> {
   const { data, error } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee:employees(name, position, org:orgs(name)), financial_year:financial_years(label), appraisal_kpis(id)"
+      "id, employee:employees(name, position, org:orgs(name)), financial_year:financial_years(label), appraisal_kpis(id, calc_config, appraisal_ratings(actual))"
     );
   if (error) throw error;
 
@@ -34,14 +40,23 @@ export async function getAppraisalsList(): Promise<AppraisalListItem[]> {
 
   return rows
     .filter((r) => r.employee)
-    .map((r) => ({
-      cycleId: r.id,
-      employeeName: r.employee!.name,
-      position: r.employee!.position,
-      orgName: r.employee!.org?.name ?? "—",
-      fyLabel: r.financial_year?.label ?? "—",
-      kpiCount: (r.appraisal_kpis ?? []).length,
-    }))
+    .map((r) => {
+      const kpis = r.appraisal_kpis ?? [];
+      const needsReviewCount = kpis.reduce(
+        (n, k) =>
+          n + (k.appraisal_ratings ?? []).filter((rt) => needsReview(rt.actual, k.calc_config?.calc ?? null)).length,
+        0
+      );
+      return {
+        cycleId: r.id,
+        employeeName: r.employee!.name,
+        position: r.employee!.position,
+        orgName: r.employee!.org?.name ?? "—",
+        fyLabel: r.financial_year?.label ?? "—",
+        kpiCount: kpis.length,
+        needsReviewCount,
+      };
+    })
     .sort((a, b) => a.orgName.localeCompare(b.orgName));
 }
 
@@ -55,6 +70,8 @@ export type AppraisalDetail = {
   quarter: number;
   canCapture: boolean;
   kpis: AppraisalKpi[];
+  /** Quarters (1-4) with at least one legacy value that needs re-capturing - drives a dot on the quarter tabs. */
+  quartersNeedingReview: number[];
 };
 
 type AppraisalHeaderRow = {
@@ -134,6 +151,14 @@ export async function getAppraisalDetail(
 
   const kpiRows = (kpis ?? []) as unknown as AppraisalKpiRow[];
 
+  const quartersNeedingReview = [...new Set(
+    kpiRows.flatMap((k) =>
+      (k.appraisal_ratings ?? [])
+        .filter((r) => needsReview(r.actual, k.calc_config?.calc ?? null))
+        .map((r) => r.quarter)
+    )
+  )].sort((a, b) => a - b);
+
   const rows: AppraisalKpi[] = kpiRows
     .map((k) => {
       const result = (k.appraisal_ratings ?? []).find((r) => r.quarter === quarter);
@@ -175,5 +200,6 @@ export async function getAppraisalDetail(
     quarter,
     canCapture: Boolean(canCaptureData),
     kpis: rows,
+    quartersNeedingReview,
   };
 }

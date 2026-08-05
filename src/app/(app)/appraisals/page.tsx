@@ -23,7 +23,14 @@ export default async function AppraisalsListPage() {
               href={`/appraisals/${a.cycleId}`}
               className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
             >
-              <div className="text-sm font-semibold text-ink">{a.employeeName}</div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-sm font-semibold text-ink">{a.employeeName}</div>
+                {a.needsReviewCount > 0 && (
+                  <span className="flex-none rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
+                    {a.needsReviewCount} need review
+                  </span>
+                )}
+              </div>
               {a.position && <div className="mt-0.5 text-xs text-ink2">{a.position}</div>}
               <div className="mt-2 flex items-center justify-between text-xs text-ink2">
                 <span>{a.orgName}</span>

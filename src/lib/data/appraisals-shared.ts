@@ -10,10 +10,10 @@
  * build yet.
  */
 import type { KpiCalc } from "@/lib/data/kpi-calc-shared";
-import { friendlyActualValue } from "@/lib/data/kpi-calc-shared";
+import { friendlyActualValue, needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type { KpiCalc, CalcType, ComputedResult } from "@/lib/data/kpi-calc-shared";
-export { CALC_TYPES, computeCalcResult, friendlyActualValue } from "@/lib/data/kpi-calc-shared";
+export { CALC_TYPES, computeCalcResult, friendlyActualValue, needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type AppraisalKpi = {
   id: string;
@@ -41,4 +41,9 @@ export type AppraisalKpi = {
 
 export function friendlyAppraisalActual(kpi: AppraisalKpi): string | null {
   return friendlyActualValue(kpi.result?.actual, kpi.calc);
+}
+
+/** True when this KPI's captured result predates its answer type and needs re-capturing. */
+export function appraisalKpiNeedsReview(kpi: AppraisalKpi): boolean {
+  return needsReview(kpi.result?.actual, kpi.calc);
 }

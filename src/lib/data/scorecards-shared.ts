@@ -10,10 +10,10 @@
  * it plus the scorecard-specific CaptureKpi shape.
  */
 import type { KpiCalc } from "@/lib/data/kpi-calc-shared";
-import { friendlyActualValue } from "@/lib/data/kpi-calc-shared";
+import { friendlyActualValue, needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type { KpiCalc, CalcType, ComputedResult } from "@/lib/data/kpi-calc-shared";
-export { CALC_TYPES, computeCalcResult, friendlyActualValue } from "@/lib/data/kpi-calc-shared";
+export { CALC_TYPES, computeCalcResult, friendlyActualValue, needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type CaptureKpi = {
   id: string;
@@ -36,4 +36,9 @@ export type CaptureKpi = {
 /** Friendly label for the canonical stored value - display only, never stored. */
 export function friendlyActual(kpi: CaptureKpi): string | null {
   return friendlyActualValue(kpi.result?.actual, kpi.calc);
+}
+
+/** True when this KPI's captured result predates its answer type and needs re-capturing. */
+export function kpiNeedsReview(kpi: CaptureKpi): boolean {
+  return needsReview(kpi.result?.actual, kpi.calc);
 }

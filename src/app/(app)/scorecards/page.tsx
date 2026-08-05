@@ -23,7 +23,14 @@ export default async function ScorecardsListPage() {
               href={`/scorecards/${s.scorecardId}`}
               className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
             >
-              <div className="text-sm font-semibold text-ink">{s.orgName}</div>
+              <div className="flex items-start justify-between gap-2">
+                <div className="text-sm font-semibold text-ink">{s.orgName}</div>
+                {s.needsReviewCount > 0 && (
+                  <span className="flex-none rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
+                    {s.needsReviewCount} need review
+                  </span>
+                )}
+              </div>
               <div className="mt-1 text-xs text-ink2">{s.kpiCount} KPIs</div>
             </Link>
           ))}

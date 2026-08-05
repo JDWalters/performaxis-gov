@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
+import { needsReview } from "@/lib/data/kpi-calc-shared";
 
 export type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
 export { friendlyActual } from "@/lib/data/scorecards-shared";
@@ -35,12 +36,17 @@ export type ScorecardListItem = {
   orgId: string;
   orgName: string;
   kpiCount: number;
+  needsReviewCount: number;
 };
 
 type ScorecardListRow = {
   id: string;
   org: { id: string; name: string } | null;
-  scorecard_kpis: { id: string }[];
+  scorecard_kpis: {
+    id: string;
+    kpi_library: { calc_config: { calc?: KpiCalc } | null } | null;
+    kpi_results: { actual: string | null }[];
+  }[];
 };
 
 /** Every department scorecard the signed-in user can see (RLS-scoped via has_org_access). */
@@ -48,19 +54,30 @@ export async function getScorecardsList(): Promise<ScorecardListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("scorecards")
-    .select("id, org:orgs(id, name), scorecard_kpis(id)");
+    .select(
+      "id, org:orgs(id, name), scorecard_kpis(id, kpi_library:kpi_library_id(calc_config), kpi_results(actual))"
+    );
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as ScorecardListRow[];
 
   return rows
     .filter((r) => r.org)
-    .map((r) => ({
-      scorecardId: r.id,
-      orgId: r.org!.id,
-      orgName: r.org!.name,
-      kpiCount: (r.scorecard_kpis ?? []).length,
-    }))
+    .map((r) => {
+      const kpis = r.scorecard_kpis ?? [];
+      const calcOf = (k: ScorecardListRow["scorecard_kpis"][number]) => k.kpi_library?.calc_config?.calc ?? null;
+      const needsReviewCount = kpis.reduce(
+        (n, k) => n + (k.kpi_results ?? []).filter((res) => needsReview(res.actual, calcOf(k))).length,
+        0
+      );
+      return {
+        scorecardId: r.id,
+        orgId: r.org!.id,
+        orgName: r.org!.name,
+        kpiCount: kpis.length,
+        needsReviewCount,
+      };
+    })
     .sort((a, b) => a.orgName.localeCompare(b.orgName));
 }
 
@@ -71,6 +88,8 @@ export type ScorecardDetail = {
   quarter: number;
   canCapture: boolean;
   kpis: CaptureKpi[];
+  /** Quarters (1-4) with at least one legacy value that needs re-capturing - drives a dot on the quarter tabs. */
+  quartersNeedingReview: number[];
 };
 
 type ScorecardHeaderRow = {
@@ -142,6 +161,14 @@ export async function getScorecardDetail(
 
   const kpiRows = (kpis ?? []) as unknown as ScorecardKpiRow[];
 
+  const quartersNeedingReview = [...new Set(
+    kpiRows.flatMap((k) =>
+      (k.kpi_results ?? [])
+        .filter((r) => needsReview(r.actual, k.kpi_library?.calc_config?.calc ?? null))
+        .map((r) => r.quarter)
+    )
+  )].sort((a, b) => a - b);
+
   const rows: CaptureKpi[] = kpiRows
     .map((k) => {
       const target = (k.kpi_targets ?? []).find((t) => t.quarter === quarter);
@@ -175,5 +202,6 @@ export async function getScorecardDetail(
     quarter,
     canCapture: Boolean(canCaptureData),
     kpis: rows,
+    quartersNeedingReview,
   };
 }

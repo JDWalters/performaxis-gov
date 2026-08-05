@@ -32,13 +32,19 @@ export default async function ScorecardDetailPage({
               key={qq}
               href={`/scorecards/${id}?q=${qq}`}
               prefetch={false}
-              className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+              className={`relative rounded-md px-3 py-1.5 text-xs font-bold ${
                 qq === quarter
                   ? "bg-ink text-white"
                   : "border border-line bg-white text-ink2 hover:border-ink"
               }`}
             >
               Q{qq}
+              {detail.quartersNeedingReview.includes(qq) && (
+                <span
+                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold"
+                  title="Has items needing review"
+                />
+              )}
             </Link>
           ))}
         </div>
