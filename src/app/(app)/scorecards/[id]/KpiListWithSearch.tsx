@@ -170,7 +170,11 @@ export function KpiListWithSearch({
                 No target set for Q{quarter} — nothing to capture this quarter.
               </div>
             ) : canCapture ? (
-              <KpiCaptureCard kpi={kpi} quarter={quarter} scorecardId={scorecardId} />
+              // Keyed on quarter (not just kpi.id, which the parent <div> already
+              // covers) so React fully remounts this card - and re-initialises its
+              // form state from the fresh kpi.result - every time the quarter
+              // changes, instead of reusing the old instance's stale typed values.
+              <KpiCaptureCard key={quarter} kpi={kpi} quarter={quarter} scorecardId={scorecardId} />
             ) : (
               <div className="text-sm text-ink">{friendlyActual(kpi) ?? "No result captured yet."}</div>
             )}

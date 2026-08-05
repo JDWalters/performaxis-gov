@@ -100,7 +100,10 @@ export default async function AppraisalDetailPage({
               </div>
 
               {detail.canCapture ? (
-                <AppraisalCaptureCard kpi={kpi} quarter={quarter} cycleId={detail.cycleId} />
+                // Keyed on quarter so React remounts (and re-initialises form
+                // state from the fresh kpi.result) every time the quarter
+                // changes, instead of reusing stale typed values from before.
+                <AppraisalCaptureCard key={quarter} kpi={kpi} quarter={quarter} cycleId={detail.cycleId} />
               ) : (
                 <div className="text-sm text-ink">
                   {friendlyAppraisalActual(kpi) ?? "No result captured yet."}
