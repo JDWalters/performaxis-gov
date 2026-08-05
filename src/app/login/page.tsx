@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useActionState } from "react";
 import { signIn } from "./actions";
 
@@ -7,15 +8,11 @@ export default function LoginPage() {
   const [state, formAction, pending] = useActionState(signIn, undefined);
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-paper px-4">
+    <main className="flex min-h-screen flex-col items-center justify-center gap-6 bg-paper px-4">
       <div className="w-full max-w-sm rounded-xl border border-line bg-white p-8 shadow-sm">
-        <div className="mb-6 text-center">
-          <div className="text-lg font-extrabold tracking-tight text-ink">
-            Perform<span className="text-gold">Axis</span>
-          </div>
-          <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-ink2">
-            Government
-          </p>
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <Image src="/performaxis-logo.svg" alt="PerformAxis" width={280} height={120} priority />
+          <p className="text-xs font-semibold uppercase tracking-wide text-ink2">Government</p>
         </div>
 
         <form action={formAction} className="flex flex-col gap-4">
@@ -55,6 +52,11 @@ export default function LoginPage() {
             {pending ? "Signing in…" : "Sign in"}
           </button>
         </form>
+      </div>
+
+      <div className="flex items-center gap-2 text-[11px] text-ink2">
+        <span>Built by</span>
+        <Image src="/fridayms.png" alt="Friday Management Solutions" width={80} height={30} />
       </div>
     </main>
   );

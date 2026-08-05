@@ -16,10 +16,12 @@
   --color-pending: #6b7680;
   --color-pending-bg: #e9edf0;
   --color-na: #8b959c;
+  --color-na-bg: #f0f2f3;
   --color-blue: #1d4e89;
   --color-blue-bg: #e2ebf6;
   --color-almost: #c2410c;
   --color-almost-bg: #fdebdd;
+  --color-card: #ffffff;
 
   --background: var(--color-paper);
   --foreground: var(--color-ink);
@@ -43,10 +45,12 @@
   --color-pending: var(--color-pending);
   --color-pending-bg: var(--color-pending-bg);
   --color-na: var(--color-na);
+  --color-na-bg: var(--color-na-bg);
   --color-blue: var(--color-blue);
   --color-blue-bg: var(--color-blue-bg);
   --color-almost: var(--color-almost);
   --color-almost-bg: var(--color-almost-bg);
+  --color-card: var(--color-card);
 }
 
 body {

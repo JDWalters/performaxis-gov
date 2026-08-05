@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyMemberships, getMyProfile } from "@/lib/data/access";
@@ -13,10 +14,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="flex min-h-screen">
       <aside className="flex w-60 flex-none flex-col bg-ink text-white">
         <div className="border-b border-white/10 px-4 py-4">
-          <div className="text-base font-extrabold tracking-tight">
-            Perform<span className="text-gold">Axis</span>
+          <div className="w-fit rounded-md bg-white p-2">
+            <Image src="/performaxis-logo.svg" alt="PerformAxis" width={168} height={72} priority />
           </div>
-          <div className="mt-1 text-[11px] uppercase tracking-wide text-white/50">
+          <div className="mt-2 text-[11px] uppercase tracking-wide text-white/50">
             Government
           </div>
         </div>
@@ -63,6 +64,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Sign out
             </button>
           </form>
+          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-white/40">
+            <span>Built by</span>
+            <div className="rounded bg-white px-1 py-0.5">
+              <Image src="/fridayms.png" alt="Friday Management Solutions" width={56} height={21} />
+            </div>
+          </div>
         </div>
       </aside>
 

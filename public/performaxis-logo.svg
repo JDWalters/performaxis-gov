@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="700" height="300" viewBox="0 0 700 300" role="img" aria-label="PerformAxis logo">
+<circle cx="160" cy="150" r="112" fill="none" stroke="#1c3550" stroke-width="1.5"/>
+<circle cx="160" cy="150" r="99" fill="none" stroke="#c9a13b" stroke-width="0.8"/>
+<g transform="translate(160,150)">
+<g transform="rotate(11.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(33.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(56.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(78.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(101.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(123.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(146.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(168.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(191.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(213.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(236.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(258.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(281.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(303.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(326.25)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(348.75)"><line x1="0" y1="-112" x2="0" y2="-104" stroke="#9db2c4" stroke-width="0.6"/></g>
+<g transform="rotate(0)"><line x1="0" y1="-112" x2="0" y2="-99" stroke="#1c3550" stroke-width="1.2"/></g>
+<g transform="rotate(90)"><line x1="0" y1="-112" x2="0" y2="-99" stroke="#1c3550" stroke-width="1.2"/></g>
+<g transform="rotate(180)"><line x1="0" y1="-112" x2="0" y2="-99" stroke="#1c3550" stroke-width="1.2"/></g>
+<g transform="rotate(270)"><line x1="0" y1="-112" x2="0" y2="-99" stroke="#1c3550" stroke-width="1.2"/></g>
+<g transform="rotate(22.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(67.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(112.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(157.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(202.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(247.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(292.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(337.5)"><path d="M0,-44 L-5,-3 L0,0 Z" fill="#37536e"/><path d="M0,-44 L5,-3 L0,0 Z" fill="#c3d0da"/></g>
+<g transform="rotate(45)"><path d="M0,-64 L-8,-4 L0,0 Z" fill="#17324f"/><path d="M0,-64 L8,-4 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(135)"><path d="M0,-64 L-8,-4 L0,0 Z" fill="#17324f"/><path d="M0,-64 L8,-4 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(225)"><path d="M0,-64 L-8,-4 L0,0 Z" fill="#17324f"/><path d="M0,-64 L8,-4 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(315)"><path d="M0,-64 L-8,-4 L0,0 Z" fill="#17324f"/><path d="M0,-64 L8,-4 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(90)"><path d="M0,-92 L-11,-6 L0,0 Z" fill="#17324f"/><path d="M0,-92 L11,-6 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(180)"><path d="M0,-92 L-11,-6 L0,0 Z" fill="#17324f"/><path d="M0,-92 L11,-6 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(270)"><path d="M0,-92 L-11,-6 L0,0 Z" fill="#17324f"/><path d="M0,-92 L11,-6 L0,0 Z" fill="#9db2c4"/></g>
+<g transform="rotate(0)"><path d="M0,-92 L-11,-6 L0,0 Z" fill="#b8892e"/><path d="M0,-92 L11,-6 L0,0 Z" fill="#d9b968"/></g>
+<circle r="7" fill="#1c3550"/><circle r="3" fill="#c9a13b"/></g>
+<g transform="translate(160,19)"><path d="M0,-14 L3.2,-3.2 L14,0 L3.2,3.2 L0,14 L-3.2,3.2 L-14,0 L-3.2,-3.2 Z" fill="#c9a13b"/><circle r="2.4" fill="#fbf6e9"/></g>
+<text x="322" y="116" font-family="Liberation Sans, Arial, Helvetica, sans-serif" font-size="42" font-weight="500" letter-spacing="2"><tspan fill="#1c3550">Perform</tspan><tspan fill="#b8892e">Axis</tspan></text>
+<line x1="322" y1="138" x2="573" y2="138" stroke="#c9a13b" stroke-width="1.5"/>
+<text x="322" y="160" font-family="Liberation Sans, Arial, Helvetica, sans-serif" font-size="15" font-weight="500" letter-spacing="2" fill="#b8892e">ALIGN &#183; CASCADE &#183; DELIVER</text>
+<text x="322" y="186" font-family="Liberation Sans, Arial, Helvetica, sans-serif" font-size="13.5" fill="#37536e">Link Strategy. Drive Performance. Deliver Results.</text>
+</svg>
