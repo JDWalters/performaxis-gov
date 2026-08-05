@@ -37,6 +37,7 @@ export type DashboardData = {
   departments: {
     orgId: string;
     orgName: string;
+    orgCode: string | null;
     kpiCount: number;
     tally: StatusTally;
     pctAchieved: number | null;
@@ -62,7 +63,16 @@ type Row = {
   }[];
 };
 
-type ScorecardRow = { id: string; org: { id: string; name: string } | null };
+type ScorecardRow = { id: string; org: { id: string; name: string; code: string | null } | null };
+
+// Standard SA municipal SDBIP reporting order: MM's office, then Finance,
+// Corporate, Technical, Community - not alphabetical. Falls back to
+// alphabetical for any department code outside this fixed list.
+const DEPARTMENT_ORDER = ["OMM", "FMS", "CRS", "TS", "CMS"];
+function departmentSortKey(code: string | null): number {
+  const i = code ? DEPARTMENT_ORDER.indexOf(code) : -1;
+  return i === -1 ? DEPARTMENT_ORDER.length : i;
+}
 
 function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: (r: R) => T, fallback: T): T[] {
   return [1, 2, 3, 4].map((q) => {
@@ -86,7 +96,7 @@ export async function getSdbipDashboard(
 
   const { data: scorecardRows, error: scErr } = await supabase
     .from("scorecards")
-    .select("id, org:orgs(id, name)");
+    .select("id, org:orgs(id, name, code)");
   if (scErr) throw scErr;
 
   const scorecards = (scorecardRows ?? []) as unknown as ScorecardRow[];
@@ -94,8 +104,11 @@ export async function getSdbipDashboard(
     { id: "top", label: "Top Layer SDBIP", orgId: "" },
     ...scorecards
       .filter((s) => s.org)
-      .map((s) => ({ id: s.id, label: `${s.org!.name} — Departmental SDBIP`, orgId: s.org!.id }))
-      .sort((a, b) => a.label.localeCompare(b.label)),
+      .map((s) => ({ id: s.id, label: `${s.org!.name} — Departmental SDBIP`, orgId: s.org!.id, code: s.org!.code }))
+      .sort(
+        (a, b) => departmentSortKey(a.code) - departmentSortKey(b.code) || a.label.localeCompare(b.label)
+      )
+      .map(({ id, label, orgId }) => ({ id, label, orgId })),
   ];
 
   const selected = scorecardId && scorecardId !== "top" ? scorecardId : "top";
@@ -118,7 +131,7 @@ export async function getSdbipDashboard(
   const quarterTallies = [emptyTally(), emptyTally(), emptyTally(), emptyTally()];
   const deptMap = new Map<
     string,
-    { orgName: string; kpiCount: number; tally: StatusTally; quarterTallies: StatusTally[] }
+    { orgName: string; orgCode: string | null; kpiCount: number; tally: StatusTally; quarterTallies: StatusTally[] }
   >();
   const kpaMap = new Map<string, { kpiCount: number; tally: StatusTally }>();
   const attention: AttentionKpi[] = [];
@@ -137,6 +150,7 @@ export async function getSdbipDashboard(
       if (!deptMap.has(org.id)) {
         deptMap.set(org.id, {
           orgName: org.name,
+          orgCode: org.code,
           kpiCount: 0,
           tally: emptyTally(),
           quarterTallies: [emptyTally(), emptyTally(), emptyTally(), emptyTally()],
@@ -190,12 +204,13 @@ export async function getSdbipDashboard(
       .map(([orgId, d]) => ({
         orgId,
         orgName: d.orgName,
+        orgCode: d.orgCode,
         kpiCount: d.kpiCount,
         tally: d.tally,
         pctAchieved: pctOf(d.tally),
         quarterPct: d.quarterTallies.map((t) => pctOf(t)),
       }))
-      .sort((a, b) => a.orgName.localeCompare(b.orgName)),
+      .sort((a, b) => departmentSortKey(a.orgCode) - departmentSortKey(b.orgCode) || a.orgName.localeCompare(b.orgName)),
     kpas: [...kpaMap.entries()]
       .map(([kpa, v]) => ({ kpa, kpiCount: v.kpiCount, tally: v.tally, pctAchieved: pctOf(v.tally) }))
       .sort((a, b) => a.kpa.localeCompare(b.kpa)),

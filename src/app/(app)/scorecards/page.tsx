@@ -94,7 +94,7 @@ export default async function ScorecardsDashboardPage({
                 <div className="max-w-xs">
                   <div className="text-sm text-white/70">of reportable targets achieved</div>
                   <div className="mt-2">
-                    <StatusBar tally={dashboard.tally} />
+                    <StatusBar tally={dashboard.tally} dark />
                   </div>
                 </div>
               </div>
@@ -102,7 +102,7 @@ export default async function ScorecardsDashboardPage({
                 <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/60">
                   Quarter-by-quarter
                 </div>
-                <QuarterTrend trend={dashboard.quarterTrend} currentQuarter={currentQuarter} />
+                <QuarterTrend trend={dashboard.quarterTrend} currentQuarter={currentQuarter} dark />
               </div>
             </div>
           </div>
@@ -120,7 +120,14 @@ export default async function ScorecardsDashboardPage({
                     className="rounded-xl border border-line bg-white p-4 transition hover:border-gold"
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <div className="text-sm font-semibold text-ink">{d.orgName}</div>
+                      <div className="flex items-center gap-2">
+                        {d.orgCode && (
+                          <span className="flex-none rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white">
+                            {d.orgCode}
+                          </span>
+                        )}
+                        <div className="text-sm font-semibold text-ink">{d.orgName}</div>
+                      </div>
                       {(needsReviewByOrg.get(d.orgId) ?? 0) > 0 && (
                         <span className="flex-none rounded-full bg-gold/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-gold">
                           {needsReviewByOrg.get(d.orgId)} need review
@@ -143,7 +150,8 @@ export default async function ScorecardsDashboardPage({
                             i + 1 === currentQuarter ? "bg-gold/15 text-gold" : "bg-paper text-ink2"
                           }`}
                         >
-                          {pct == null ? "—" : `${pct}%`}
+                          <div className="text-[9px] font-bold uppercase tracking-wide opacity-70">Q{i + 1}</div>
+                          <div>{pct == null ? "—" : `${pct}%`}</div>
                         </div>
                       ))}
                     </div>

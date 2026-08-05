@@ -37,11 +37,19 @@ export function DonutChart({ tally, pctAchieved }: { tally: StatusTally; pctAchi
 }
 
 /** Horizontal stacked bar showing the same 5-tier breakdown, with a text legend below. */
-export function StatusBar({ tally, compact = false }: { tally: StatusTally; compact?: boolean }) {
+export function StatusBar({
+  tally,
+  compact = false,
+  dark = false,
+}: {
+  tally: StatusTally;
+  compact?: boolean;
+  dark?: boolean;
+}) {
   const t = total(tally);
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex h-2 w-full overflow-hidden rounded-full bg-paper">
+      <div className={`flex h-2 w-full overflow-hidden rounded-full ${dark ? "bg-white/10" : "bg-paper"}`}>
         {t === 0 ? (
           <div className="h-full w-full" style={{ background: COLOR_VAR.pending }} />
         ) : (
@@ -53,7 +61,9 @@ export function StatusBar({ tally, compact = false }: { tally: StatusTally; comp
         )}
       </div>
       {!compact && (
-        <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink2">
+        <div
+          className={`flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium ${dark ? "text-white/90" : "text-ink2"}`}
+        >
           {ORDER.map((s) => (
             <span key={s} className="flex items-center gap-1">
               <span className="h-2 w-2 rounded-full" style={{ background: COLOR_VAR[s] }} />
@@ -70,21 +80,24 @@ export function StatusBar({ tally, compact = false }: { tally: StatusTally; comp
 export function QuarterTrend({
   trend,
   currentQuarter,
+  dark = false,
 }: {
   trend: { quarter: number; pct: number | null }[];
   currentQuarter: number | null;
+  dark?: boolean;
 }) {
   const max = Math.max(10, ...trend.map((q) => q.pct ?? 0));
+  const labelClass = dark ? "text-white" : "text-ink2";
   return (
     <div className="flex items-end gap-4">
       {trend.map((q) => (
         <div key={q.quarter} className="flex flex-col items-center gap-1">
-          <span className="text-xs font-bold text-ink2">{q.pct == null ? "—" : `${q.pct}%`}</span>
+          <span className={`text-xs font-bold ${labelClass}`}>{q.pct == null ? "—" : `${q.pct}%`}</span>
           <div
             className={`w-8 rounded-t-sm ${q.quarter === currentQuarter ? "bg-gold" : "bg-[var(--color-met)]"}`}
             style={{ height: `${Math.max(6, ((q.pct ?? 0) / max) * 64)}px` }}
           />
-          <span className="text-[11px] font-semibold text-ink2">Q{q.quarter}</span>
+          <span className={`text-[11px] font-semibold ${labelClass}`}>Q{q.quarter}</span>
         </div>
       ))}
     </div>
