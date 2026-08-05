@@ -1,6 +1,18 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 import { needsReview } from "@/lib/data/kpi-calc-shared";
+import {
+  finalRating,
+  weightedScore,
+  simpleScore,
+  overallScore,
+  bandOf,
+  percentOfStandard,
+  bonusEligibility,
+  type ScoreBand,
+  type BonusEligibility,
+  type PartialScore,
+} from "@/lib/data/appraisal-scoring";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -72,6 +84,25 @@ export type AppraisalDetail = {
   kpis: AppraisalKpi[];
   /** Quarters (1-4) with at least one legacy value that needs re-capturing - drives a dot on the quarter tabs. */
   quartersNeedingReview: number[];
+  assessment: AssessmentSummary;
+};
+
+export type AssessmentSummary = {
+  kpa: PartialScore & { weightPct: number };
+  competencies: PartialScore & { weightPct: number };
+  overall: {
+    score: number | null;
+    band: ScoreBand | null;
+    percentOfStandard: number | null;
+    bonus: BonusEligibility;
+  };
+};
+
+type CompetencyRatingRow = {
+  self_rating: number | null;
+  mgr_rating: number | null;
+  panel_rating: number | null;
+  competency: { name: string; group_name: string | null } | null;
 };
 
 type AppraisalHeaderRow = {
@@ -138,6 +169,13 @@ export async function getAppraisalDetail(
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
 
+  const { data: compRatings, error: compErr } = await supabase
+    .from("appraisal_competency_ratings")
+    .select("self_rating, mgr_rating, panel_rating, competency:competencies(name, group_name)")
+    .eq("appraisal_cycle_id", cycleId)
+    .eq("quarter", quarter);
+  if (compErr) throw compErr;
+
   // Cast: same pragmatic workaround used for the rpc() call in scorecards.ts.
   const { data: canCaptureData } = await (
     supabase.rpc as unknown as (
@@ -158,6 +196,41 @@ export async function getAppraisalDetail(
         .map((r) => r.quarter)
     )
   )].sort((a, b) => a - b);
+
+  // 80/20 KPA-to-competencies split, matching the client's reference app default.
+  const KPA_WEIGHT = 0.8;
+  const COMP_WEIGHT = 0.2;
+
+  const kpaItems = kpiRows
+    .map((k) => {
+      const result = (k.appraisal_ratings ?? []).find((r) => r.quarter === quarter);
+      if (result?.na) return null; // N/A-flagged KPIs drop out of the applicable pool entirely
+      const rating = result
+        ? finalRating(result.self_rating, result.mgr_rating, result.panel_rating)
+        : null;
+      const weight = k.weight ? Number(k.weight) : 0;
+      return { rating, weight };
+    })
+    .filter((i): i is { rating: number | null; weight: number } => i !== null);
+  const kpaPartial = weightedScore(kpaItems);
+
+  const compRows = (compRatings ?? []) as unknown as CompetencyRatingRow[];
+  const compPartial = simpleScore(
+    compRows.map((c) => finalRating(c.self_rating, c.mgr_rating, c.panel_rating))
+  );
+
+  const overall = overallScore(kpaPartial.score, compPartial.score, KPA_WEIGHT, COMP_WEIGHT);
+
+  const assessment: AssessmentSummary = {
+    kpa: { ...kpaPartial, weightPct: KPA_WEIGHT * 100 },
+    competencies: { ...compPartial, weightPct: COMP_WEIGHT * 100 },
+    overall: {
+      score: overall,
+      band: bandOf(overall),
+      percentOfStandard: percentOfStandard(overall),
+      bonus: bonusEligibility(overall),
+    },
+  };
 
   const rows: AppraisalKpi[] = kpiRows
     .map((k) => {
@@ -201,5 +274,6 @@ export async function getAppraisalDetail(
     canCapture: Boolean(canCaptureData),
     kpis: rows,
     quartersNeedingReview,
+    assessment,
   };
 }

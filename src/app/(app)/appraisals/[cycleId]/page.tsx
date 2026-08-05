@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAppraisalDetail, friendlyAppraisalActual } from "@/lib/data/appraisals";
 import { AppraisalCaptureCard } from "./AppraisalCaptureCard";
+import { AssessmentSummary } from "./AssessmentSummaryCards";
 
 export default async function AppraisalDetailPage({
   params,
@@ -53,6 +54,8 @@ export default async function AppraisalDetailPage({
           ))}
         </div>
       </div>
+
+      <AssessmentSummary assessment={detail.assessment} />
 
       {!detail.canCapture && (
         <p className="rounded-md bg-blue-bg px-3 py-2 text-sm font-medium text-blue">
