@@ -3,7 +3,7 @@ import { getSdbipDashboard } from "@/lib/data/sdbip-dashboard";
 import { getScorecardsList } from "@/lib/data/scorecards";
 import type { Period } from "@/lib/data/sdbip-status";
 import { STATUS_META } from "@/lib/data/sdbip-status";
-import { DonutChart, StatusBar, QuarterTrend } from "./DashboardCharts";
+import { DonutChart, BigStat, StatusBar, QuarterTrend } from "./DashboardCharts";
 import { ScorecardPicker } from "./ScorecardPicker";
 
 const PERIOD_OPTIONS: { key: string; label: string; period: Period }[] = [
@@ -88,15 +88,13 @@ export default async function ScorecardsDashboardPage({
                   ? "Annual"
                   : `Q${activeOption.period}`}
             </div>
-            <div className="flex flex-wrap items-center gap-8">
-              <div className="flex items-center gap-6">
-                <DonutChart tally={dashboard.tally} pctAchieved={dashboard.pctAchieved} />
-                <div className="max-w-xs">
-                  <div className="text-sm text-white/70">of reportable targets achieved</div>
-                  <div className="mt-2">
-                    <StatusBar tally={dashboard.tally} dark />
-                  </div>
-                </div>
+            <div className="flex flex-wrap items-center gap-x-10 gap-y-6">
+              <div className="flex items-center gap-4">
+                <DonutChart tally={dashboard.tally} />
+                <BigStat pctAchieved={dashboard.pctAchieved} caption="of reportable targets achieved" dark />
+              </div>
+              <div className="min-w-[260px] flex-1">
+                <StatusBar tally={dashboard.tally} dark />
               </div>
               <div>
                 <div className="mb-2 text-xs font-bold uppercase tracking-wide text-white/60">

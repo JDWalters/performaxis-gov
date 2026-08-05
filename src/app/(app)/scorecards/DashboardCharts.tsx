@@ -13,8 +13,13 @@ function total(t: StatusTally): number {
   return ORDER.reduce((sum, s) => sum + t[s], 0);
 }
 
-/** 5-segment conic-gradient donut with a center label, matching the reference dashboard's summary chart. */
-export function DonutChart({ tally, pctAchieved }: { tally: StatusTally; pctAchieved: number | null }) {
+/**
+ * 5-segment conic-gradient donut - a plain ring, no text inside. Matches the
+ * client reference's approach of keeping the donut as a compact visual
+ * indicator and putting the actual percentage next to it as its own big,
+ * bold callout (see BigStat below) instead of squeezing it into the hole.
+ */
+export function DonutChart({ tally }: { tally: StatusTally }) {
   const t = total(tally);
   let acc = 0;
   const stops =
@@ -28,10 +33,20 @@ export function DonutChart({ tally, pctAchieved }: { tally: StatusTally; pctAchi
         }).join(", ");
 
   return (
-    <div className="relative h-36 w-36 flex-none rounded-full" style={{ background: `conic-gradient(${stops})` }}>
-      <div className="absolute inset-[14%] flex flex-col items-center justify-center rounded-full bg-white text-center">
-        <span className="text-2xl font-extrabold text-ink">{pctAchieved ?? "—"}%</span>
+    <div className="relative h-24 w-24 flex-none rounded-full" style={{ background: `conic-gradient(${stops})` }}>
+      <div className="absolute inset-[18%] rounded-full bg-white" />
+    </div>
+  );
+}
+
+/** The big, high-contrast percentage callout that sits beside the donut. */
+export function BigStat({ pctAchieved, caption, dark = false }: { pctAchieved: number | null; caption: string; dark?: boolean }) {
+  return (
+    <div>
+      <div className={`text-4xl font-extrabold leading-none sm:text-5xl ${dark ? "text-white" : "text-ink"}`}>
+        {pctAchieved ?? "—"}%
       </div>
+      <div className={`mt-1.5 text-sm ${dark ? "text-white/70" : "text-ink2"}`}>{caption}</div>
     </div>
   );
 }
@@ -48,8 +63,10 @@ export function StatusBar({
 }) {
   const t = total(tally);
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className={`flex h-2 w-full overflow-hidden rounded-full ${dark ? "bg-white/10" : "bg-paper"}`}>
+    <div className="flex flex-col gap-2">
+      <div
+        className={`flex w-full overflow-hidden rounded-full ${compact ? "h-2" : "h-3"} ${dark ? "bg-white/10" : "bg-paper"}`}
+      >
         {t === 0 ? (
           <div className="h-full w-full" style={{ background: COLOR_VAR.pending }} />
         ) : (
@@ -62,11 +79,11 @@ export function StatusBar({
       </div>
       {!compact && (
         <div
-          className={`flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-medium ${dark ? "text-white/90" : "text-ink2"}`}
+          className={`flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-medium sm:text-sm ${dark ? "text-white/90" : "text-ink2"}`}
         >
           {ORDER.map((s) => (
-            <span key={s} className="flex items-center gap-1">
-              <span className="h-2 w-2 rounded-full" style={{ background: COLOR_VAR[s] }} />
+            <span key={s} className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 flex-none rounded-full" style={{ background: COLOR_VAR[s] }} />
               {STATUS_META[s].label} {tally[s]}
             </span>
           ))}
