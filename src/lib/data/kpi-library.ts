@@ -17,6 +17,16 @@ export async function getDepartmentOrgs(): Promise<DepartmentOrg[]> {
   return (data ?? []) as DepartmentOrg[];
 }
 
+/** Every distinct KPA name already in use, for the KPI form's KPA dropdown - avoids typo'd near-duplicates like "BSD" vs "B.S.D.". */
+export async function getDistinctKpas(): Promise<string[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("kpi_library").select("kpa").not("kpa", "is", null);
+  if (error) throw error;
+  const rows = (data ?? []) as unknown as { kpa: string | null }[];
+  const values = new Set(rows.map((r) => r.kpa).filter((v): v is string => !!v && v.trim() !== ""));
+  return [...values].sort((a, b) => a.localeCompare(b));
+}
+
 export type KpiLibraryItem = {
   id: string;
   orgId: string;

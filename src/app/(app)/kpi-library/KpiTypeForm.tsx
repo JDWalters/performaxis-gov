@@ -19,14 +19,23 @@ const LABEL_CLASS = "flex flex-col gap-1 text-xs font-semibold text-ink2";
 export function KpiTypeForm({
   initial,
   departments,
+  kpas,
 }: {
   initial: KpiLibraryItem | null;
   departments: DepartmentOrg[];
+  kpas: string[];
 }) {
   const [orgId, setOrgId] = useState(initial?.orgId ?? departments[0]?.id ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [kpa, setKpa] = useState(initial?.kpa ?? "");
+  // "select" picks from KPAs already in use (avoids typo'd near-duplicates);
+  // "new" reveals a free-text field for a genuinely new KPA. Default to
+  // "new" only when there's nothing to pick from yet, or the existing entry's
+  // KPA isn't in the known list (legacy free-text value).
+  const [kpaMode, setKpaMode] = useState<"select" | "new">(
+    kpas.length === 0 || (initial?.kpa && !kpas.includes(initial.kpa)) ? "new" : "select"
+  );
   const [idpRef, setIdpRef] = useState(initial?.idpRef ?? "");
   const [unitOfMeasure, setUnitOfMeasure] = useState(initial?.unitOfMeasure ?? "");
   const [targetType, setTargetType] = useState(initial?.targetType ?? "stand-alone");
@@ -93,12 +102,52 @@ export function KpiTypeForm({
             <div className="grid grid-cols-2 gap-3">
               <label className={LABEL_CLASS}>
                 KPA
-                <input
-                  name="kpa"
-                  value={kpa}
-                  onChange={(e) => setKpa(e.target.value)}
-                  className={FIELD_CLASS}
-                />
+                {kpaMode === "select" ? (
+                  <select
+                    name="kpa"
+                    value={kpa}
+                    onChange={(e) => {
+                      if (e.target.value === "__new__") {
+                        setKpaMode("new");
+                        setKpa("");
+                      } else {
+                        setKpa(e.target.value);
+                      }
+                    }}
+                    className={FIELD_CLASS}
+                  >
+                    <option value="">— Select —</option>
+                    {kpas.map((k) => (
+                      <option key={k} value={k}>
+                        {k}
+                      </option>
+                    ))}
+                    <option value="__new__">+ Add new KPA…</option>
+                  </select>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <input
+                      name="kpa"
+                      value={kpa}
+                      onChange={(e) => setKpa(e.target.value)}
+                      placeholder="New KPA name"
+                      className={FIELD_CLASS}
+                      autoFocus
+                    />
+                    {kpas.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setKpaMode("select");
+                          setKpa("");
+                        }}
+                        className="flex-none text-xs font-semibold text-ink2 hover:text-ink hover:underline"
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+                )}
               </label>
               <label className={LABEL_CLASS}>
                 IDP reference
