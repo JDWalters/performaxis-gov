@@ -3,18 +3,31 @@ import type { KpiCalc } from "@/lib/data/kpi-calc-shared";
 
 export type { KpiCalc } from "@/lib/data/kpi-calc-shared";
 
-export type DepartmentOrg = { id: string; name: string };
+export type DepartmentOrg = { id: string; name: string; municipalityName: string | null };
 
-/** The 5 Kopanong departments - the only orgs a policy writer assigns a KPI type to. */
+type DepartmentOrgRow = { id: string; name: string; parent: { name: string } | null };
+
+/**
+ * Every department a policy writer can assign a KPI type to, across every
+ * municipality the caller can see (RLS-scoped via has_any_org_access, same
+ * as everywhere else). Includes the parent municipality's name so the
+ * dropdown stays unambiguous once a second municipality's departments
+ * exist - "Financial Services" alone was fine with only Kopanong on the
+ * platform, but won't be once there's a second one.
+ */
 export async function getDepartmentOrgs(): Promise<DepartmentOrg[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("orgs")
-    .select("id, name")
+    .select("id, name, parent:parent_id(name)")
     .eq("kind", "department")
     .order("name");
   if (error) throw error;
-  return (data ?? []) as DepartmentOrg[];
+
+  const rows = (data ?? []) as unknown as DepartmentOrgRow[];
+  return rows
+    .map((r) => ({ id: r.id, name: r.name, municipalityName: r.parent?.name ?? null }))
+    .sort((a, b) => (a.municipalityName ?? "").localeCompare(b.municipalityName ?? "") || a.name.localeCompare(b.name));
 }
 
 /** Every distinct KPA name already in use, for the KPI form's KPA dropdown - avoids typo'd near-duplicates like "BSD" vs "B.S.D.". */

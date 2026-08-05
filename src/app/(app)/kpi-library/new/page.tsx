@@ -2,8 +2,12 @@ import Link from "next/link";
 import { getDepartmentOrgs, getDistinctKpas } from "@/lib/data/kpi-library";
 import { KpiTypeForm } from "../KpiTypeForm";
 
-export default async function NewKpiLibraryPage() {
-  const [departments, kpas] = await Promise.all([getDepartmentOrgs(), getDistinctKpas()]);
+export default async function NewKpiLibraryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}) {
+  const [{ org }, departments, kpas] = await Promise.all([searchParams, getDepartmentOrgs(), getDistinctKpas()]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -13,7 +17,7 @@ export default async function NewKpiLibraryPage() {
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">New KPI type</h1>
       </div>
-      <KpiTypeForm initial={null} departments={departments} kpas={kpas} />
+      <KpiTypeForm initial={null} departments={departments} kpas={kpas} defaultOrgId={org} />
     </div>
   );
 }

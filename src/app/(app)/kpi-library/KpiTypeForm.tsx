@@ -20,12 +20,14 @@ export function KpiTypeForm({
   initial,
   departments,
   kpas,
+  defaultOrgId,
 }: {
   initial: KpiLibraryItem | null;
   departments: DepartmentOrg[];
   kpas: string[];
+  defaultOrgId?: string;
 }) {
-  const [orgId, setOrgId] = useState(initial?.orgId ?? departments[0]?.id ?? "");
+  const [orgId, setOrgId] = useState(initial?.orgId ?? defaultOrgId ?? departments[0]?.id ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [description, setDescription] = useState(initial?.description ?? "");
   const [kpa, setKpa] = useState(initial?.kpa ?? "");
@@ -75,6 +77,7 @@ export function KpiTypeForm({
                 {departments.map((d) => (
                   <option key={d.id} value={d.id}>
                     {d.name}
+                    {d.municipalityName ? ` — ${d.municipalityName}` : ""}
                   </option>
                 ))}
               </select>
