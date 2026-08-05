@@ -67,15 +67,36 @@ export function overallScore(
 }
 
 export type ScoreBand = { label: string; tagClass: string };
+export type RatingScaleTerm = { r: number; term: string };
 
-/** 5-tier performance band on a 1-5 rating scale. */
-export function bandOf(score: number | null): ScoreBand | null {
+// Matches the seeded policy_templates row ("SA Municipal (MSA/MFMA)").
+// Fetched live from the database where possible - these are just the fallback
+// if that policy config is ever missing, so the app never breaks silently.
+export const DEFAULT_RATING_SCALE: RatingScaleTerm[] = [
+  { r: 5, term: "Outstanding performance" },
+  { r: 4, term: "Significantly above expectations" },
+  { r: 3, term: "Fully effective" },
+  { r: 2, term: "Not fully effective" },
+  { r: 1, term: "Unacceptable performance" },
+];
+
+const BAND_TAG_CLASS: Record<number, string> = {
+  5: "stag-blue",
+  4: "stag-met",
+  3: "stag-okk",
+  2: "stag-almost",
+  1: "stag-missed",
+};
+
+/** 5-tier performance band on a 1-5 rating scale, using the org's configured rating-scale terminology. */
+export function bandOf(
+  score: number | null,
+  scale: RatingScaleTerm[] = DEFAULT_RATING_SCALE
+): ScoreBand | null {
   if (score == null) return null;
-  if (score >= 4.5) return { label: "Outstanding", tagClass: "stag-blue" };
-  if (score >= 3.5) return { label: "Significantly above expectations", tagClass: "stag-met" };
-  if (score >= 2.5) return { label: "Fully effective", tagClass: "stag-okk" };
-  if (score >= 1.5) return { label: "Not fully effective", tagClass: "stag-almost" };
-  return { label: "Unacceptable", tagClass: "stag-missed" };
+  const tier = score >= 4.5 ? 5 : score >= 3.5 ? 4 : score >= 2.5 ? 3 : score >= 1.5 ? 2 : 1;
+  const term = scale.find((s) => s.r === tier)?.term ?? DEFAULT_RATING_SCALE[5 - tier].term;
+  return { label: term, tagClass: BAND_TAG_CLASS[tier] };
 }
 
 /** Score expressed as a % of standard (3/5 = 100% of standard). */
@@ -84,13 +105,22 @@ export function percentOfStandard(score: number | null): number | null {
   return (score / 3) * 100;
 }
 
+export type BonusBand = { from: number; to: number; pay: string };
 export type BonusEligibility = { range: string } | null;
 
-/** Bonus-eligibility band from % of standard - null when not eligible. */
-export function bonusEligibility(score: number | null): BonusEligibility {
+// Matches the seeded policy_templates row.
+export const DEFAULT_BONUS_BANDS: BonusBand[] = [
+  { from: 130, to: 149, pay: "5% - 9%" },
+  { from: 150, to: 9999, pay: "10% - 14%" },
+];
+
+/** Bonus-eligibility band from % of standard, using the org's configured bands - null when not eligible. */
+export function bonusEligibility(
+  score: number | null,
+  bands: BonusBand[] = DEFAULT_BONUS_BANDS
+): BonusEligibility {
   const pct = percentOfStandard(score);
   if (pct == null) return null;
-  if (pct >= 150) return { range: "10–14%" };
-  if (pct >= 130) return { range: "5–9%" };
-  return null;
+  const hit = [...bands].sort((a, b) => b.from - a.from).find((b) => pct >= b.from && pct <= b.to);
+  return hit ? { range: hit.pay } : null;
 }

@@ -31,27 +31,37 @@ export default async function AppraisalDetailPage({
             {detail.orgName} · {detail.fyLabel}
           </div>
         </div>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4].map((qq) => (
-            <Link
-              key={qq}
-              href={`/appraisals/${cycleId}?q=${qq}`}
-              prefetch={false}
-              className={`relative rounded-md px-3 py-1.5 text-xs font-bold ${
-                qq === quarter
-                  ? "bg-ink text-white"
-                  : "border border-line bg-white text-ink2 hover:border-ink"
-              }`}
-            >
-              Q{qq}
-              {detail.quartersNeedingReview.includes(qq) && (
-                <span
-                  className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold"
-                  title="Has items needing review"
-                />
-              )}
-            </Link>
-          ))}
+        <div className="flex flex-wrap items-start gap-2">
+          <div className="flex gap-1">
+            {[1, 2, 3, 4].map((qq) => (
+              <Link
+                key={qq}
+                href={`/appraisals/${cycleId}?q=${qq}`}
+                prefetch={false}
+                className={`relative rounded-md px-3 py-1.5 text-xs font-bold ${
+                  qq === quarter
+                    ? "bg-ink text-white"
+                    : "border border-line bg-white text-ink2 hover:border-ink"
+                }`}
+              >
+                Q{qq}
+                {detail.quartersNeedingReview.includes(qq) && (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-gold"
+                    title="Has items needing review"
+                  />
+                )}
+              </Link>
+            ))}
+          </div>
+          <a
+            href={`/appraisals/${cycleId}/agreement`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink hover:text-ink"
+          >
+            Print Performance Agreement ↗
+          </a>
         </div>
       </div>
 

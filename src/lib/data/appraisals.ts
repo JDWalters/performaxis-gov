@@ -13,6 +13,7 @@ import {
   type BonusEligibility,
   type PartialScore,
 } from "@/lib/data/appraisal-scoring";
+import { getPolicyConfig } from "@/lib/data/policy";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -176,6 +177,8 @@ export async function getAppraisalDetail(
     .eq("quarter", quarter);
   if (compErr) throw compErr;
 
+  const policy = await getPolicyConfig();
+
   // Cast: same pragmatic workaround used for the rpc() call in scorecards.ts.
   const { data: canCaptureData } = await (
     supabase.rpc as unknown as (
@@ -197,9 +200,8 @@ export async function getAppraisalDetail(
     )
   )].sort((a, b) => a - b);
 
-  // 80/20 KPA-to-competencies split, matching the client's reference app default.
-  const KPA_WEIGHT = 0.8;
-  const COMP_WEIGHT = 0.2;
+  const KPA_WEIGHT = policy.kpaWeight / 100;
+  const COMP_WEIGHT = policy.competencyWeight / 100;
 
   const kpaItems = kpiRows
     .map((k) => {
@@ -226,9 +228,9 @@ export async function getAppraisalDetail(
     competencies: { ...compPartial, weightPct: COMP_WEIGHT * 100 },
     overall: {
       score: overall,
-      band: bandOf(overall),
+      band: bandOf(overall, policy.ratingScale),
       percentOfStandard: percentOfStandard(overall),
-      bonus: bonusEligibility(overall),
+      bonus: bonusEligibility(overall, policy.bonusBands),
     },
   };
 
