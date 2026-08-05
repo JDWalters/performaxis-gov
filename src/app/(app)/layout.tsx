@@ -2,13 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyMemberships, getMyProfile } from "@/lib/data/access";
+import { getManageableScopes } from "@/lib/data/users";
 import { signOut } from "./actions";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getMyProfile();
   if (!me?.user) redirect("/login");
 
-  const memberships = await getMyMemberships();
+  const [memberships, manageableScopes] = await Promise.all([getMyMemberships(), getManageableScopes()]);
+  const canManageUsers = manageableScopes.length > 0;
 
   return (
     <div className="flex min-h-screen">
@@ -53,6 +55,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           >
             KPI Type Generator
           </Link>
+          {canManageUsers && (
+            <Link
+              href="/users"
+              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              Manage Users
+            </Link>
+          )}
         </nav>
 
         <div className="flex-none border-t border-white/10 p-4">
