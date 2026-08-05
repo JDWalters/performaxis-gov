@@ -119,6 +119,43 @@ export function effectiveValue(actuals: (string | null)[], q: number, acc: Accum
   return parseNum(actuals[q]).num;
 }
 
+export type Trend = "improving" | "declining" | "unchanged" | "insufficient";
+
+export const TREND_META: Record<Trend, { label: string; icon: string; className: string }> = {
+  improving: { label: "improving", icon: "▲", className: "text-met" },
+  declining: { label: "declining", icon: "▼", className: "text-missed" },
+  unchanged: { label: "unchanged", icon: "—", className: "text-ink2" },
+  insufficient: { label: "insufficient data", icon: "—", className: "text-ink2" },
+};
+
+// Ordinal ranking of the 5 status tiers, used to compare two quarters'
+// achievement direction-aware (a lower-is-better KPI's statusFor() already
+// flips blue/met/almost/missed to the correct side, so ranking the tier
+// itself - rather than the raw captured number - keeps "improving" meaning
+// "moved toward a better tier" for both higher- and lower-is-better KPIs).
+const STATUS_RANK: Record<Status, number | null> = { blue: 3, met: 2, almost: 1, missed: 0, pending: null };
+
+/**
+ * Trend direction from a sequence of quarterly values (already in
+ * "higher is better" terms - either a plain percentage, or a status tier
+ * rank). Compares the last two non-null entries in the sequence, skipping
+ * gaps (e.g. Q1/Q2 blank, Q3/Q4 captured compares Q3 vs Q4). Needs at least
+ * two reportable points, otherwise "insufficient".
+ */
+export function trendOf(values: (number | null)[]): Trend {
+  const pts = values.filter((v): v is number => v !== null);
+  if (pts.length < 2) return "insufficient";
+  const [prev, curr] = pts.slice(-2);
+  if (curr > prev) return "improving";
+  if (curr < prev) return "declining";
+  return "unchanged";
+}
+
+/** Trend across a sequence of quarterly statuses, using tier rank (direction-aware for lower-is-better KPIs). */
+export function trendOfStatuses(statuses: Status[]): Trend {
+  return trendOf(statuses.map((s) => STATUS_RANK[s]));
+}
+
 export type Period = 1 | 2 | 3 | 4 | "mid" | "annual";
 
 /**

@@ -67,14 +67,16 @@ type ScorecardRow = { id: string; org: { id: string; name: string; code: string 
 
 // Standard SA municipal SDBIP reporting order: MM's office, then Finance,
 // Corporate, Technical, Community - not alphabetical. Falls back to
-// alphabetical for any department code outside this fixed list.
-const DEPARTMENT_ORDER = ["OMM", "FMS", "CRS", "TS", "CMS"];
-function departmentSortKey(code: string | null): number {
+// alphabetical for any department code outside this fixed list. Exported so
+// other rollup views (e.g. performance-progress.ts) sort departments the
+// same way instead of re-deriving this ordering.
+export const DEPARTMENT_ORDER = ["OMM", "FMS", "CRS", "TS", "CMS"];
+export function departmentSortKey(code: string | null): number {
   const i = code ? DEPARTMENT_ORDER.indexOf(code) : -1;
   return i === -1 ? DEPARTMENT_ORDER.length : i;
 }
 
-function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: (r: R) => T, fallback: T): T[] {
+export function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: (r: R) => T, fallback: T): T[] {
   return [1, 2, 3, 4].map((q) => {
     const row = rows.find((r) => r.quarter === q);
     return row ? pick(row) : fallback;
