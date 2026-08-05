@@ -13,17 +13,17 @@ export type ManageableScope = { orgId: string; orgName: string };
 export async function getManageableScopes(): Promise<ManageableScope[]> {
   const supabase = await createClient();
   const memberships = await getMyMemberships();
-  // Cast: same pragmatic workaround used elsewhere for has_org_access - the
-  // generic rpc() overload doesn't always resolve cleanly against the
-  // generated Functions map across postgrest-js versions.
-  const hasOrgAccess = supabase.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: boolean | null }>;
 
   const scopes: ManageableScope[] = [];
   for (const m of memberships) {
-    const { data } = await hasOrgAccess("has_org_access", {
+    // Cast: same pragmatic workaround used elsewhere for has_org_access - the
+    // generic rpc() overload doesn't always resolve cleanly against the
+    // generated Functions map across postgrest-js versions. Must stay a
+    // single member-expression call (not assigned to a variable first) so
+    // `rpc`'s internal `this` binding to the supabase client is preserved.
+    const { data } = await (
+      supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>
+    )("has_org_access", {
       required_permission: "manage_users",
       target_org_id: m.org_id,
     });

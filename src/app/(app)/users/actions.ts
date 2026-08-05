@@ -34,12 +34,15 @@ export async function inviteUser(formData: FormData) {
 
   // Cast: same pragmatic workaround used elsewhere for has_org_access - the
   // generic rpc() overload doesn't always resolve cleanly against the
-  // generated Functions map across postgrest-js versions.
-  const hasOrgAccess = supabase.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: boolean | null; error: { message: string } | null }>;
-  const { data: allowed, error: accessErr } = await hasOrgAccess("has_org_access", {
+  // generated Functions map across postgrest-js versions. Must stay a
+  // single member-expression call (not assigned to a variable first) so
+  // `rpc`'s internal `this` binding to the supabase client is preserved.
+  const { data: allowed, error: accessErr } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{ data: boolean | null; error: { message: string } | null }>
+  )("has_org_access", {
     required_permission: "manage_users",
     target_org_id: orgId,
   });

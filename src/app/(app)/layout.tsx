@@ -9,7 +9,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const me = await getMyProfile();
   if (!me?.user) redirect("/login");
 
-  const [memberships, manageableScopes] = await Promise.all([getMyMemberships(), getManageableScopes()]);
+  // getManageableScopes() only decides whether to show one nav link - a bug
+  // in it should never be able to take down every page in the app, so any
+  // failure here just hides the link instead of crashing the layout.
+  const [memberships, manageableScopes] = await Promise.all([
+    getMyMemberships(),
+    getManageableScopes().catch(() => []),
+  ]);
   const canManageUsers = manageableScopes.length > 0;
 
   return (
