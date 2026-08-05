@@ -2,11 +2,23 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { saveKpiResult } from "../actions";
-import { friendlyActual, kpiNeedsReview, type CaptureKpi } from "@/lib/data/scorecards-shared";
+import {
+  computeCalcResult,
+  friendlyActual,
+  kpiNeedsReview,
+  type CaptureKpi,
+} from "@/lib/data/scorecards-shared";
+import { statusFor } from "@/lib/data/sdbip-status";
 import { NeedsReviewBanner } from "@/components/NeedsReviewBanner";
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
+// Separate (non-composed) variant for required-but-empty fields, so we never
+// mix conflicting border-color utilities (border-line + border-missed) in one
+// className string - Tailwind's cascade order there isn't guaranteed to match
+// class-list order, so the two must be mutually exclusive strings instead.
+const FIELD_CLASS_REQUIRED =
+  "rounded-md border border-missed bg-missed-bg/30 px-3 py-1.5 text-sm text-ink outline-none focus:border-missed focus:ring-2 focus:ring-missed/20";
 const LABEL_CLASS = "flex flex-col gap-1 text-xs font-semibold text-ink2";
 const DEBOUNCE_MS = 900;
 
@@ -52,6 +64,7 @@ export function KpiCaptureCard({
   const [correctiveAction, setCorrectiveAction] = useState(kpi.result?.correctiveAction ?? "");
 
   const [status, setStatus] = useState<SaveStatus>("idle");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -112,6 +125,18 @@ export function KpiCaptureCard({
 
   const currentLabel = friendlyActual(kpi);
   const flagged = kpiNeedsReview(kpi);
+
+  // Live "target not met" check - recomputed from whatever's currently typed
+  // (not just the last-saved actual), so the required-fields warning reacts
+  // immediately as the capturer fills in the form, before the debounced save
+  // even fires.
+  const liveGet = (key: string): string =>
+    ({ answer, rating, value, numerator, denominator, a, b, c, actual: fallbackActual })[key] ?? "";
+  const liveActual = computeCalcResult(calc, liveGet).actual;
+  const liveStatus = liveActual ? statusFor(liveActual, kpi.target, kpi.lower) : "pending";
+  const notMet = liveStatus === "missed" || liveStatus === "almost";
+  const commentMissing = notMet && !comment.trim();
+  const correctiveMissing = notMet && !correctiveAction.trim();
 
   return (
     <div className="flex flex-col gap-3">
@@ -289,9 +314,25 @@ export function KpiCaptureCard({
         </label>
       ) : null}
 
-      <details className="group">
-        <summary className="cursor-pointer text-xs font-semibold text-ink2 group-open:text-ink">
+      {notMet && (
+        <div className="rounded-md border border-missed bg-missed-bg px-3 py-1.5 text-xs font-semibold text-missed">
+          Target not met — Performance Comment and Corrective Action below are required before this result is
+          complete.
+        </div>
+      )}
+
+      <details
+        open={detailsOpen || commentMissing || correctiveMissing}
+        onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
+        className={`group rounded-lg ${notMet ? "border border-missed bg-missed-bg/40 p-2" : ""}`}
+      >
+        <summary
+          className={`cursor-pointer text-xs font-semibold ${
+            notMet ? "text-missed" : "text-ink2 group-open:text-ink"
+          }`}
+        >
           Evidence, comment &amp; corrective action
+          {notMet && <span className="ml-1 font-bold">— required</span>}
         </summary>
         <div className="mt-2 flex flex-col gap-2">
           <label className={LABEL_CLASS}>
@@ -308,30 +349,36 @@ export function KpiCaptureCard({
             />
           </label>
           <label className={LABEL_CLASS}>
-            Comment
+            Comment {notMet && <span className="text-missed">*</span>}
             <textarea
               value={comment}
               rows={2}
+              required={notMet}
               onChange={(e) => {
                 setComment(e.target.value);
                 scheduleSave({ comment: e.target.value });
               }}
               onBlur={() => saveNow({ comment })}
-              className={FIELD_CLASS}
+              className={commentMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
             />
+            {commentMissing && <span className="text-[11px] font-semibold text-missed">Required — target not met</span>}
           </label>
           <label className={LABEL_CLASS}>
-            Corrective action
+            Corrective action {notMet && <span className="text-missed">*</span>}
             <textarea
               value={correctiveAction}
               rows={2}
+              required={notMet}
               onChange={(e) => {
                 setCorrectiveAction(e.target.value);
                 scheduleSave({ correctiveAction: e.target.value });
               }}
               onBlur={() => saveNow({ correctiveAction })}
-              className={FIELD_CLASS}
+              className={correctiveMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
             />
+            {correctiveMissing && (
+              <span className="text-[11px] font-semibold text-missed">Required — target not met</span>
+            )}
           </label>
         </div>
       </details>

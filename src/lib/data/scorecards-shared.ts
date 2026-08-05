@@ -23,6 +23,7 @@ export type CaptureKpi = {
   unitOfMeasure: string | null;
   targetType: string;
   target: string | null;
+  lower: boolean;
   calc: KpiCalc | null;
   result: {
     actual: string | null;

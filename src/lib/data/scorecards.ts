@@ -104,7 +104,7 @@ type ScorecardKpiRow = {
   kpa: string | null;
   unit_of_measure: string | null;
   target_type: string;
-  kpi_library: { calc_config: { calc?: KpiCalc } | null } | null;
+  kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
     quarter: number;
@@ -181,6 +181,7 @@ export async function getScorecardDetail(
         unitOfMeasure: k.unit_of_measure,
         targetType: k.target_type,
         target: target?.target_value ?? null,
+        lower: k.kpi_library?.calc_config?.lower ?? false,
         calc: k.kpi_library?.calc_config?.calc ?? null,
         result: result
           ? {
