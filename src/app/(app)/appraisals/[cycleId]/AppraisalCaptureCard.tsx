@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { saveKpiResult } from "../actions";
-import { friendlyActual, type CaptureKpi } from "@/lib/data/scorecards-shared";
+import { saveAppraisalResult } from "../actions";
+import { friendlyAppraisalActual, type AppraisalKpi } from "@/lib/data/appraisals-shared";
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
@@ -20,19 +20,19 @@ function StatusPill({ status }: { status: SaveStatus }) {
 }
 
 /**
- * Autosaving capture card for one KPI's quarter result. Replaces the old
- * per-KPI Save button - fields save themselves (debounced while typing,
- * immediately on Yes/No selection) so capturers aren't clicking Save dozens
- * of times per department per quarter.
+ * Autosaving capture card for one appraisal KPI's quarter result. Mirrors
+ * scorecards/[id]/KpiCaptureCard.tsx exactly (same 5-type calc engine), plus
+ * a read-only strip showing self/manager/panel ratings when present - those
+ * come from a separate multi-rater sign-off workflow this form doesn't edit.
  */
-export function KpiCaptureCard({
+export function AppraisalCaptureCard({
   kpi,
   quarter,
-  scorecardId,
+  cycleId,
 }: {
-  kpi: CaptureKpi;
+  kpi: AppraisalKpi;
   quarter: number;
-  scorecardId: string;
+  cycleId: string;
 }) {
   const calc = kpi.calc;
   const inputs = kpi.result?.inputs ?? {};
@@ -64,8 +64,8 @@ export function KpiCaptureCard({
 
   function doSave(overrides: Record<string, string>) {
     const fd = new FormData();
-    fd.set("scorecardId", scorecardId);
-    fd.set("scorecardKpiId", kpi.id);
+    fd.set("cycleId", cycleId);
+    fd.set("appraisalKpiId", kpi.id);
     fd.set("quarter", String(quarter));
     const all: Record<string, string> = {
       answer,
@@ -87,7 +87,7 @@ export function KpiCaptureCard({
     setStatus("saving");
     startTransition(async () => {
       try {
-        await saveKpiResult(fd);
+        await saveAppraisalResult(fd);
         setStatus("saved");
         if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
         savedTimeoutRef.current = setTimeout(() => setStatus("idle"), 3000);
@@ -97,19 +97,23 @@ export function KpiCaptureCard({
     });
   }
 
-  /** Debounced save for text/numeric fields - waits for a pause in typing. */
   function scheduleSave(overrides: Record<string, string>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => doSave(overrides), DEBOUNCE_MS);
   }
 
-  /** Immediate save - used for discrete choices (Yes/No) and on blur. */
   function saveNow(overrides: Record<string, string>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     doSave(overrides);
   }
 
-  const currentLabel = friendlyActual(kpi);
+  const currentLabel = friendlyAppraisalActual(kpi);
+  const ratings = [
+    ["Self", kpi.result?.selfRating],
+    ["Manager", kpi.result?.mgrRating],
+    ["Panel", kpi.result?.panelRating],
+  ] as const;
+  const hasRatings = ratings.some(([, v]) => v != null);
 
   return (
     <div className="flex flex-col gap-3">
@@ -284,6 +288,19 @@ export function KpiCaptureCard({
           </div>
         </label>
       ) : null}
+
+      {hasRatings && (
+        <div className="flex flex-wrap items-center gap-3 rounded-md bg-paper px-3 py-2 text-xs text-ink2">
+          <span className="font-bold uppercase tracking-wide">Sign-off ratings</span>
+          {ratings.map(([label, v]) =>
+            v != null ? (
+              <span key={label}>
+                {label}: <span className="font-semibold text-ink">{v}/5</span>
+              </span>
+            ) : null
+          )}
+        </div>
+      )}
 
       <details className="group">
         <summary className="cursor-pointer text-xs font-semibold text-ink2 group-open:text-ink">

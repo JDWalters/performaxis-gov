@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyMemberships, getMyProfile } from "@/lib/data/access";
 import { signOut } from "./actions";
@@ -21,18 +22,30 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 p-2">
-          <a
+          <Link
             href="/dashboard"
             className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
           >
             Dashboard
-          </a>
-          <a
+          </Link>
+          <Link
             href="/scorecards"
             className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
           >
             SDBIP Scorecards
-          </a>
+          </Link>
+          <Link
+            href="/appraisals"
+            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            EPAS Appraisals
+          </Link>
+          <Link
+            href="/kpi-library"
+            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            KPI Type Generator
+          </Link>
         </nav>
 
         <div className="border-t border-white/10 p-4">
