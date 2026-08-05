@@ -2,7 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { friendlyActual, type CaptureKpi } from "@/lib/data/scorecards-shared";
+import { parseNum, statusFor, STATUS_META } from "@/lib/data/sdbip-status";
 import { KpiCaptureCard } from "./KpiCaptureCard";
+
+/** True when a real (non-N/A, non-blank) target exists for this quarter. */
+function hasTargetSet(target: string | null): boolean {
+  const t = parseNum(target);
+  return !t.na && t.num !== null;
+}
 
 /**
  * Wraps the KPI capture list with a client-side search box (by ref code,
@@ -46,32 +53,47 @@ export function KpiListWithSearch({
       {filtered.length === 0 ? (
         <p className="text-sm text-ink2">No KPIs match &quot;{q}&quot;.</p>
       ) : (
-        filtered.map((kpi) => (
-          <div key={kpi.id} className="rounded-xl border border-line bg-white p-4">
-            <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  {kpi.refCode && <span className="stag stag-pending text-[10px]">{kpi.refCode}</span>}
-                  {kpi.kpa && (
-                    <span className="text-[11px] font-bold uppercase tracking-wide text-ink2">{kpi.kpa}</span>
-                  )}
-                </div>
-                <div className="mt-1 break-words text-sm font-semibold text-ink">{kpi.name}</div>
-                {kpi.unitOfMeasure && <div className="mt-0.5 text-xs text-ink2">{kpi.unitOfMeasure}</div>}
-              </div>
-              <div className="flex-none text-xs text-ink2 sm:text-right">
-                <div className="font-bold uppercase tracking-wide">Q{quarter} target</div>
-                <div className="mt-0.5 font-mono text-sm text-ink">{kpi.target ?? "—"}</div>
-              </div>
-            </div>
+        filtered.map((kpi) => {
+          const hasTarget = hasTargetSet(kpi.target);
+          const savedStatus = hasTarget
+            ? statusFor(kpi.result?.actual, kpi.target, kpi.lower)
+            : "pending";
 
-            {canCapture ? (
-              <KpiCaptureCard kpi={kpi} quarter={quarter} scorecardId={scorecardId} />
-            ) : (
-              <div className="text-sm text-ink">{friendlyActual(kpi) ?? "No result captured yet."}</div>
-            )}
-          </div>
-        ))
+          return (
+            <div key={kpi.id} className="rounded-xl border border-line bg-white p-4">
+              <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {kpi.refCode && <span className="stag stag-pending text-[10px]">{kpi.refCode}</span>}
+                    {kpi.kpa && (
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-ink2">{kpi.kpa}</span>
+                    )}
+                  </div>
+                  <div className="mt-1 break-words text-sm font-semibold text-ink">{kpi.name}</div>
+                  {kpi.unitOfMeasure && <div className="mt-0.5 text-xs text-ink2">{kpi.unitOfMeasure}</div>}
+                </div>
+                <div className="flex flex-none items-center gap-2 text-xs text-ink2 sm:text-right">
+                  <span>
+                    Target Q{quarter}: <span className="font-mono font-bold text-ink">{kpi.target ?? "N/A"}</span>
+                  </span>
+                  <span className={`stag ${STATUS_META[savedStatus].tagClass} text-[10px]`}>
+                    {STATUS_META[savedStatus].label}
+                  </span>
+                </div>
+              </div>
+
+              {!hasTarget ? (
+                <div className="rounded-md bg-paper px-3 py-2 text-sm text-ink2">
+                  No target set for Q{quarter} — nothing to capture this quarter.
+                </div>
+              ) : canCapture ? (
+                <KpiCaptureCard kpi={kpi} quarter={quarter} scorecardId={scorecardId} />
+              ) : (
+                <div className="text-sm text-ink">{friendlyActual(kpi) ?? "No result captured yet."}</div>
+              )}
+            </div>
+          );
+        })
       )}
     </div>
   );
