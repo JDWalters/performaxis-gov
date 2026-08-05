@@ -1,4 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
+import type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
+
+export type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
+export { friendlyActual } from "@/lib/data/scorecards-shared";
 
 /**
  * Natural sort for ref codes like "FMS2" / "FMS11" / "CMS5.1" - plain string
@@ -59,39 +63,6 @@ export async function getScorecardsList(): Promise<ScorecardListItem[]> {
     }))
     .sort((a, b) => a.orgName.localeCompare(b.orgName));
 }
-
-/**
- * Mirrors the "calc" object inside kpi_library.calc_config, migrated from the
- * legacy SDBIP register. Drives which capture inputs the form shows instead of
- * one free-text box for every KPI, e.g. a Yes/No selector for "yesno" KPIs
- * rather than someone typing "1 (Achieved)".
- */
-export type KpiCalc = {
-  type: "yesno" | "single" | "ratio" | "three" | string;
-  labels?: string[];
-  x100?: boolean;
-  den?: number;
-  unit?: string;
-  formula?: string;
-};
-
-export type CaptureKpi = {
-  id: string;
-  refCode: string | null;
-  name: string;
-  kpa: string | null;
-  unitOfMeasure: string | null;
-  targetType: string;
-  target: string | null;
-  calc: KpiCalc | null;
-  result: {
-    actual: string | null;
-    inputs: Record<string, unknown>;
-    evidenceUrl: string | null;
-    comment: string | null;
-    correctiveAction: string | null;
-  } | null;
-};
 
 export type ScorecardDetail = {
   scorecardId: string;
