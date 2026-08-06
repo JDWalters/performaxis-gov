@@ -124,22 +124,83 @@ export async function deleteCompetency(formData: FormData) {
   revalidatePath("/epas-setup");
 }
 
-/** Wipes and re-seeds the 12 prescribed competencies for one municipality - matches the reference tool's "Restore the 12 prescribed competencies" button. */
+/**
+ * Restores the 12 prescribed competencies for one municipality - matches
+ * the reference tool's "Restore the 12 prescribed competencies" button.
+ *
+ * This used to hard-delete every competency for the org and reinsert the 12
+ * prescribed ones from scratch. That's unsafe once any assessment ratings
+ * have actually been captured (appraisal_competency_ratings.competency_id
+ * has no ON DELETE CASCADE, by design, so we never silently lose rating
+ * history) - the delete would fail outright with a foreign-key violation,
+ * which is exactly the 500 this was throwing once Kopanong had real ratings
+ * against its competencies. Instead this matches existing rows to the
+ * prescribed list by name (case-insensitively, since old seed data used
+ * different casing), updates them in place, inserts any that are missing,
+ * and only ever deletes a leftover non-prescribed competency if nothing has
+ * been rated against it yet.
+ */
 export async function resetCompetencies(formData: FormData) {
   const orgId = str(formData, "orgId");
   if (!orgId) throw new Error("Missing municipality.");
 
   const supabase = await createClient();
-  const { error: delErr } = await supabase.from("competencies").delete().eq("org_id", orgId);
-  if (delErr) throw delErr;
 
-  const table = supabase.from("competencies") as unknown as {
+  const { data: existingData, error: existingErr } = await supabase
+    .from("competencies")
+    .select("id, name, group_name")
+    .eq("org_id", orgId);
+  if (existingErr) throw existingErr;
+  const existing = (existingData ?? []) as unknown as { id: string; name: string; group_name: string | null }[];
+
+  const byLowerName = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c] as const));
+
+  const updateTable = supabase.from("competencies") as unknown as {
+    update: (values: Record<string, unknown>) => {
+      eq: (col: string, val: string) => Promise<{ error: { message: string } | null }>;
+    };
+  };
+  const insertTable = supabase.from("competencies") as unknown as {
     insert: (rows: Record<string, unknown>[]) => Promise<{ error: { message: string } | null }>;
   };
-  const { error } = await table.insert(
-    PRESCRIBED_COMPETENCIES.map((c) => ({ org_id: orgId, name: c.name, group_name: c.groupName }))
-  );
-  if (error) throw error;
+
+  const toInsert: Record<string, unknown>[] = [];
+  for (const c of PRESCRIBED_COMPETENCIES) {
+    const key = c.name.trim().toLowerCase();
+    const match = byLowerName.get(key);
+    if (match) {
+      if (match.name !== c.name || match.group_name !== c.groupName) {
+        const { error } = await updateTable.update({ name: c.name, group_name: c.groupName }).eq("id", match.id);
+        if (error) throw error;
+      }
+      byLowerName.delete(key);
+    } else {
+      toInsert.push({ org_id: orgId, name: c.name, group_name: c.groupName });
+    }
+  }
+  if (toInsert.length) {
+    const { error } = await insertTable.insert(toInsert);
+    if (error) throw error;
+  }
+
+  // Whatever's left in byLowerName is a competency outside the prescribed
+  // 12 (a stray "New competency" row, a typo'd one, etc.) - remove it only
+  // if it has zero captured ratings.
+  const leftoverIds = [...byLowerName.values()].map((c) => c.id);
+  if (leftoverIds.length) {
+    const { data: ratedRowsData } = await supabase
+      .from("appraisal_competency_ratings")
+      .select("competency_id")
+      .in("competency_id", leftoverIds);
+    const ratedIds = new Set(
+      ((ratedRowsData ?? []) as unknown as { competency_id: string }[]).map((r) => r.competency_id)
+    );
+    const deletable = leftoverIds.filter((id) => !ratedIds.has(id));
+    if (deletable.length) {
+      const { error } = await supabase.from("competencies").delete().in("id", deletable);
+      if (error) throw error;
+    }
+  }
 
   revalidatePath("/epas-setup");
 }
