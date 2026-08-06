@@ -168,6 +168,7 @@ export type Database = {
           poe: string | null
           unit_of_measure: string | null
           weight: number
+          weight_locked: boolean
         }
         Insert: {
           annual_target?: string | null
@@ -181,6 +182,7 @@ export type Database = {
           poe?: string | null
           unit_of_measure?: string | null
           weight?: number
+          weight_locked?: boolean
         }
         Update: {
           annual_target?: string | null
@@ -194,6 +196,7 @@ export type Database = {
           poe?: string | null
           unit_of_measure?: string | null
           weight?: number
+          weight_locked?: boolean
         }
         Relationships: [
           {

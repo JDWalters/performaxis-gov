@@ -124,3 +124,63 @@ export function bonusEligibility(
   const hit = [...bands].sort((a, b) => b.from - a.from).find((b) => pct >= b.from && pct <= b.to);
   return hit ? { range: hit.pay } : null;
 }
+
+/**
+ * Weight auto-balancing for the Annexure A KPI builder - ported directly
+ * from the reference tool's balanceWeights()/scaleWeightsTo100(). A KPI
+ * whose weight was explicitly typed by the plan author is "locked" (pinned)
+ * and kept exactly as entered; every unlocked KPI shares whatever's left
+ * over equally, so the weight column always totals 100% without the author
+ * having to do the arithmetic themselves.
+ */
+export type WeightKpi = { id: string; weight: number; weightLocked: boolean };
+
+/** Returns each KPI's id mapped to its balanced weight - locked KPIs pass through unchanged, unlocked ones split the remainder equally. */
+export function balanceWeights(kpis: WeightKpi[]): Map<string, number> {
+  const result = new Map<string, number>();
+  if (!kpis.length) return result;
+
+  const free = kpis.filter((k) => !k.weightLocked);
+  const used = kpis.filter((k) => k.weightLocked).reduce((sum, k) => sum + (k.weight || 0), 0);
+
+  if (!free.length) {
+    // Everything pinned - leave it alone (a hand-captured plan can sit away from 100% until "Scale to 100%" is used).
+    for (const k of kpis) result.set(k.id, k.weight);
+    return result;
+  }
+
+  let left = Math.round((100 - used) * 100) / 100;
+  if (left < 0) left = 0;
+  const each = Math.round((left / free.length) * 100) / 100;
+  let acc = 0;
+  free.forEach((k, i) => {
+    const v = i === free.length - 1 ? Math.round((left - acc) * 100) / 100 : each;
+    acc = Math.round((acc + each) * 100) / 100;
+    result.set(k.id, v);
+  });
+  for (const k of kpis) if (!result.has(k.id)) result.set(k.id, k.weight);
+  return result;
+}
+
+/** Scales every KPI's weight proportionally so the column totals 100%, preserving relative importance - used when every weight is pinned and the total has drifted away from 100%. */
+export function scaleWeightsTo100(kpis: WeightKpi[]): Map<string, number> {
+  const result = new Map<string, number>();
+  const total = Math.round(kpis.reduce((sum, k) => sum + (k.weight || 0), 0) * 100) / 100;
+  if (!kpis.length || !total || Math.abs(total - 100) < 0.01) {
+    for (const k of kpis) result.set(k.id, k.weight);
+    return result;
+  }
+  const f = 100 / total;
+  let acc = 0;
+  kpis.forEach((k, i) => {
+    const v = i === kpis.length - 1 ? Math.round((100 - acc) * 100) / 100 : Math.round((k.weight || 0) * f * 100) / 100;
+    acc = Math.round((acc + v) * 100) / 100;
+    result.set(k.id, v);
+  });
+  return result;
+}
+
+/** Even split: unlocks and equally weights every KPI - matches the reference's "Even split" button. */
+export function evenSplitWeights(kpis: WeightKpi[]): Map<string, number> {
+  return balanceWeights(kpis.map((k) => ({ ...k, weightLocked: false })));
+}
