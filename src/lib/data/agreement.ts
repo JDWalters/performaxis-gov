@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getPolicyConfig, type PolicyConfig } from "@/lib/data/policy";
+import { getPolicyConfig, defaultReviewDate, REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
 import type { Tables } from "@/lib/supabase/types";
 
 type EmployeeRole = Tables<"employees">["role"];
@@ -21,11 +21,22 @@ export type AgreementCompetency = {
   drivingText: string | null;
 };
 
+export type ReviewScheduleRow = {
+  quarter: number;
+  reviewType: string;
+  dueDate: string;
+};
+
 export type AgreementData = {
   cycleId: string;
   municipalityName: string;
+  /** The org this agreement's municipality-wide template fields (place/day/month, review dates) belong to - null if it couldn't be resolved. */
+  municipalityOrgId: string | null;
+  /** has_org_access(municipalityOrgId, 'manage_org_setup') - gates the inline "Agreement details" panel on the interactive page. */
+  canEditAgreementTemplate: boolean;
   fyLabel: string;
   fyStartYear: number | null;
+  reviewSchedule: ReviewScheduleRow[];
   employee: {
     name: string;
     position: string | null;
@@ -138,6 +149,23 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
 
   const policy = await getPolicyConfig(municipalityOrgId);
 
+  const { data: canEditTemplateData } = municipalityOrgId
+    ? await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>
+        ) => Promise<{ data: boolean | null }>
+      )("has_org_access", { target_org_id: municipalityOrgId, required_permission: "manage_org_setup" })
+    : { data: false };
+  const canEditAgreementTemplate = Boolean(canEditTemplateData);
+
+  const fyStartYear = header.financial_year?.start_year ?? null;
+  const reviewSchedule: ReviewScheduleRow[] = [0, 1, 2, 3].map((qi) => ({
+    quarter: qi + 1,
+    reviewType: REVIEW_TYPE[qi],
+    dueDate: policy.reviewDates[qi] || (fyStartYear != null ? defaultReviewDate(fyStartYear, qi as 0 | 1 | 2 | 3) : "—"),
+  }));
+
   const { data: agreementRow } = await supabase
     .from("agreements")
     .select("employee_signatory, employer_signatory, sign_place, sign_date, status")
@@ -201,8 +229,11 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   return {
     cycleId: header.id,
     municipalityName,
+    municipalityOrgId,
+    canEditAgreementTemplate,
     fyLabel: header.financial_year?.label ?? "—",
-    fyStartYear: header.financial_year?.start_year ?? null,
+    fyStartYear,
+    reviewSchedule,
     employee: {
       name: header.employee.name,
       position: header.employee.position,

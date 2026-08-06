@@ -22,10 +22,35 @@ export type PolicyConfig = {
   mayorName: string | null;
   /** The Municipal Manager's name, as it should appear as "Employer" on a Director's (Section 56) agreement. */
   mmName: string | null;
-  /** Pre-fill hints only (not the actual signed values, which live per-employee in `agreements`). */
+  /**
+   * These three feed the actual legal text of the unsigned agreement
+   * ("signed at {place} on the {day} day of {month/year}") - every employee's
+   * agreement uses the same municipality-wide values, exactly like the
+   * reference tool's S.cfg.signPlace/signDay/signMonth. They are distinct
+   * from the per-employee `agreements` table, which records who *actually*
+   * signed and when.
+   */
   signPlaceDefault: string | null;
+  signDayDefault: string | null;
   signMonthDefault: string | null;
+  /** Q1-Q4 review-due month/year, inserted into the agreement's clause 7 schedule - reference's S.cfg.revDates. Null entries fall back to a computed default (see defaultReviewDate below). */
+  reviewDates: [string | null, string | null, string | null, string | null];
 };
+
+export const REVIEW_TYPE = [
+  "Informal assessment",
+  "Mid-year panel assessment",
+  "Informal assessment",
+  "Year-end panel assessment",
+] as const;
+
+const REVIEW_DUE_MONTH = ["December", "March", "June", "September"] as const;
+
+/** The reference's defaultRevDate(fy,q): Q1 falls in the FY's start year, Q2-Q4 in the following year. */
+export function defaultReviewDate(fyStartYear: number, quarterIndex: 0 | 1 | 2 | 3): string {
+  const year = quarterIndex === 0 ? fyStartYear : fyStartYear + 1;
+  return `${REVIEW_DUE_MONTH[quarterIndex]} ${year}`;
+}
 
 const FALLBACK: PolicyConfig = {
   templateId: null,
@@ -39,7 +64,9 @@ const FALLBACK: PolicyConfig = {
   mayorName: null,
   mmName: null,
   signPlaceDefault: null,
+  signDayDefault: null,
   signMonthDefault: null,
+  reviewDates: [null, null, null, null],
 };
 
 type PolicyConfigJson = Partial<{
@@ -52,7 +79,9 @@ type PolicyConfigJson = Partial<{
   mayorName: string;
   mmName: string;
   signPlaceDefault: string;
+  signDayDefault: string;
   signMonthDefault: string;
+  reviewDates: [string | null, string | null, string | null, string | null];
 }>;
 
 /**
@@ -116,6 +145,8 @@ export async function getPolicyConfig(municipalityOrgId: string | null): Promise
     mayorName: config.mayorName ?? null,
     mmName: config.mmName ?? null,
     signPlaceDefault: config.signPlaceDefault ?? null,
+    signDayDefault: config.signDayDefault ?? null,
     signMonthDefault: config.signMonthDefault ?? null,
+    reviewDates: config.reviewDates?.length === 4 ? config.reviewDates : [null, null, null, null],
   };
 }

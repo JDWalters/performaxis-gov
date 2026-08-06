@@ -3,11 +3,13 @@ import { notFound } from "next/navigation";
 import { getAppraisalDetail, friendlyAppraisalActual } from "@/lib/data/appraisals";
 import { getAnnexureData } from "@/lib/data/annexure";
 import { getPdpData } from "@/lib/data/pdp";
+import { getAgreementData } from "@/lib/data/agreement";
 import { AppraisalCaptureCard } from "./AppraisalCaptureCard";
 import { AssessmentSummary } from "./AssessmentSummaryCards";
 import { AnnexureEditor } from "./AnnexureEditor";
 import { AssessmentRatingsPanel } from "./AssessmentRatingsPanel";
 import { AgreementSignaturePanel } from "./AgreementSignaturePanel";
+import { AgreementDetailsPanel } from "./AgreementDetailsPanel";
 import { PdpEditor } from "./PdpEditor";
 
 export default async function AppraisalDetailPage({
@@ -28,6 +30,7 @@ export default async function AppraisalDetailPage({
   if (!detail) notFound();
 
   const annexure = isAnnexureView ? await getAnnexureData(cycleId) : null;
+  const agreement = isAnnexureView ? await getAgreementData(cycleId) : null;
   const pdp = isPdpView ? await getPdpData(cycleId) : null;
 
   return (
@@ -146,6 +149,18 @@ export default async function AppraisalDetailPage({
               canSignAsEmployer={annexure.canSignAsEmployer}
               canSignAsEmployee={annexure.canSignAsEmployee}
             />
+            {agreement && (
+              <AgreementDetailsPanel
+                cycleId={annexure.cycleId}
+                municipalityOrgId={agreement.municipalityOrgId}
+                canEdit={agreement.canEditAgreementTemplate}
+                signPlaceDefault={agreement.policy.signPlaceDefault}
+                signDayDefault={agreement.policy.signDayDefault}
+                signMonthDefault={agreement.policy.signMonthDefault}
+                reviewSchedule={agreement.reviewSchedule}
+                reviewDates={agreement.policy.reviewDates}
+              />
+            )}
           </>
         ) : (
           <p className="text-sm text-ink2">Couldn&apos;t load the performance plan.</p>

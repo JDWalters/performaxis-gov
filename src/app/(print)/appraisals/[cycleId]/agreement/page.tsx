@@ -66,21 +66,32 @@ table.pt tr:nth-child(even) td { background: #fbfbfb; }
 @media print { .printbar { display: none; } }
 `;
 
-export default async function AgreementPage({ params }: { params: Promise<{ cycleId: string }> }) {
+export default async function AgreementPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ cycleId: string }>;
+  searchParams: Promise<{ embed?: string }>;
+}) {
   const { cycleId } = await params;
+  const { embed } = await searchParams;
+  const isEmbed = embed === "1";
   const data = await getAgreementData(cycleId);
   if (!data) notFound();
 
   const { kpaWeight, competencyWeight, ratingScale, bonusBands } = data.policy;
+  const { signPlaceDefault, signDayDefault, signMonthDefault } = data.policy;
 
   return (
     <div className="agdoc">
       <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
-      <AutoPrint />
+      {!isEmbed && <AutoPrint />}
 
-      <div className="printbar">
-        <PrintButton />
-      </div>
+      {!isEmbed && (
+        <div className="printbar">
+          <PrintButton />
+        </div>
+      )}
 
       <table className="pgwrap">
         <tbody>
@@ -136,6 +147,14 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                   <tr>
                     <td className="k">Applicable agreement</td>
                     <td>{data.agreementSection} — {data.employee.role === "MM" ? "Municipal Manager" : "Manager accountable to the MM"}</td>
+                  </tr>
+                  <tr>
+                    <td className="k">Concluded</td>
+                    <td>
+                      Signed at <b>{signPlaceDefault || "________________"}</b> on the{" "}
+                      <b>{signDayDefault || "______"}</b> day of{" "}
+                      <b>{signMonthDefault || `July ${data.fyStartYear ?? ""}`}</b>
+                    </td>
                   </tr>
                   <tr>
                     <td className="k">Weighting</td>
@@ -235,21 +254,23 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                 ))}
               </div>
 
-              <div className="agtitle">Review schedule</div>
+              <div className="agtitle">Review schedule (clause 7)</div>
               <table className="pt">
                 <thead>
                   <tr>
                     <th>Quarter</th>
                     <th>Review period</th>
                     <th>Review type</th>
+                    <th>Due by</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {[1, 2, 3, 4].map((q) => (
-                    <tr key={q}>
-                      <td>Q{q}</td>
-                      <td>{quarterWindow(data.fyStartYear, q)}</td>
-                      <td>{q === 2 || q === 4 ? "Formal assessment" : "Informal assessment"}</td>
+                  {data.reviewSchedule.map((r) => (
+                    <tr key={r.quarter}>
+                      <td>Q{r.quarter}</td>
+                      <td>{quarterWindow(data.fyStartYear, r.quarter)}</td>
+                      <td>{r.reviewType}</td>
+                      <td>{r.dueDate}</td>
                     </tr>
                   ))}
                 </tbody>
