@@ -57,7 +57,7 @@ tr, th, td { page-break-inside: avoid; }
 
 .c { text-align: center; }
 table.pt { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 9pt; }
-table.pt th { background: #eef1f1; color: #17313a; font-weight: 700; text-align: left; padding: 5px 6px; border: 0.5pt solid #d8e0dd; font-size: 8.5pt; }
+table.pt th { background: #f0dfae; color: #17313a; font-weight: 800; text-align: left; padding: 6px 6px; border: 0.5pt solid #d8b25a; font-size: 9.5pt; white-space: nowrap; }
 table.pt td { padding: 5px 6px; border: 0.5pt solid #d8e0dd; vertical-align: top; }
 table.pt tr:nth-child(even) td { background: #fbfbfb; }
 table.pt tr.pt-total td { background: #fdf6ea; font-weight: 700; }
