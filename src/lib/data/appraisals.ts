@@ -25,6 +25,7 @@ export type AppraisalListItem = {
   cycleId: string;
   employeeName: string;
   position: string | null;
+  orgId: string | null;
   orgName: string;
   fyLabel: string;
   kpiCount: number;
@@ -33,7 +34,7 @@ export type AppraisalListItem = {
 
 type AppraisalListRow = {
   id: string;
-  employee: { name: string; position: string | null; org: { name: string } | null } | null;
+  employee: { name: string; position: string | null; org: { id: string; name: string } | null } | null;
   financial_year: { label: string } | null;
   appraisal_kpis: {
     id: string;
@@ -42,20 +43,25 @@ type AppraisalListRow = {
   }[];
 };
 
-/** Every appraisal cycle the signed-in user can see (RLS-scoped via has_employee_access). */
-export async function getAppraisalsList(): Promise<AppraisalListItem[]> {
+/**
+ * Every appraisal cycle the signed-in user can see (RLS-scoped via
+ * has_employee_access). `scopedOrgIds`, when given, further narrows this to
+ * the signed-in user's active viewing scope (see src/lib/data/scope.ts) - a
+ * display filter, not a security one.
+ */
+export async function getAppraisalsList(scopedOrgIds?: Set<string> | null): Promise<AppraisalListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee:employees(name, position, org:orgs(name)), financial_year:financial_years(label), appraisal_kpis(id, calc_config, appraisal_ratings(actual))"
+      "id, employee:employees(name, position, org:orgs(id, name)), financial_year:financial_years(label), appraisal_kpis(id, calc_config, appraisal_ratings(actual))"
     );
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as AppraisalListRow[];
 
   return rows
-    .filter((r) => r.employee)
+    .filter((r) => r.employee && (!scopedOrgIds || (r.employee.org && scopedOrgIds.has(r.employee.org.id))))
     .map((r) => {
       const kpis = r.appraisal_kpis ?? [];
       const needsReviewCount = kpis.reduce(
@@ -67,6 +73,7 @@ export async function getAppraisalsList(): Promise<AppraisalListItem[]> {
         cycleId: r.id,
         employeeName: r.employee!.name,
         position: r.employee!.position,
+        orgId: r.employee!.org?.id ?? null,
         orgName: r.employee!.org?.name ?? "—",
         fyLabel: r.financial_year?.label ?? "—",
         kpiCount: kpis.length,
@@ -516,9 +523,15 @@ type FinancialYearRow = { id: string; label: string; start_year: number };
  * summary report - the reference's buildOrg(). RLS on appraisal_cycles
  * already scopes this to whatever the signed-in user can see (their own
  * department and below), exactly like Performance Progress does, so no
- * separate access check is needed here.
+ * separate access check is needed here. `scopedOrgIds`, when given, further
+ * narrows this to the signed-in user's active viewing scope (see
+ * src/lib/data/scope.ts) - a display filter, not a security one.
  */
-export async function getOrgSummary(quarter: number, financialYearId?: string): Promise<OrgSummary | null> {
+export async function getOrgSummary(
+  quarter: number,
+  financialYearId?: string,
+  scopedOrgIds?: Set<string> | null
+): Promise<OrgSummary | null> {
   const supabase = await createClient();
 
   let fyId = financialYearId ?? null;
@@ -548,16 +561,20 @@ export async function getOrgSummary(quarter: number, financialYearId?: string): 
 
   const { data: cycles, error: cyclesErr } = await supabase
     .from("appraisal_cycles")
-    .select("id, employee:employees(name, position, org:orgs(name))")
+    .select("id, employee:employees(name, position, org:orgs(id, name))")
     .eq("financial_year_id", fyId);
   if (cyclesErr) throw cyclesErr;
 
-  type CycleRow = { id: string; employee: { name: string; position: string | null; org: { name: string } | null } | null };
+  type CycleRow = {
+    id: string;
+    employee: { name: string; position: string | null; org: { id: string; name: string } | null } | null;
+  };
   const cycleRows = (cycles ?? []) as unknown as CycleRow[];
 
   const rows: OrgSummaryRow[] = [];
   for (const c of cycleRows) {
     if (!c.employee) continue;
+    if (scopedOrgIds && (!c.employee.org || !scopedOrgIds.has(c.employee.org.id))) continue;
     const detail = await getAppraisalDetail(c.id, quarter);
     if (!detail) continue;
     rows.push({

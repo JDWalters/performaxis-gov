@@ -15,8 +15,13 @@ type EmployeeSelectRow = {
   org: { id: string; name: string; parent: { name: string } | null } | null;
 };
 
-/** Every employee the caller can see (RLS: manage_org_setup or view_appraisal_summary on the org, or their own record). */
-export async function getEmployees(): Promise<EmployeeRow[]> {
+/**
+ * Every employee the caller can see (RLS: manage_org_setup or
+ * view_appraisal_summary on the org, or their own record). `scopedOrgIds`,
+ * when given, further narrows this to the signed-in user's active viewing
+ * scope (see src/lib/data/scope.ts) - a display filter, not a security one.
+ */
+export async function getEmployees(scopedOrgIds?: Set<string> | null): Promise<EmployeeRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("employees")
@@ -26,7 +31,7 @@ export async function getEmployees(): Promise<EmployeeRow[]> {
 
   const rows = (data ?? []) as unknown as EmployeeSelectRow[];
   return rows
-    .filter((r) => r.org)
+    .filter((r) => r.org && (!scopedOrgIds || scopedOrgIds.has(r.org.id)))
     .map((r) => ({
       id: r.id,
       name: r.name,

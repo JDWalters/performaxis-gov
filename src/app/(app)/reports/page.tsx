@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { getAppraisalsList } from "@/lib/data/appraisals";
+import { getActiveScope } from "@/lib/data/scope";
+import { clearScope } from "@/app/(app)/scope-actions";
 
 /**
  * The reference tool's pageReports() - print/export cards per employee cycle
@@ -9,7 +11,8 @@ import { getAppraisalsList } from "@/lib/data/appraisals";
  * "Open" buttons.
  */
 export default async function ReportsPage() {
-  const appraisals = await getAppraisalsList();
+  const scope = await getActiveScope();
+  const appraisals = await getAppraisalsList(scope?.orgIds ?? null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -19,6 +22,21 @@ export default async function ReportsPage() {
           Print or save appraisal documents. Each opens in a new tab ready to print or save as PDF.
         </p>
       </div>
+
+      {scope && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-gold/40 bg-gold-bg px-3 py-2 text-sm font-semibold text-ink">
+          <span>
+            Viewing scope: <span className="text-gold">{scope.org.name}</span> and everything under it - the
+            org-wide summary below is scoped too
+          </span>
+          <form action={clearScope}>
+            <input type="hidden" name="returnTo" value="/reports" />
+            <button type="submit" className="ml-1 text-xs font-bold text-ink2 underline hover:text-ink">
+              Clear
+            </button>
+          </form>
+        </div>
+      )}
 
       <div className="rounded-xl border border-line bg-white p-4">
         <h2 className="mb-1 text-sm font-extrabold text-ink">Organisation-wide</h2>

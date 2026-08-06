@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { getOrgManageScopes } from "@/lib/data/orgs";
 import { getEmployees, ROLE_LABEL, reportsToLabel } from "@/lib/data/employees";
+import { getActiveScope } from "@/lib/data/scope";
+import { clearScope } from "@/app/(app)/scope-actions";
 import { ActiveToggle } from "./ActiveToggle";
 
 export default async function EmployeesPage() {
@@ -18,7 +20,8 @@ export default async function EmployeesPage() {
     );
   }
 
-  const employees = await getEmployees();
+  const scope = await getActiveScope();
+  const employees = await getEmployees(scope?.orgIds ?? null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -38,6 +41,20 @@ export default async function EmployeesPage() {
           + Add employee
         </Link>
       </div>
+
+      {scope && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-gold/40 bg-gold-bg px-3 py-2 text-sm font-semibold text-ink">
+          <span>
+            Viewing scope: <span className="text-gold">{scope.org.name}</span> and everything under it
+          </span>
+          <form action={clearScope}>
+            <input type="hidden" name="returnTo" value="/employees" />
+            <button type="submit" className="ml-1 text-xs font-bold text-ink2 underline hover:text-ink">
+              Clear
+            </button>
+          </form>
+        </div>
+      )}
 
       {employees.length === 0 ? (
         <p className="text-sm text-ink2">No employees yet.</p>

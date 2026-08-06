@@ -1,4 +1,5 @@
 import { getOrgSummary } from "@/lib/data/appraisals";
+import { getActiveScope } from "@/lib/data/scope";
 import { AutoPrint, PrintButton } from "@/app/(print)/_shared/PrintControls";
 
 function fmt2(n: number | null): string {
@@ -51,7 +52,10 @@ export default async function OrgSummaryReportPage({
 }) {
   const { q } = await searchParams;
   const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
-  const data = await getOrgSummary(quarter);
+  // Same viewing-scope cookie as the interactive app (see src/lib/data/scope.ts)
+  // - printing this in a new tab still respects whatever scope was active.
+  const scope = await getActiveScope();
+  const data = await getOrgSummary(quarter, undefined, scope?.orgIds ?? null);
 
   if (!data || data.rows.length === 0) {
     return (
@@ -80,6 +84,7 @@ export default async function OrgSummaryReportPage({
           <div className="ptitle">Organisational Performance Summary</div>
           <div className="psub">
             Q{quarter} · {data.fyLabel}
+            {scope ? ` · Scoped to ${scope.org.name}` : ""}
           </div>
           <div className="psub">Generated {new Date().toLocaleDateString("en-ZA")}</div>
         </div>

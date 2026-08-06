@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMyAccessibleOrgs } from "@/lib/data/access";
 import { getScorecardOverview, getAppraisalOverview } from "@/lib/data/dashboard";
+import { getActiveScope } from "@/lib/data/scope";
 import { OrgTree } from "@/components/OrgTree";
 
 async function getStats(orgIds: string[], deptOrgIds: string[]) {
@@ -51,14 +52,15 @@ function completionBadge(percent: number) {
 }
 
 export default async function DashboardPage() {
-  const orgs = await getMyAccessibleOrgs();
-  const orgIds = orgs.map((o) => o.id);
-  const deptOrgIds = orgs.filter((o) => o.kind === "department").map((o) => o.id);
+  const [orgs, scope] = await Promise.all([getMyAccessibleOrgs(), getActiveScope()]);
+  const scopedOrgs = scope ? orgs.filter((o) => scope.orgIds.has(o.id)) : orgs;
+  const orgIds = scopedOrgs.map((o) => o.id);
+  const deptOrgIds = scopedOrgs.filter((o) => o.kind === "department").map((o) => o.id);
 
   const [stats, scorecardOverview, appraisalOverview] = await Promise.all([
     getStats(orgIds, deptOrgIds),
-    getScorecardOverview(),
-    getAppraisalOverview(),
+    getScorecardOverview(scope?.orgIds ?? null),
+    getAppraisalOverview(scope?.orgIds ?? null),
   ]);
 
   const sdbipCompletion = pct(scorecardOverview.totalQ4Captured, scorecardOverview.totalKpis);
@@ -69,6 +71,14 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      {scope && (
+        <div className="flex items-center gap-2 rounded-md border border-gold/40 bg-gold-bg px-3 py-2 text-sm font-semibold text-ink">
+          <span>
+            Viewing scope: <span className="text-gold">{scope.org.name}</span> and everything under it
+          </span>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-4">
         <StatCard label="Municipalities in view" value={stats.municipalityCount} />
         <StatCard label="Departments in view" value={stats.departmentCount} />
@@ -167,10 +177,14 @@ export default async function DashboardPage() {
       </div>
 
       <div className="rounded-xl border border-line bg-white p-5">
-        <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-ink2">
+        <h2 className="mb-1 text-sm font-extrabold uppercase tracking-wide text-ink2">
           Organisations you can see
         </h2>
-        <OrgTree orgs={orgs} />
+        <p className="mb-3 text-xs text-ink2">
+          Click any row - national, provincial, district, municipality, or department - to scope every
+          number above to just that branch of the hierarchy.
+        </p>
+        <OrgTree orgs={orgs} activeScopeOrgId={scope?.org.id ?? null} returnTo="/dashboard" />
       </div>
     </div>
   );

@@ -32,8 +32,13 @@ type ScorecardRow = {
  * signed-in user can see (RLS-scoped via has_org_access), how many KPIs have a
  * genuine Q4 result captured. No snapshot table - computed on every request per the
  * schema design (small dataset, real-time rollups).
+ *
+ * `scopedOrgIds`, when given, further narrows the rollup to just those org ids
+ * (the signed-in user's active viewing scope - see src/lib/data/scope.ts).
+ * RLS already guarantees every id in that set is one the caller can see, so
+ * this is a pure display filter, not a security check.
  */
-export async function getScorecardOverview(): Promise<ScorecardOverview> {
+export async function getScorecardOverview(scopedOrgIds?: Set<string> | null): Promise<ScorecardOverview> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("scorecards")
@@ -43,7 +48,7 @@ export async function getScorecardOverview(): Promise<ScorecardOverview> {
   const rows = (data ?? []) as unknown as ScorecardRow[];
 
   const depts: DeptScorecardSummary[] = rows
-    .filter((r) => r.org)
+    .filter((r) => r.org && (!scopedOrgIds || scopedOrgIds.has(r.org.id)))
     .map((r) => {
       const kpis = r.scorecard_kpis ?? [];
       const q4Captured = kpis.filter((k) =>
@@ -89,7 +94,7 @@ type AppraisalCycleRow = {
     id: string;
     name: string;
     position: string | null;
-    org: { name: string } | null;
+    org: { id: string; name: string } | null;
   } | null;
   appraisal_kpis: {
     id: string;
@@ -102,20 +107,23 @@ type AppraisalCycleRow = {
  * user can see (RLS-scoped via has_employee_access), how many quarterly manager
  * ratings have been captured out of how many are expected, and the average manager
  * rating so far.
+ *
+ * `scopedOrgIds` narrows this further to the signed-in user's active viewing
+ * scope (see src/lib/data/scope.ts) - a display filter, not a security one.
  */
-export async function getAppraisalOverview(): Promise<AppraisalOverview> {
+export async function getAppraisalOverview(scopedOrgIds?: Set<string> | null): Promise<AppraisalOverview> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee:employees(id, name, position, org:orgs(name)), appraisal_kpis(id, appraisal_ratings(quarter, mgr_rating))"
+      "id, employee:employees(id, name, position, org:orgs(id, name)), appraisal_kpis(id, appraisal_ratings(quarter, mgr_rating))"
     );
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as AppraisalCycleRow[];
 
   const employees: EmployeeAppraisalSummary[] = rows
-    .filter((r) => r.employee)
+    .filter((r) => r.employee && (!scopedOrgIds || (r.employee.org && scopedOrgIds.has(r.employee.org.id))))
     .map((r) => {
       const kpis = r.appraisal_kpis ?? [];
       const allRatings = kpis.flatMap((k) => k.appraisal_ratings ?? []);

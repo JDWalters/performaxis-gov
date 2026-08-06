@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { getAppraisalsList } from "@/lib/data/appraisals";
+import { getActiveScope } from "@/lib/data/scope";
+import { clearScope } from "@/app/(app)/scope-actions";
 
 export default async function AppraisalsListPage() {
-  const appraisals = await getAppraisalsList();
+  const scope = await getActiveScope();
+  const appraisals = await getAppraisalsList(scope?.orgIds ?? null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -12,6 +15,20 @@ export default async function AppraisalsListPage() {
           Pick an employee&apos;s appraisal cycle to view or capture their quarterly KPI results.
         </p>
       </div>
+
+      {scope && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-gold/40 bg-gold-bg px-3 py-2 text-sm font-semibold text-ink">
+          <span>
+            Viewing scope: <span className="text-gold">{scope.org.name}</span> and everything under it
+          </span>
+          <form action={clearScope}>
+            <input type="hidden" name="returnTo" value="/appraisals" />
+            <button type="submit" className="ml-1 text-xs font-bold text-ink2 underline hover:text-ink">
+              Clear
+            </button>
+          </form>
+        </div>
+      )}
 
       {appraisals.length === 0 ? (
         <p className="text-sm text-ink2">No appraisal cycles in view yet.</p>
