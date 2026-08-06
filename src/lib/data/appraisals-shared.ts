@@ -25,6 +25,8 @@ export type AppraisalKpi = {
   annualTarget: string | null;
   poe: string | null;
   calc: KpiCalc | null;
+  /** This KPI's configured weight rebased to 100% among this quarter's applicable (non-N/A) KPIs - see kpiWeights() in appraisal-scoring.ts. */
+  effectiveWeightPct: number;
   result: {
     actual: string | null;
     inputs: Record<string, unknown>;

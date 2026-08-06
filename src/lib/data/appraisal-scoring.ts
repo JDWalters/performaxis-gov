@@ -184,3 +184,25 @@ export function scaleWeightsTo100(kpis: WeightKpi[]): Map<string, number> {
 export function evenSplitWeights(kpis: WeightKpi[]): Map<string, number> {
   return balanceWeights(kpis.map((k) => ({ ...k, weightLocked: false })));
 }
+
+/**
+ * Rebases each KPI's configured plan weight to 100% among only the KPIs
+ * applicable this quarter (N/A-flagged ones drop out entirely) - ported from
+ * the reference's kpiWeights(). This is a *display* figure showing each
+ * KPI's live contribution to the KPA Component score on the Assessments
+ * screen; the actual score math in weightedScore() above does the same
+ * rebasing internally and is the source of truth for the number itself.
+ */
+export function kpiWeights(kpis: { id: string; weight: number; na: boolean }[]): Map<string, number> {
+  const result = new Map<string, number>();
+  const applicable = kpis.filter((k) => !k.na);
+  const total = applicable.reduce((sum, k) => sum + (k.weight || 0), 0);
+  for (const k of kpis) {
+    if (k.na) {
+      result.set(k.id, 0);
+      continue;
+    }
+    result.set(k.id, total > 0 ? Math.round((k.weight / total) * 10000) / 100 : 0);
+  }
+  return result;
+}

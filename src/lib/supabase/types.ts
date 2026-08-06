@@ -14,6 +14,56 @@ export type Database = {
   }
   public: {
     Tables: {
+      appraisal_assessment_meta: {
+        Row: {
+          appraisal_cycle_id: string
+          assessment_date: string | null
+          assessment_type: string | null
+          chair_signature: string | null
+          employee_comments: string | null
+          employee_signature: string | null
+          employer_comments: string | null
+          id: string
+          panel_members: string | null
+          quarter: number
+          updated_at: string
+        }
+        Insert: {
+          appraisal_cycle_id: string
+          assessment_date?: string | null
+          assessment_type?: string | null
+          chair_signature?: string | null
+          employee_comments?: string | null
+          employee_signature?: string | null
+          employer_comments?: string | null
+          id?: string
+          panel_members?: string | null
+          quarter: number
+          updated_at?: string
+        }
+        Update: {
+          appraisal_cycle_id?: string
+          assessment_date?: string | null
+          assessment_type?: string | null
+          chair_signature?: string | null
+          employee_comments?: string | null
+          employee_signature?: string | null
+          employer_comments?: string | null
+          id?: string
+          panel_members?: string | null
+          quarter?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_assessment_meta_appraisal_cycle_id_fkey"
+            columns: ["appraisal_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agreements: {
         Row: {
           appraisal_cycle_id: string

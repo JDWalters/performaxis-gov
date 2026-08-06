@@ -9,11 +9,13 @@ import {
   bandOf,
   percentOfStandard,
   bonusEligibility,
+  kpiWeights,
   type ScoreBand,
   type BonusEligibility,
   type PartialScore,
 } from "@/lib/data/appraisal-scoring";
 import { getPolicyConfig, resolveMunicipalityOrgId } from "@/lib/data/policy";
+import { getCompetencies } from "@/lib/data/competencies";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -82,10 +84,46 @@ export type AppraisalDetail = {
   fyLabel: string;
   quarter: number;
   canCapture: boolean;
+  /** True only via org-level capture_appraisal_ratings (a real manager/admin) - the reference's canManagerRate(), gates the Manager and Panel rating columns. */
+  canManagerRate: boolean;
+  /** canManagerRate, OR the signed-in user holds an employee_only-scoped membership tied to this exact employee - the reference's canSelfAssess(). Gates the Self rating column. */
+  canSelfAssess: boolean;
   kpis: AppraisalKpi[];
   /** Quarters (1-4) with at least one legacy value that needs re-capturing - drives a dot on the quarter tabs. */
   quartersNeedingReview: number[];
   assessment: AssessmentSummary;
+  competencies: CompetencyAssessment[];
+  meta: AssessmentMeta;
+};
+
+export type CompetencyAssessment = {
+  id: string;
+  name: string;
+  groupName: string | null;
+  selfRating: number | null;
+  mgrRating: number | null;
+  panelRating: number | null;
+  comment: string | null;
+};
+
+export type AssessmentMeta = {
+  assessmentDate: string | null;
+  assessmentType: string | null;
+  panelMembers: string | null;
+  employerComments: string | null;
+  employeeComments: string | null;
+  employeeSignature: string | null;
+  chairSignature: string | null;
+};
+
+const BLANK_META: AssessmentMeta = {
+  assessmentDate: null,
+  assessmentType: null,
+  panelMembers: null,
+  employerComments: null,
+  employeeComments: null,
+  employeeSignature: null,
+  chairSignature: null,
 };
 
 export type AssessmentSummary = {
@@ -100,10 +138,22 @@ export type AssessmentSummary = {
 };
 
 type CompetencyRatingRow = {
+  competency_id: string;
   self_rating: number | null;
   mgr_rating: number | null;
   panel_rating: number | null;
+  comment: string | null;
   competency: { name: string; group_name: string | null } | null;
+};
+
+type AssessmentMetaRow = {
+  assessment_date: string | null;
+  assessment_type: string | null;
+  panel_members: string | null;
+  employer_comments: string | null;
+  employee_comments: string | null;
+  employee_signature: string | null;
+  chair_signature: string | null;
 };
 
 type AppraisalHeaderRow = {
@@ -174,10 +224,20 @@ export async function getAppraisalDetail(
 
   const { data: compRatings, error: compErr } = await supabase
     .from("appraisal_competency_ratings")
-    .select("self_rating, mgr_rating, panel_rating, competency:competencies(name, group_name)")
+    .select("competency_id, self_rating, mgr_rating, panel_rating, comment, competency:competencies(name, group_name)")
     .eq("appraisal_cycle_id", cycleId)
     .eq("quarter", quarter);
   if (compErr) throw compErr;
+
+  const { data: metaRow, error: metaErr } = await supabase
+    .from("appraisal_assessment_meta")
+    .select(
+      "assessment_date, assessment_type, panel_members, employer_comments, employee_comments, employee_signature, chair_signature"
+    )
+    .eq("appraisal_cycle_id", cycleId)
+    .eq("quarter", quarter)
+    .maybeSingle();
+  if (metaErr) throw metaErr;
 
   const policy = await getPolicyConfig(municipalityOrgId);
 
@@ -191,6 +251,38 @@ export async function getAppraisalDetail(
     target_employee_id: header.employee_id,
     required_permission: "capture_appraisal_ratings",
   });
+
+  // canManagerRate checks org-level access only (has_org_access), excluding
+  // an employee_only self-scoped membership - matches the reference's
+  // canManagerRate() = isAdmin(), strictly stronger than "can capture at
+  // all" (has_employee_access, used for canCapture above, also admits a
+  // self-scoped employee acting on their own record).
+  const { data: canManageData } = header.employee.org
+    ? await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>
+        ) => Promise<{ data: boolean | null }>
+      )("has_org_access", {
+        target_org_id: header.employee.org.id,
+        required_permission: "capture_appraisal_ratings",
+      })
+    : { data: false };
+  const canManagerRate = Boolean(canManageData);
+
+  // canSelfAssess = canManagerRate OR the signed-in user holds a direct
+  // membership tied to this exact employee (the employee's own self-service
+  // account) - matches the reference's canSelfAssess() = isAdmin() ||
+  // (isEmployee() && me.eid===eid). RLS on memberships only ever returns the
+  // caller's own row (or every row if they already have manage_users, in
+  // which case canManagerRate is already true anyway), so any row coming
+  // back here for this employee_id reliably means "this is me".
+  const { data: selfMembershipData } = await supabase
+    .from("memberships")
+    .select("id")
+    .eq("employee_id", header.employee_id)
+    .limit(1);
+  const canSelfAssess = canManagerRate || Boolean((selfMembershipData ?? []).length);
 
   const kpiRows = (kpis ?? []) as unknown as AppraisalKpiRow[];
 
@@ -223,6 +315,45 @@ export async function getAppraisalDetail(
     compRows.map((c) => finalRating(c.self_rating, c.mgr_rating, c.panel_rating))
   );
 
+  // Effective (rebased-to-100%-among-applicable) weight per KPI, purely for
+  // display on the Assessments/Ratings screen - the reference's kpiWeights().
+  const effWeights = kpiWeights(
+    kpiRows.map((k) => {
+      const result = (k.appraisal_ratings ?? []).find((r) => r.quarter === quarter);
+      return { id: k.id, weight: k.weight ? Number(k.weight) : 0, na: Boolean(result?.na) };
+    })
+  );
+
+  // The full competency framework for this municipality, left-joined with
+  // whatever ratings/comments have already been captured this quarter - so
+  // every competency shows up ready to rate, not just ones already touched.
+  const compFramework = municipalityOrgId ? await getCompetencies(municipalityOrgId) : [];
+  const competencies: CompetencyAssessment[] = compFramework.map((c) => {
+    const r = compRows.find((row) => row.competency_id === c.id);
+    return {
+      id: c.id,
+      name: c.name,
+      groupName: c.groupName,
+      selfRating: r?.self_rating ?? null,
+      mgrRating: r?.mgr_rating ?? null,
+      panelRating: r?.panel_rating ?? null,
+      comment: r?.comment ?? null,
+    };
+  });
+
+  const metaData = metaRow as unknown as AssessmentMetaRow | null;
+  const meta: AssessmentMeta = metaData
+    ? {
+        assessmentDate: metaData.assessment_date,
+        assessmentType: metaData.assessment_type,
+        panelMembers: metaData.panel_members,
+        employerComments: metaData.employer_comments,
+        employeeComments: metaData.employee_comments,
+        employeeSignature: metaData.employee_signature,
+        chairSignature: metaData.chair_signature,
+      }
+    : BLANK_META;
+
   const overall = overallScore(kpaPartial.score, compPartial.score, KPA_WEIGHT, COMP_WEIGHT);
 
   const assessment: AssessmentSummary = {
@@ -249,6 +380,7 @@ export async function getAppraisalDetail(
         annualTarget: k.annual_target,
         poe: k.poe,
         calc: k.calc_config?.calc ?? null,
+        effectiveWeightPct: effWeights.get(k.id) ?? 0,
         result: result
           ? {
               actual: result.actual,
@@ -276,8 +408,12 @@ export async function getAppraisalDetail(
     fyLabel: header.financial_year?.label ?? "—",
     quarter,
     canCapture: Boolean(canCaptureData),
+    canManagerRate,
+    canSelfAssess,
     kpis: rows,
     quartersNeedingReview,
     assessment,
+    competencies,
+    meta,
   };
 }

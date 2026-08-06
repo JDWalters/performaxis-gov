@@ -5,6 +5,7 @@ import { getAnnexureData } from "@/lib/data/annexure";
 import { AppraisalCaptureCard } from "./AppraisalCaptureCard";
 import { AssessmentSummary } from "./AssessmentSummaryCards";
 import { AnnexureEditor } from "./AnnexureEditor";
+import { AssessmentRatingsPanel } from "./AssessmentRatingsPanel";
 
 export default async function AppraisalDetailPage({
   params,
@@ -17,6 +18,7 @@ export default async function AppraisalDetailPage({
   const { q, view } = await searchParams;
   const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
   const isAnnexureView = view === "annexure";
+  const isRatingsView = view === "ratings";
 
   const detail = await getAppraisalDetail(cycleId, quarter);
   if (!detail) notFound();
@@ -77,10 +79,19 @@ export default async function AppraisalDetailPage({
           href={`/appraisals/${cycleId}?q=${quarter}`}
           prefetch={false}
           className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            !isAnnexureView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+            !isAnnexureView && !isRatingsView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
           }`}
         >
-          Assessment
+          Capture results
+        </Link>
+        <Link
+          href={`/appraisals/${cycleId}?view=ratings&q=${quarter}`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isRatingsView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Assessment ratings
         </Link>
         <Link
           href={`/appraisals/${cycleId}?view=annexure`}
@@ -106,6 +117,27 @@ export default async function AppraisalDetailPage({
         ) : (
           <p className="text-sm text-ink2">Couldn&apos;t load the performance plan.</p>
         )
+      ) : isRatingsView ? (
+        <>
+          <AssessmentSummary assessment={detail.assessment} />
+
+          {!detail.canManagerRate && !detail.canSelfAssess && (
+            <p className="rounded-md bg-blue-bg px-3 py-2 text-sm font-medium text-blue">
+              You have view-only access to this assessment.
+            </p>
+          )}
+
+          <AssessmentRatingsPanel
+            key={quarter}
+            cycleId={detail.cycleId}
+            quarter={quarter}
+            kpis={detail.kpis}
+            competencies={detail.competencies}
+            meta={detail.meta}
+            canManagerRate={detail.canManagerRate}
+            canSelfAssess={detail.canSelfAssess}
+          />
+        </>
       ) : (
         <>
           <AssessmentSummary assessment={detail.assessment} />
