@@ -80,6 +80,30 @@ export const DEFAULT_RATING_SCALE: RatingScaleTerm[] = [
   { r: 1, term: "Unacceptable performance" },
 ];
 
+/**
+ * Full regulatory rating-scale descriptions (Regulations on Appointment and
+ * Conditions of Employment of Senior Managers, 17 January 2014) - the
+ * paragraph text clauses 6.6 and 6.12 of the Performance Agreement quote in
+ * full. Keyed by rating tier (1-5 for KPIs, 2-5 for competencies) rather
+ * than by term, since a municipality can rename the term (see
+ * PolicyConfig.ratingScale) without the underlying regulatory description
+ * changing.
+ */
+export const KPI_RATING_DESCRIPTIONS: Record<number, string> = {
+  5: "Performance far exceeds the standard expected of an employee at this level. The appraisal indicates that the Employee has achieved above fully effective results against all performance criteria and indicators as specified in the Performance Plan and maintained this in all areas of responsibility throughout the year.",
+  4: "Performance is significantly higher than the standard expected in the job. The appraisal indicates that the Employee has achieved above fully effective results against more than half of the performance criteria and indicators and fully achieved all others throughout the year.",
+  3: "Performance fully meets the standards expected in all areas of the job. The appraisal indicates that the Employee has fully achieved effective results against all significant performance criteria and indicators as specified in the Performance Plan.",
+  2: "Performance is below the standard required for the job in key areas. Performance meets some of the standards expected for the job. The appraisal indicates that the Employee has achieved below fully effective results against more than half the key performance criteria and indicators as specified in the Performance Plan.",
+  1: "Performance does not meet the standard expected for the job. The appraisal indicates that the Employee has achieved below fully effective results against almost all of the performance criteria and indicators as specified in the Performance Plan. The Employee has failed to demonstrate the commitment or ability to bring performance up to the level expected in the job despite management efforts to encourage improvement.",
+};
+
+export const COMPETENCY_RATING_DESCRIPTIONS: Record<number, string> = {
+  5: "Has a comprehensive understanding of local government operations, critical in shaping strategic direction and change, develops and applies comprehensive concepts and methods.",
+  4: "Develops and applies complex concepts, methods and understanding. Effectively directs and leads a group and executes in-depth analyses.",
+  3: "Develops and applies more progressive concepts, methods and understanding. Plans and guides the work of others and executes progressive analyses.",
+  2: "Applies basic concepts, methods and understanding of local government operations, but requires supervision and development intervention.",
+};
+
 const BAND_TAG_CLASS: Record<number, string> = {
   5: "stag-blue",
   4: "stag-met",

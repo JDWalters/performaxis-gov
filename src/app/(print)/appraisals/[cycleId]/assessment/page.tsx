@@ -29,6 +29,7 @@ table.pt { width: 100%; border-collapse: collapse; margin: 6px 0 16px; font-size
 table.pt th { background: #eef1f1; color: #17313a; font-weight: 700; text-align: left; padding: 5px 6px; border: 0.5pt solid #d8e0dd; font-size: 8pt; }
 table.pt td { padding: 5px 6px; border: 0.5pt solid #d8e0dd; vertical-align: top; }
 table.pt tr:nth-child(even) td { background: #fbfbfb; }
+.c { text-align: center; }
 .pbox { background: #fbfbfb; border: 0.5pt solid #d8e0dd; border-radius: 6px; padding: 8px 12px; font-size: 9pt; margin: 8px 0 12px; }
 .psign { display: flex; gap: 24px; margin-top: 20px; }
 .sigcol { flex: 1; }

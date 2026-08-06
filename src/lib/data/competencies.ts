@@ -37,17 +37,41 @@ export async function getCompetencies(municipalityOrgId: string): Promise<Compet
  * set, matching the reference tool's "Restore the 12 prescribed
  * competencies" button.
  */
-export const PRESCRIBED_COMPETENCIES: { name: string; groupName: CompetencyGroup }[] = [
-  { name: "Strategic direction and leadership", groupName: "Leading" },
-  { name: "People management", groupName: "Leading" },
-  { name: "Programme and project management", groupName: "Leading" },
-  { name: "Financial management", groupName: "Leading" },
-  { name: "Change leadership", groupName: "Leading" },
-  { name: "Governance leadership", groupName: "Leading" },
-  { name: "Moral competence", groupName: "Core" },
-  { name: "Planning and organising", groupName: "Core" },
-  { name: "Analysis and innovation", groupName: "Core" },
-  { name: "Knowledge and information management", groupName: "Core" },
-  { name: "Communication", groupName: "Core" },
-  { name: "Results and quality focus", groupName: "Core" },
+export const PRESCRIBED_COMPETENCIES: { name: string; groupName: CompetencyGroup; drivingText: string | null }[] = [
+  {
+    name: "Strategic direction and leadership",
+    groupName: "Leading",
+    drivingText: "Impact and Influence; Institutional Performance Management; Strategic Planning and Management; Organisational Awareness",
+  },
+  {
+    name: "People management",
+    groupName: "Leading",
+    drivingText: "Human Capital Planning and Development; Diversity Management; Employee Relations Management; Negotiation and Dispute Management",
+  },
+  {
+    name: "Programme and project management",
+    groupName: "Leading",
+    drivingText: "Programme and Project Planning and Implementation; Service Delivery Management; Programme and Project Monitoring and Evaluation",
+  },
+  {
+    name: "Financial management",
+    groupName: "Leading",
+    drivingText: "Budget Planning and Execution; Financial Strategy and Delivery; Financial Reporting and Monitoring",
+  },
+  {
+    name: "Change leadership",
+    groupName: "Leading",
+    drivingText: "Change Vision and Strategy; Process Design and Improvement; Change Impact Monitoring and Evaluation",
+  },
+  {
+    name: "Governance leadership",
+    groupName: "Leading",
+    drivingText: "Policy Formulation; Risk and Compliance Management; Cooperative Governance",
+  },
+  { name: "Moral competence", groupName: "Core", drivingText: null },
+  { name: "Planning and organising", groupName: "Core", drivingText: null },
+  { name: "Analysis and innovation", groupName: "Core", drivingText: null },
+  { name: "Knowledge and information management", groupName: "Core", drivingText: null },
+  { name: "Communication", groupName: "Core", drivingText: null },
+  { name: "Results and quality focus", groupName: "Core", drivingText: null },
 ];

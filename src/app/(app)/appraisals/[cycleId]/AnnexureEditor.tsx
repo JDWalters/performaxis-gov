@@ -11,16 +11,10 @@ import {
   scaleAnnexureWeightsTo100,
 } from "./annexure-actions";
 import type { AnnexureKpi } from "@/lib/data/annexure";
+import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
 
 const CELL_CLASS =
   "w-full rounded-md border border-line bg-white px-2 py-1 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
-const NATIONAL_KPAS = [
-  { code: "BSD", name: "Basic Service Delivery" },
-  { code: "MTOD", name: "Municipal Transformation and Organisational Development" },
-  { code: "LED", name: "Local Economic Development" },
-  { code: "MFVM", name: "Municipal Financial Viability and Management" },
-  { code: "GGPP", name: "Good Governance and Public Participation" },
-];
 
 /**
  * A text/number cell that only saves onBlur if its value actually changed

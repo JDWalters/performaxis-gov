@@ -18,6 +18,7 @@ table.pt { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-siz
 table.pt th { background: #eef1f1; color: #17313a; font-weight: 700; text-align: left; padding: 5px 6px; border: 0.5pt solid #d8e0dd; font-size: 8pt; }
 table.pt td { padding: 5px 6px; border: 0.5pt solid #d8e0dd; vertical-align: top; }
 table.pt tr:nth-child(even) td { background: #fbfbfb; }
+.c { text-align: center; }
 .daychip { display: inline-block; margin-top: 8px; padding: 4px 10px; border-radius: 999px; font-size: 9pt; font-weight: 700; }
 .daychip.ok { background: #e3f3e8; color: #2f7d4f; }
 .daychip.warn { background: #fdf1e2; color: #a97f2a; }

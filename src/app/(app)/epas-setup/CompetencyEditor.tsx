@@ -49,6 +49,23 @@ function CompetencyRowEditor({ orgId, c }: { orgId: string; c: CompetencyRow }) 
           ))}
         </select>
       </td>
+      <td className="px-3 py-1.5">
+        <input
+          className={FIELD_CLASS}
+          defaultValue={c.drivingText ?? ""}
+          placeholder={c.groupName === "Leading" ? "e.g. Impact and Influence; Strategic Planning…" : "—"}
+          onBlur={(e) => {
+            if (e.target.value === (c.drivingText ?? "")) return;
+            const fd = new FormData();
+            fd.set("id", c.id);
+            fd.set("orgId", orgId);
+            fd.set("name", c.name);
+            fd.set("groupName", c.groupName ?? "");
+            fd.set("drivingText", e.target.value);
+            startTransition(() => saveCompetency(fd));
+          }}
+        />
+      </td>
       <td className="px-3 py-1.5 text-center">
         <button
           type="button"
@@ -82,6 +99,7 @@ export function CompetencyEditor({ orgId, competencies }: { orgId: string; compe
           <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink2">
             <th className="px-3 py-1.5">Competency</th>
             <th className="px-3 py-1.5 text-center">Group</th>
+            <th className="px-3 py-1.5">Driving competencies (Leading only)</th>
             <th className="px-3 py-1.5 text-center" />
           </tr>
         </thead>

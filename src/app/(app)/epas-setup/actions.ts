@@ -148,10 +148,15 @@ export async function resetCompetencies(formData: FormData) {
 
   const { data: existingData, error: existingErr } = await supabase
     .from("competencies")
-    .select("id, name, group_name")
+    .select("id, name, group_name, driving_text")
     .eq("org_id", orgId);
   if (existingErr) throw existingErr;
-  const existing = (existingData ?? []) as unknown as { id: string; name: string; group_name: string | null }[];
+  const existing = (existingData ?? []) as unknown as {
+    id: string;
+    name: string;
+    group_name: string | null;
+    driving_text: string | null;
+  }[];
 
   const byLowerName = new Map(existing.map((c) => [c.name.trim().toLowerCase(), c] as const));
 
@@ -169,13 +174,15 @@ export async function resetCompetencies(formData: FormData) {
     const key = c.name.trim().toLowerCase();
     const match = byLowerName.get(key);
     if (match) {
-      if (match.name !== c.name || match.group_name !== c.groupName) {
-        const { error } = await updateTable.update({ name: c.name, group_name: c.groupName }).eq("id", match.id);
+      if (match.name !== c.name || match.group_name !== c.groupName || (match.driving_text ?? null) !== c.drivingText) {
+        const { error } = await updateTable
+          .update({ name: c.name, group_name: c.groupName, driving_text: c.drivingText })
+          .eq("id", match.id);
         if (error) throw error;
       }
       byLowerName.delete(key);
     } else {
-      toInsert.push({ org_id: orgId, name: c.name, group_name: c.groupName });
+      toInsert.push({ org_id: orgId, name: c.name, group_name: c.groupName, driving_text: c.drivingText });
     }
   }
   if (toInsert.length) {

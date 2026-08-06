@@ -22,6 +22,7 @@ export default async function AppraisalDetailPage({
   const { cycleId } = await params;
   const { q, view } = await searchParams;
   const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
+  const isAgreementView = view === "agreement";
   const isAnnexureView = view === "annexure";
   const isRatingsView = view === "ratings";
   const isPdpView = view === "pdp";
@@ -30,7 +31,11 @@ export default async function AppraisalDetailPage({
   if (!detail) notFound();
 
   const annexure = isAnnexureView ? await getAnnexureData(cycleId) : null;
-  const agreement = isAnnexureView ? await getAgreementData(cycleId) : null;
+  // The agreement's "Details inserted into the agreement" panel + signature
+  // block live on the Agreement tab (matching the reference tool's
+  // "Employee Performance Agreement" tab), not on Annexure A.
+  const agreement = isAgreementView ? await getAgreementData(cycleId) : null;
+  const agreementSignature = isAgreementView ? await getAnnexureData(cycleId) : null;
   const pdp = isPdpView ? await getPdpData(cycleId) : null;
 
   return (
@@ -47,7 +52,7 @@ export default async function AppraisalDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          {!isAnnexureView && !isPdpView && (
+          {!isAgreementView && !isAnnexureView && !isPdpView && (
             <div className="flex gap-1">
               {[1, 2, 3, 4].map((qq) => (
                 <Link
@@ -82,12 +87,30 @@ export default async function AppraisalDetailPage({
         </div>
       </div>
 
-      <div className="flex gap-1">
+      <div className="flex flex-wrap gap-1">
+        <Link
+          href={`/appraisals/${cycleId}?view=agreement`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isAgreementView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Employee Performance Agreement
+        </Link>
+        <Link
+          href={`/appraisals/${cycleId}?view=annexure`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isAnnexureView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Annexure A — Performance Plan
+        </Link>
         <Link
           href={`/appraisals/${cycleId}?q=${quarter}`}
           prefetch={false}
           className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            !isAnnexureView && !isRatingsView && !isPdpView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+            !isAgreementView && !isAnnexureView && !isRatingsView && !isPdpView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
           }`}
         >
           Capture results
@@ -100,15 +123,6 @@ export default async function AppraisalDetailPage({
           }`}
         >
           Assessment ratings
-        </Link>
-        <Link
-          href={`/appraisals/${cycleId}?view=annexure`}
-          prefetch={false}
-          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            isAnnexureView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
-          }`}
-        >
-          Annexure A — Performance Plan
         </Link>
         <Link
           href={`/appraisals/${cycleId}?view=pdp`}
@@ -143,27 +157,37 @@ export default async function AppraisalDetailPage({
               </p>
             )}
             <AnnexureEditor cycleId={annexure.cycleId} kpis={annexure.kpis} totalWeight={annexure.totalWeight} />
-            <AgreementSignaturePanel
-              cycleId={annexure.cycleId}
-              agreement={annexure.agreement}
-              canSignAsEmployer={annexure.canSignAsEmployer}
-              canSignAsEmployee={annexure.canSignAsEmployee}
-            />
-            {agreement && (
-              <AgreementDetailsPanel
-                cycleId={annexure.cycleId}
-                municipalityOrgId={agreement.municipalityOrgId}
-                canEdit={agreement.canEditAgreementTemplate}
-                signPlaceDefault={agreement.policy.signPlaceDefault}
-                signDayDefault={agreement.policy.signDayDefault}
-                signMonthDefault={agreement.policy.signMonthDefault}
-                reviewSchedule={agreement.reviewSchedule}
-                reviewDates={agreement.policy.reviewDates}
-              />
-            )}
           </>
         ) : (
           <p className="text-sm text-ink2">Couldn&apos;t load the performance plan.</p>
+        )
+      ) : isAgreementView ? (
+        agreement && agreementSignature ? (
+          <>
+            {!agreement.canEditAgreementTemplate && !agreementSignature.canSignAsEmployer && !agreementSignature.canSignAsEmployee && (
+              <p className="rounded-md bg-blue-bg px-3 py-2 text-sm font-medium text-blue">
+                You have view-only access to this performance agreement.
+              </p>
+            )}
+            <AgreementDetailsPanel
+              cycleId={agreementSignature.cycleId}
+              municipalityOrgId={agreement.municipalityOrgId}
+              canEdit={agreement.canEditAgreementTemplate}
+              signPlaceDefault={agreement.policy.signPlaceDefault}
+              signDayDefault={agreement.policy.signDayDefault}
+              signMonthDefault={agreement.policy.signMonthDefault}
+              reviewSchedule={agreement.reviewSchedule}
+              reviewDates={agreement.policy.reviewDates}
+            />
+            <AgreementSignaturePanel
+              cycleId={agreementSignature.cycleId}
+              agreement={agreementSignature.agreement}
+              canSignAsEmployer={agreementSignature.canSignAsEmployer}
+              canSignAsEmployee={agreementSignature.canSignAsEmployee}
+            />
+          </>
+        ) : (
+          <p className="text-sm text-ink2">Couldn&apos;t load the performance agreement.</p>
         )
       ) : isRatingsView ? (
         <>

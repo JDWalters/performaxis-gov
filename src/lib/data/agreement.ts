@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPolicyConfig, defaultReviewDate, REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
+import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
 import type { Tables } from "@/lib/supabase/types";
 
 type EmployeeRole = Tables<"employees">["role"];
@@ -27,6 +28,13 @@ export type ReviewScheduleRow = {
   dueDate: string;
 };
 
+export type KpaSummaryRow = {
+  code: string;
+  name: string;
+  count: number;
+  weightPct: number;
+};
+
 export type AgreementData = {
   cycleId: string;
   municipalityName: string;
@@ -52,6 +60,8 @@ export type AgreementData = {
   employerName: string | null;
   kpis: AgreementKpi[];
   totalWeight: number;
+  /** Each national KPA's indicator count and combined weight - the agreement's clause 5.9 KPA_TABLE. */
+  kpaSummary: KpaSummaryRow[];
   competencies: AgreementCompetency[];
   policy: PolicyConfig;
   generatedAt: string;
@@ -205,6 +215,16 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
 
   const totalWeight = agreementKpis.reduce((sum, k) => sum + (k.weight ? Number(k.weight) : 0), 0);
 
+  const kpaSummary: KpaSummaryRow[] = NATIONAL_KPAS.map((kpa) => {
+    const matching = agreementKpis.filter((k) => (k.kpa ?? "").trim().toUpperCase() === kpa.code);
+    return {
+      code: kpa.code,
+      name: kpa.name,
+      count: matching.length,
+      weightPct: Math.round(matching.reduce((sum, k) => sum + (k.weight ? Number(k.weight) : 0), 0) * 100) / 100,
+    };
+  });
+
   const compRows = (competencies ?? []) as unknown as CompetencyRow[];
   const agreementCompetencies: AgreementCompetency[] = compRows.map((c) => ({
     name: c.name,
@@ -248,6 +268,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
     employerName,
     kpis: agreementKpis,
     totalWeight,
+    kpaSummary,
     competencies: agreementCompetencies,
     policy,
     generatedAt: new Date().toISOString(),
