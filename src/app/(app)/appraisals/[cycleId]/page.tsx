@@ -57,7 +57,7 @@ export default async function AppraisalDetailPage({
               {[1, 2, 3, 4].map((qq) => (
                 <Link
                   key={qq}
-                  href={`/appraisals/${cycleId}?q=${qq}`}
+                  href={`/appraisals/${cycleId}?q=${qq}${isRatingsView ? "&view=ratings" : ""}`}
                   prefetch={false}
                   className={`relative rounded-md px-3 py-1.5 text-xs font-bold ${
                     qq === quarter
