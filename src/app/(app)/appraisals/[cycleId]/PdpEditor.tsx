@@ -139,10 +139,12 @@ export function PdpEditor({
 
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-xs text-ink2">
-        Identifies, prioritises and implements training needs arising from the competency assessment, the job
-        competency profile and the employee&apos;s career needs. An employee should on average receive at least
-        five days of training per financial year.
+      <p className="rounded-[9px] border border-line border-l-4 border-l-gold bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-ink2">
+        <b className="text-ink">Personal Development Plan.</b> Identifies, prioritises and implements training needs
+        arising from the competency assessment, the job competency profile and the employee&apos;s career needs. An
+        employee should on average receive <b className="text-ink">at least five days of training per financial
+        year</b>. The data collated from all employees forms the basis of the Workplace Skills Plan submitted to the
+        LGSETA.
       </p>
 
       {canEdit && (
