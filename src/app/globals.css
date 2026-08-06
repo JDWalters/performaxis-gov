@@ -74,3 +74,5 @@ body {
 .stag-almost { color: var(--color-almost); background: var(--color-almost-bg); }
 .stag-missed { color: var(--color-missed); background: var(--color-missed-bg); }
 .stag-pending { color: var(--color-pending); background: var(--color-pending-bg); }
+.stag-gold { color: var(--color-gold); background: var(--color-gold-bg); }
+.stag-na { color: var(--color-na); background: var(--color-na-bg); }

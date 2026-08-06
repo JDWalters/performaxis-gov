@@ -8,6 +8,14 @@ const KIND_LABEL: Record<string, string> = {
   department: "Department",
 };
 
+const KIND_TAG: Record<string, string> = {
+  national: "stag-gold",
+  provincial: "stag-blue",
+  district: "stag-almost",
+  municipality: "stag-met",
+  department: "stag-okk",
+};
+
 function buildTree(orgs: AccessibleOrg[]) {
   const byParent = new Map<string | null, AccessibleOrg[]>();
   for (const org of orgs) {
@@ -31,7 +39,7 @@ function OrgNode({
   return (
     <li>
       <div className="flex items-center gap-2 py-1.5" style={{ paddingLeft: depth * 18 }}>
-        <span className="stag stag-pending text-[10px] uppercase tracking-wide">
+        <span className={`stag ${KIND_TAG[org.kind] ?? "stag-pending"} text-[10px] uppercase tracking-wide`}>
           {KIND_LABEL[org.kind] ?? org.kind}
         </span>
         <span className="text-sm font-semibold text-ink">{org.name}</span>

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { KIND_LABEL, type OrgKind, type OrgNode } from "@/lib/data/orgs-shared";
 
 const KIND_TAG: Record<OrgKind, string> = {
-  national: "stag-pending",
+  national: "stag-gold",
   provincial: "stag-blue",
   district: "stag-almost",
   municipality: "stag-met",
