@@ -9,24 +9,44 @@ export type CompetencyRow = {
   drivingText: string | null;
 };
 
+/**
+ * The regulation presents the twelve competencies in a fixed order - Leading
+ * before Core, and within each group a specific sequence (Strategic
+ * Direction and Leadership leads, not "Change leadership" first just
+ * because C < S) - matching PRESCRIBED_COMPETENCIES below, not alphabetical.
+ * Falls back to alphabetical for anything renamed away from a prescribed
+ * name or genuinely custom-added.
+ */
+function competencyRank(name: string, groupName: CompetencyGroup | null): [number, number] {
+  const groupRank = groupName === "Leading" ? 0 : groupName === "Core" ? 1 : 2;
+  const prescribedIndex = PRESCRIBED_COMPETENCIES.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
+  return [groupRank, prescribedIndex === -1 ? 999 : prescribedIndex];
+}
+
 /** The competency framework for one municipality (competencies.org_id) - regulatory in nature but stored per-org so a municipality can tailor "driving competencies" notes. */
 export async function getCompetencies(municipalityOrgId: string): Promise<CompetencyRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("competencies")
     .select("id, name, group_name, driving_text")
-    .eq("org_id", municipalityOrgId)
-    .order("group_name")
-    .order("name");
+    .eq("org_id", municipalityOrgId);
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as { id: string; name: string; group_name: string | null; driving_text: string | null }[];
-  return rows.map((r) => ({
-    id: r.id,
-    name: r.name,
-    groupName: (r.group_name as CompetencyGroup | null) ?? null,
-    drivingText: r.driving_text,
-  }));
+  return rows
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      groupName: (r.group_name as CompetencyGroup | null) ?? null,
+      drivingText: r.driving_text,
+    }))
+    .sort((a, b) => {
+      const [ga, ra] = competencyRank(a.name, a.groupName);
+      const [gb, rb] = competencyRank(b.name, b.groupName);
+      if (ga !== gb) return ga - gb;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name);
+    });
 }
 
 /**
@@ -49,9 +69,13 @@ export const PRESCRIBED_COMPETENCIES: { name: string; groupName: CompetencyGroup
     drivingText: "Human Capital Planning and Development; Diversity Management; Employee Relations Management; Negotiation and Dispute Management",
   },
   {
-    name: "Programme and project management",
+    // "Program", not "Programme" - matches the Regulations' own spelling
+    // (and the reference tool's LEADING array) exactly; an earlier pass in
+    // this project guessed the British spelling was "correct" and got it
+    // backwards.
+    name: "Program and project management",
     groupName: "Leading",
-    drivingText: "Programme and Project Planning and Implementation; Service Delivery Management; Programme and Project Monitoring and Evaluation",
+    drivingText: "Program and Project Planning and Implementation; Service Delivery Management; Program and Project Monitoring and Evaluation",
   },
   {
     name: "Financial management",

@@ -58,14 +58,28 @@ table.pt tr:nth-child(even) td { background: #fbfbfb; }
 table.pt tr.pt-total td { background: #fdf6ea; font-weight: 700; }
 table.pt tr.pt-groupHead td { background: #17313a; color: #fff; font-weight: 700; }
 
-.agtitle { font-size: 13pt; font-weight: 800; margin: 18px 0 6px; color: #17313a; }
-.agparties td { padding: 4px 8px 4px 0; font-size: 9.5pt; }
-.agparties td.k { font-weight: 700; color: #3c5560; width: 140px; }
+/* Matches the reference tool's .agparties/.agtitle/.agsub/.agsub2/.agpt/.agk
+   exactly - a bordered block (agreement title, municipality name in gold,
+   FY + period) that sits above a table with a thin bottom border per row
+   and bold/uppercase/gray "THE EMPLOYER"-style labels, not the plain
+   unbordered list this used to be. */
+.agparties { border-bottom: 1.5pt solid #a97f2a; padding-bottom: 8pt; margin-bottom: 10pt; }
+.agtitle { font-size: 14pt; font-weight: 800; color: #17313a; }
+.agsub { font-size: 12pt; font-weight: 700; color: #a97f2a; margin-top: 3pt; }
+.agsub2 { font-size: 9pt; color: #555; margin-top: 2pt; }
+table.agpt { width: 100%; border-collapse: collapse; margin-top: 8pt; font-size: 9pt; }
+.agpt td { padding: 4px 8px 4px 0; border-bottom: 0.5pt solid #ccc; vertical-align: top; }
+.agk { width: 150pt; font-weight: 800; font-size: 8pt; text-transform: uppercase; color: #444; }
+
+/* The reference tool's .mf - every value pulled from live data (names,
+   dates, places) rather than fixed boilerplate legal text gets this
+   treatment so a reader can see at a glance what was actually filled in. */
+.mf { font-weight: 700; border-bottom: 1pt solid #a97f2a; }
 
 .pact { font-size: 10.5pt; font-weight: 800; margin: 16px 0 8px; text-transform: uppercase; }
 .clh { display: flex; gap: 10px; margin: 14px 0 7px; }
 .clh .clno { flex: 0 0 26px; font-weight: 800; }
-.clh .cltx { flex: 1; font-weight: 800; text-transform: uppercase; font-size: 10pt; }
+.clh .cltx { flex: 1; font-weight: 800; text-transform: uppercase; font-size: 10pt; border-bottom: 1pt solid #a97f2a; padding-bottom: 3pt; }
 .cl { display: flex; gap: 10px; margin: 0 0 6px; }
 .cl .clno { flex: 0 0 26px; font-weight: 700; color: #3c5560; }
 .cl .cltx { flex: 1; }
@@ -103,6 +117,12 @@ function ClHead({ n, children }: { n: string; children: React.ReactNode }) {
       <div className="cltx">{children}</div>
     </div>
   );
+}
+
+/** Marks a value as filled in from live data (a name, date, place, weight…)
+ * rather than fixed legal boilerplate - the reference tool's .mf treatment. */
+function Mf({ children }: { children: React.ReactNode }) {
+  return <span className="mf">{children}</span>;
 }
 
 export default async function AgreementPage({
@@ -155,51 +175,78 @@ export default async function AgreementPage({
               <div className="phead">
                 <div>
                   <div className="ptitle">{data.municipalityName}</div>
+                  <div className="psub">{data.agreementTitle}</div>
                   <div className="psub">
-                    Performance Agreement &amp; Annexures · Financial year {data.fyLabel}
+                    Financial year {data.fyLabel} (1 July {y1} to 30 June {y2}) · Generated{" "}
+                    {new Date(data.generatedAt).toLocaleDateString("en-ZA")}
                   </div>
-                  <div className="psub">Generated {new Date(data.generatedAt).toLocaleDateString("en-ZA")}</div>
                 </div>
                 <div className="pxmark">
                   Perform<span>Axis</span>
                 </div>
               </div>
 
-              <div className="agtitle">{data.agreementTitle}</div>
-              <table className="agparties">
-                <tbody>
-                  <tr>
-                    <td className="k">Entered into by and between:</td>
-                    <td></td>
-                  </tr>
-                  <tr>
-                    <td className="k">The Employer</td>
-                    <td>
-                      <b>{data.municipalityName}</b>
-                      {data.employerName
-                        ? `, herein represented by ${data.employerName} in his/her capacity as ${data.employerTitle}`
-                        : `, herein represented by the ${data.employerTitle}`}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="k">and the Employee</td>
-                    <td>
-                      <b>{data.employee.name}</b>, in his/her capacity as <b>{data.employee.position ?? "—"}</b>
-                      {data.employee.empno ? ` (employee no. ${data.employee.empno})` : ""}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="k">Appointed in terms of</td>
-                    <td>Section {sectionNum} of the Local Government: Municipal Systems Act 32 of 2000</td>
-                  </tr>
-                  <tr>
-                    <td className="k">Period of this agreement</td>
-                    <td>
-                      1 July {y1} to 30 June {y2}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {/* Repeats the title/municipality/FY that's already in the
+                 masthead above - the reference tool's own repHead() +
+                 partiesBlock() double up the same way, since partiesBlock
+                 is reused standalone in the interactive (non-print) view
+                 where there's no masthead wrapping it at all. */}
+              <div className="agparties">
+                <div className="agtitle">{data.agreementTitle}</div>
+                <div className="agsub">{data.municipalityName}</div>
+                <div className="agsub2">
+                  Financial year {data.fyLabel} · 1 July {y1} to 30 June {y2}
+                </div>
+                <table className="agpt">
+                  <tbody>
+                    <tr>
+                      <td className="agk">Entered into by and between:</td>
+                      <td></td>
+                    </tr>
+                    <tr>
+                      <td className="agk">The Employer</td>
+                      <td>
+                        <Mf>{data.municipalityName}</Mf>
+                        {data.employerName ? (
+                          <>
+                            , herein represented by <Mf>{data.employerName}</Mf> in his/her capacity as{" "}
+                            <Mf>{data.employerTitle}</Mf>
+                          </>
+                        ) : (
+                          <>
+                            , herein represented by the <Mf>{data.employerTitle}</Mf>
+                          </>
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="agk">and the Employee</td>
+                      <td>
+                        <Mf>{data.employee.name}</Mf>, in his/her capacity as{" "}
+                        <Mf>{data.employee.position ?? "—"}</Mf>
+                        {data.employee.empno ? (
+                          <>
+                            {" "}
+                            (employee no. <Mf>{data.employee.empno}</Mf>)
+                          </>
+                        ) : (
+                          ""
+                        )}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="agk">Appointed in terms of</td>
+                      <td>Section {sectionNum} of the Local Government: Municipal Systems Act 32 of 2000</td>
+                    </tr>
+                    <tr>
+                      <td className="agk">Period of this agreement</td>
+                      <td>
+                        1 July {y1} to 30 June {y2}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
               <div className="pact">The parties hereby agree as follows:</div>
 
@@ -694,7 +741,7 @@ export default async function AgreementPage({
               </p>
 
               <div className="sigblock">
-                Thus done and signed at <b>{signPlace}</b> on this the <b>{signDay}</b> day of <b>{signMonth}</b>
+                Thus done and signed at <Mf>{signPlace}</Mf> on this the <Mf>{signDay}</Mf> day of <Mf>{signMonth}</Mf>
                 {data.signature.status === "signed" && (
                   <span style={{ marginLeft: "8px", color: "#2f7d4f", fontWeight: 700 }}>✓ Signed</span>
                 )}
@@ -717,7 +764,7 @@ export default async function AgreementPage({
               </div>
 
               <div className="sigblock" style={{ marginTop: "18px" }}>
-                Thus done and signed at <b>{signPlace}</b> on this the <b>{signDay}</b> day of <b>{signMonth}</b>.
+                Thus done and signed at <Mf>{signPlace}</Mf> on this the <Mf>{signDay}</Mf> day of <Mf>{signMonth}</Mf>.
               </div>
               <div className="psign">
                 <div className="sigcol">
