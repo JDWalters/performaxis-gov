@@ -7,6 +7,19 @@ import { getOrgManageScopes } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
 import { signOut } from "./actions";
 
+/** One sidebar nav row - icon glyph + label, matching the reference tool's .navico pattern. */
+function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+    >
+      <span className="w-[18px] flex-none text-center text-[13px] opacity-90">{icon}</span>
+      {children}
+    </Link>
+  );
+}
+
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getMyProfile();
   if (!me?.user) redirect("/login");
@@ -69,73 +82,58 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-          <Link
-            href="/dashboard"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          {/* Icons mirror the reference tool's .navico glyphs where a direct
+             equivalent exists (Dashboard/Progress/Reports/library/setup all
+             match literally); the two items with no single-tenant reference
+             equivalent (this app merges two products plus adds multi-tenant
+             admin screens) get a same-weight Unicode dingbat in the same
+             style rather than an emoji, to keep the sidebar visually flat. */}
+          <NavLink href="/dashboard" icon="◴">
             Dashboard
-          </Link>
-          <Link
-            href="/scorecards"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          </NavLink>
+          <NavLink href="/scorecards" icon="▦">
             SDBIP Scorecards
-          </Link>
-          <Link
-            href="/progress"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          </NavLink>
+          <NavLink href="/progress" icon="↗">
             Performance Progress
-          </Link>
-          <Link
-            href="/appraisals"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          </NavLink>
+          <NavLink href="/appraisals" icon="✓">
             EPAS Appraisals
-          </Link>
-          <Link
-            href="/reports"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          </NavLink>
+          <NavLink href="/reports" icon="␙">
             Reports
-          </Link>
-          <Link
-            href="/kpi-library"
-            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-          >
+          </NavLink>
+          <NavLink href="/kpi-library" icon="≡">
             KPI Type Generator
-          </Link>
-          {canManageUsers && (
-            <Link
-              href="/users"
-              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-            >
-              Manage Users
-            </Link>
+          </NavLink>
+
+          {(canManageOrgs || canManageUsers) && (
+            <div className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wide text-white/40">
+              Administration
+            </div>
           )}
+          {/* Setup order, not alphabetical: orgs must exist before employees
+             can be added to them, employees before EPAS policy/competencies
+             mean anything, and inviting users is naturally the last step. */}
           {canManageOrgs && (
-            <Link
-              href="/orgs"
-              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-            >
+            <NavLink href="/orgs" icon="⌂">
               Org Management
-            </Link>
+            </NavLink>
           )}
           {canManageOrgs && (
-            <Link
-              href="/employees"
-              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-            >
+            <NavLink href="/employees" icon="☺">
               Employees
-            </Link>
+            </NavLink>
           )}
           {canManageOrgs && (
-            <Link
-              href="/epas-setup"
-              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-            >
+            <NavLink href="/epas-setup" icon="⚙">
               EPAS Setup
-            </Link>
+            </NavLink>
+          )}
+          {canManageUsers && (
+            <NavLink href="/users" icon="☷">
+              Manage Users
+            </NavLink>
           )}
         </nav>
 

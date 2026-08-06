@@ -17,6 +17,7 @@ import {
 import { getPolicyConfig, resolveMunicipalityOrgId } from "@/lib/data/policy";
 import { getCompetencies } from "@/lib/data/competencies";
 import { getAnnexureData } from "@/lib/data/annexure";
+import type { EmployeeRole } from "@/lib/data/employees-shared";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -25,6 +26,7 @@ export type AppraisalListItem = {
   cycleId: string;
   employeeName: string;
   position: string | null;
+  role: EmployeeRole;
   orgId: string | null;
   orgName: string;
   fyLabel: string;
@@ -34,7 +36,12 @@ export type AppraisalListItem = {
 
 type AppraisalListRow = {
   id: string;
-  employee: { name: string; position: string | null; org: { id: string; name: string } | null } | null;
+  employee: {
+    name: string;
+    position: string | null;
+    role: EmployeeRole;
+    org: { id: string; name: string } | null;
+  } | null;
   financial_year: { label: string } | null;
   appraisal_kpis: {
     id: string;
@@ -48,13 +55,18 @@ type AppraisalListRow = {
  * has_employee_access). `scopedOrgIds`, when given, further narrows this to
  * the signed-in user's active viewing scope (see src/lib/data/scope.ts) - a
  * display filter, not a security one.
+ *
+ * Sorted to flow with the actual reporting hierarchy - the Municipal
+ * Manager first, then each Director by department - rather than plain
+ * alphabetical, which buries the MM under "Office of the Municipal
+ * Manager" (O) behind every department starting with an earlier letter.
  */
 export async function getAppraisalsList(scopedOrgIds?: Set<string> | null): Promise<AppraisalListItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee:employees(name, position, org:orgs(id, name)), financial_year:financial_years(label), appraisal_kpis(id, calc_config, appraisal_ratings(actual))"
+      "id, employee:employees(name, position, role, org:orgs(id, name)), financial_year:financial_years(label), appraisal_kpis(id, calc_config, appraisal_ratings(actual))"
     );
   if (error) throw error;
 
@@ -73,6 +85,7 @@ export async function getAppraisalsList(scopedOrgIds?: Set<string> | null): Prom
         cycleId: r.id,
         employeeName: r.employee!.name,
         position: r.employee!.position,
+        role: r.employee!.role,
         orgId: r.employee!.org?.id ?? null,
         orgName: r.employee!.org?.name ?? "—",
         fyLabel: r.financial_year?.label ?? "—",
@@ -80,7 +93,10 @@ export async function getAppraisalsList(scopedOrgIds?: Set<string> | null): Prom
         needsReviewCount,
       };
     })
-    .sort((a, b) => a.orgName.localeCompare(b.orgName));
+    .sort((a, b) => {
+      if (a.role !== b.role) return a.role === "MM" ? -1 : b.role === "MM" ? 1 : 0;
+      return a.orgName.localeCompare(b.orgName) || a.employeeName.localeCompare(b.employeeName);
+    });
 }
 
 export type AppraisalDetail = {
