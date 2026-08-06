@@ -13,7 +13,7 @@ import {
   type BonusEligibility,
   type PartialScore,
 } from "@/lib/data/appraisal-scoring";
-import { getPolicyConfig } from "@/lib/data/policy";
+import { getPolicyConfig, resolveMunicipalityOrgId } from "@/lib/data/policy";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -109,7 +109,7 @@ type CompetencyRatingRow = {
 type AppraisalHeaderRow = {
   id: string;
   employee_id: string;
-  employee: { name: string; position: string | null; org: { name: string } | null } | null;
+  employee: { name: string; position: string | null; org: { id: string; name: string } | null } | null;
   financial_year: { label: string } | null;
 };
 
@@ -153,7 +153,7 @@ export async function getAppraisalDetail(
   const { data: cycle, error: cycleErr } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee_id, employee:employees(name, position, org:orgs(name)), financial_year:financial_years(label)"
+      "id, employee_id, employee:employees(name, position, org:orgs(id, name)), financial_year:financial_years(label)"
     )
     .eq("id", cycleId)
     .maybeSingle();
@@ -161,6 +161,8 @@ export async function getAppraisalDetail(
 
   const header = cycle as unknown as AppraisalHeaderRow | null;
   if (!header || !header.employee) return null;
+
+  const municipalityOrgId = header.employee.org ? await resolveMunicipalityOrgId(header.employee.org.id) : null;
 
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
@@ -177,7 +179,7 @@ export async function getAppraisalDetail(
     .eq("quarter", quarter);
   if (compErr) throw compErr;
 
-  const policy = await getPolicyConfig();
+  const policy = await getPolicyConfig(municipalityOrgId);
 
   // Cast: same pragmatic workaround used for the rpc() call in scorecards.ts.
   const { data: canCaptureData } = await (

@@ -80,6 +80,22 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               Org Management
             </Link>
           )}
+          {canManageOrgs && (
+            <Link
+              href="/employees"
+              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              Employees
+            </Link>
+          )}
+          {canManageOrgs && (
+            <Link
+              href="/epas-setup"
+              className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+            >
+              EPAS Setup
+            </Link>
+          )}
         </nav>
 
         <div className="flex-none border-t border-white/10 p-4">

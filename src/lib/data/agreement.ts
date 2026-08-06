@@ -1,5 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPolicyConfig, type PolicyConfig } from "@/lib/data/policy";
+import type { Tables } from "@/lib/supabase/types";
+
+type EmployeeRole = Tables<"employees">["role"];
 
 export type AgreementKpi = {
   kpa: string | null;
@@ -29,7 +32,13 @@ export type AgreementData = {
     empno: string | null;
     contract: string | null;
     orgName: string;
+    role: EmployeeRole;
   };
+  /** "Section 57" for the Municipal Manager, "Section 56" for everyone else - derived purely from employee.role, per the Regulations. */
+  agreementSection: "Section 57" | "Section 56";
+  agreementTitle: string;
+  employerTitle: string;
+  employerName: string | null;
   kpis: AgreementKpi[];
   totalWeight: number;
   competencies: AgreementCompetency[];
@@ -45,6 +54,7 @@ type AgreementCycleRow = {
     position: string | null;
     empno: string | null;
     contract: string | null;
+    role: EmployeeRole;
     org: { name: string; parent_id: string | null } | null;
   } | null;
   financial_year: { label: string; start_year: number | null } | null;
@@ -81,7 +91,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   const { data: cycle, error: cycleErr } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee_id, employee:employees(name, position, empno, contract, org:orgs(name, parent_id)), financial_year:financial_years(label, start_year)"
+      "id, employee_id, employee:employees(name, position, empno, contract, role, org:orgs(name, parent_id)), financial_year:financial_years(label, start_year)"
     )
     .eq("id", cycleId)
     .maybeSingle();
@@ -98,22 +108,28 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
 
-  const orgId = header.employee.org?.parent_id;
+  const parentOrgId = header.employee.org?.parent_id;
   let municipalityName = header.employee.org?.name ?? "—";
-  if (orgId) {
-    const { data: muni } = await supabase.from("orgs").select("name, kind").eq("id", orgId).maybeSingle();
-    const muniRow = muni as { name: string; kind: string } | null;
-    if (muniRow?.kind === "municipality") municipalityName = muniRow.name;
+  let municipalityOrgId: string | null = null;
+  if (parentOrgId) {
+    const { data: muni } = await supabase.from("orgs").select("id, name, kind").eq("id", parentOrgId).maybeSingle();
+    const muniRow = muni as { id: string; name: string; kind: string } | null;
+    if (muniRow?.kind === "municipality") {
+      municipalityName = muniRow.name;
+      municipalityOrgId = muniRow.id;
+    }
   }
 
-  const { data: competencies, error: compErr } = await supabase
-    .from("competencies")
-    .select("name, group_name, driving_text")
+  const compQuery = supabase.from("competencies").select("name, group_name, driving_text");
+  const { data: competencies, error: compErr } = await (municipalityOrgId
+    ? compQuery.eq("org_id", municipalityOrgId)
+    : compQuery
+  )
     .order("group_name")
     .order("name");
   if (compErr) throw compErr;
 
-  const policy = await getPolicyConfig();
+  const policy = await getPolicyConfig(municipalityOrgId);
 
   const kpiRows = (kpis ?? []) as unknown as AgreementKpiRow[];
   const agreementKpis: AgreementKpi[] = kpiRows
@@ -141,6 +157,20 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
     drivingText: c.driving_text,
   }));
 
+  // The Municipal Manager is a Section 57 employee, assessed by the Mayor's
+  // panel and employed (for agreement purposes) by the Mayor personally;
+  // every other Section 56 manager is assessed by, and "employed" for
+  // agreement purposes by, the Municipal Manager. Derived purely from
+  // employee.role - never hardcoded - so this is correct for any employee
+  // at any municipality without touching code.
+  const isMM = header.employee.role === "MM";
+  const agreementSection: AgreementData["agreementSection"] = isMM ? "Section 57" : "Section 56";
+  const agreementTitle = isMM
+    ? "Performance Agreement — Municipal Manager (section 57)"
+    : "Performance Agreement — Manager directly accountable to the Municipal Manager (section 56)";
+  const employerTitle = isMM ? policy.mayorTitle : "Municipal Manager";
+  const employerName = isMM ? policy.mayorName : policy.mmName;
+
   return {
     cycleId: header.id,
     municipalityName,
@@ -152,7 +182,12 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
       empno: header.employee.empno,
       contract: header.employee.contract,
       orgName: header.employee.org?.name ?? "—",
+      role: header.employee.role,
     },
+    agreementSection,
+    agreementTitle,
+    employerTitle,
+    employerName,
     kpis: agreementKpis,
     totalWeight,
     competencies: agreementCompetencies,

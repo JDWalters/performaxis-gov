@@ -160,6 +160,7 @@ export type Database = {
           annual_target: string | null
           appraisal_cycle_id: string
           baseline: string | null
+          calc_config: Json
           created_at: string
           id: string
           kpa: string | null
@@ -172,6 +173,7 @@ export type Database = {
           annual_target?: string | null
           appraisal_cycle_id: string
           baseline?: string | null
+          calc_config?: Json
           created_at?: string
           id?: string
           kpa?: string | null
@@ -184,6 +186,7 @@ export type Database = {
           annual_target?: string | null
           appraisal_cycle_id?: string
           baseline?: string | null
+          calc_config?: Json
           created_at?: string
           id?: string
           kpa?: string | null
@@ -207,8 +210,11 @@ export type Database = {
           actual: string | null
           appraisal_kpi_id: string
           comment: string | null
+          corrective_action: string | null
           created_at: string
+          evidence_url: string | null
           id: string
+          inputs: Json
           mgr_rating: number | null
           na: boolean
           panel_rating: number | null
@@ -220,8 +226,11 @@ export type Database = {
           actual?: string | null
           appraisal_kpi_id: string
           comment?: string | null
+          corrective_action?: string | null
           created_at?: string
+          evidence_url?: string | null
           id?: string
+          inputs?: Json
           mgr_rating?: number | null
           na?: boolean
           panel_rating?: number | null
@@ -233,8 +242,11 @@ export type Database = {
           actual?: string | null
           appraisal_kpi_id?: string
           comment?: string | null
+          corrective_action?: string | null
           created_at?: string
+          evidence_url?: string | null
           id?: string
+          inputs?: Json
           mgr_rating?: number | null
           na?: boolean
           panel_rating?: number | null
@@ -670,6 +682,7 @@ export type Database = {
           id: string
           is_locked: boolean
           name: string
+          org_id: string
           version: number
         }
         Insert: {
@@ -678,6 +691,7 @@ export type Database = {
           id?: string
           is_locked?: boolean
           name: string
+          org_id: string
           version?: number
         }
         Update: {
@@ -686,9 +700,18 @@ export type Database = {
           id?: string
           is_locked?: boolean
           name?: string
+          org_id?: string
           version?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "policy_templates_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {

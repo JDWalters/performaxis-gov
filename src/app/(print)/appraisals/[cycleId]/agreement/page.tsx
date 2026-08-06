@@ -99,12 +99,15 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                 </div>
               </div>
 
-              <div className="agtitle">Performance Agreement</div>
+              <div className="agtitle">{data.agreementTitle}</div>
               <table className="agparties">
                 <tbody>
                   <tr>
                     <td className="k">Employer</td>
-                    <td>{data.municipalityName}</td>
+                    <td>
+                      {data.municipalityName}
+                      {data.employerName ? ` — represented by ${data.employerTitle} ${data.employerName}` : ` — represented by the ${data.employerTitle}`}
+                    </td>
                   </tr>
                   <tr>
                     <td className="k">Employee</td>
@@ -129,6 +132,10 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                   <tr>
                     <td className="k">Financial year</td>
                     <td>{data.fyLabel}</td>
+                  </tr>
+                  <tr>
+                    <td className="k">Applicable agreement</td>
+                    <td>{data.agreementSection} — {data.employee.role === "MM" ? "Municipal Manager" : "Manager accountable to the MM"}</td>
                   </tr>
                   <tr>
                     <td className="k">Weighting</td>
@@ -257,8 +264,8 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                 </div>
                 <div className="sigcol">
                   <div className="sigline">
-                    <div className="sigrole">Employer representative</div>
-                    Name: ______________________ · Date: ______________________
+                    <div className="sigrole">{data.employerTitle} (Employer)</div>
+                    Name: {data.employerName || "______________________"} · Date: ______________________
                   </div>
                 </div>
                 <div className="sigcol">
