@@ -76,36 +76,17 @@ export default async function AppraisalDetailPage({
               ))}
             </div>
           )}
-          <a
-            href={`/appraisals/${cycleId}/agreement`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink hover:text-ink"
-          >
-            Print Performance Agreement ↗
-          </a>
         </div>
       </div>
 
+      {/* Ordered so the default landing tab (Capture results - no ?view=
+         needed) is always leftmost and visibly active, with its companion
+         Assessment ratings next to it since both are the recurring,
+         quarter-scoped screens people live in day to day. Agreement,
+         Annexure A, and Development plan are mostly one-time/reference
+         screens, so they sit after. Each still links directly - this is
+         just display order, not a step-by-step wizard. */}
       <div className="flex flex-wrap gap-1">
-        <Link
-          href={`/appraisals/${cycleId}?view=agreement`}
-          prefetch={false}
-          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            isAgreementView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
-          }`}
-        >
-          Employee Performance Agreement
-        </Link>
-        <Link
-          href={`/appraisals/${cycleId}?view=annexure`}
-          prefetch={false}
-          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            isAnnexureView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
-          }`}
-        >
-          Annexure A — Performance Plan
-        </Link>
         <Link
           href={`/appraisals/${cycleId}?q=${quarter}`}
           prefetch={false}
@@ -123,6 +104,24 @@ export default async function AppraisalDetailPage({
           }`}
         >
           Assessment ratings
+        </Link>
+        <Link
+          href={`/appraisals/${cycleId}?view=agreement`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isAgreementView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Employee Performance Agreement
+        </Link>
+        <Link
+          href={`/appraisals/${cycleId}?view=annexure`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isAnnexureView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Annexure A — Performance Plan
         </Link>
         <Link
           href={`/appraisals/${cycleId}?view=pdp`}
