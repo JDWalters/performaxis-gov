@@ -1,24 +1,10 @@
-import Image from "next/image";
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMyMemberships, getMyAccessibleOrgs, getMyProfile } from "@/lib/data/access";
 import { getManageableScopes } from "@/lib/data/users";
 import { getOrgManageScopes } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
-import { signOut } from "./actions";
-
-/** One sidebar nav row - icon glyph + label, matching the reference tool's .navico pattern. */
-function NavLink({ href, icon, children }: { href: string; icon: string; children: React.ReactNode }) {
-  return (
-    <Link
-      href={href}
-      className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
-    >
-      <span className="w-[18px] flex-none text-center text-[13px] opacity-90">{icon}</span>
-      {children}
-    </Link>
-  );
-}
+import { Sidebar, SIDEBAR_COLLAPSE_COOKIE } from "@/components/Sidebar";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getMyProfile();
@@ -47,120 +33,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const activeMunicipality = municipalities.length === 1 ? municipalities[0] : null;
   const muniPolicy = activeMunicipality ? await getPolicyConfig(activeMunicipality.id).catch(() => null) : null;
 
+  const cookieStore = await cookies();
+  const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSE_COOKIE)?.value === "1";
+
   return (
     <div className="flex min-h-screen">
-      <aside className="sticky top-0 flex h-screen w-60 flex-none flex-col overflow-hidden bg-ink text-white">
-        <div className="flex-none border-b border-white/10 px-4 py-4">
-          {activeMunicipality ? (
-            <>
-              {muniPolicy?.muniLogoUrl ? (
-                <div className="w-fit max-w-[150px] rounded-md bg-white p-1.5">
-                  {/* eslint-disable-next-line @next/next/no-img-element -- external municipality-supplied URL, not a local asset */}
-                  <img src={muniPolicy.muniLogoUrl} alt={activeMunicipality.name} className="max-h-[46px] max-w-full object-contain" />
-                </div>
-              ) : (
-                <div className="mb-2.5 inline-block rounded border-[1.5px] border-gold px-2.5 py-1.5 font-mono text-xs font-semibold tracking-widest text-gold">
-                  {activeMunicipality.name
-                    .split(/\s+/)
-                    .map((w) => w[0])
-                    .join("")
-                    .slice(0, 3)
-                    .toUpperCase()}
-                </div>
-              )}
-              <div className="mt-2.5 text-[14.5px] font-extrabold leading-tight">{activeMunicipality.name}</div>
-              <div className="mt-0.5 text-[11px] text-white/60">Management Performance Assessment</div>
-            </>
-          ) : (
-            <>
-              <div className="w-fit rounded-md bg-white p-2">
-                <Image src="/performaxis-logo.svg" alt="PerformAxis" width={168} height={72} priority />
-              </div>
-              <div className="mt-2 text-[11px] uppercase tracking-wide text-white/50">Government</div>
-            </>
-          )}
-        </div>
-
-        <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-2">
-          {/* Icons mirror the reference tool's .navico glyphs where a direct
-             equivalent exists (Dashboard/Progress/Reports/library/setup all
-             match literally); the two items with no single-tenant reference
-             equivalent (this app merges two products plus adds multi-tenant
-             admin screens) get a same-weight Unicode dingbat in the same
-             style rather than an emoji, to keep the sidebar visually flat. */}
-          <NavLink href="/dashboard" icon="◴">
-            Dashboard
-          </NavLink>
-          <NavLink href="/scorecards" icon="▦">
-            SDBIP Scorecards
-          </NavLink>
-          <NavLink href="/progress" icon="↗">
-            Performance Progress
-          </NavLink>
-          <NavLink href="/appraisals" icon="✓">
-            EPAS Appraisals
-          </NavLink>
-          <NavLink href="/reports" icon="␙">
-            Reports
-          </NavLink>
-          <NavLink href="/kpi-library" icon="≡">
-            KPI Type Generator
-          </NavLink>
-
-          {(canManageOrgs || canManageUsers) && (
-            <div className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wide text-white/40">
-              Administration
-            </div>
-          )}
-          {/* Setup order, not alphabetical: orgs must exist before employees
-             can be added to them, employees before EPAS policy/competencies
-             mean anything, and inviting users is naturally the last step. */}
-          {canManageOrgs && (
-            <NavLink href="/orgs" icon="⌂">
-              Org Management
-            </NavLink>
-          )}
-          {canManageOrgs && (
-            <NavLink href="/employees" icon="☺">
-              Employees
-            </NavLink>
-          )}
-          {canManageOrgs && (
-            <NavLink href="/epas-setup" icon="⚙">
-              EPAS Setup
-            </NavLink>
-          )}
-          {canManageUsers && (
-            <NavLink href="/users" icon="☷">
-              Manage Users
-            </NavLink>
-          )}
-        </nav>
-
-        <div className="flex-none border-t border-white/10 p-4">
-          <div className="truncate text-xs font-semibold text-white/80">
-            {me.profile?.full_name || me.user.email}
-          </div>
-          <div className="mt-0.5 text-[11px] text-white/50">
-            {memberships.length} membership{memberships.length === 1 ? "" : "s"}
-          </div>
-          <form action={signOut}>
-            <button
-              type="submit"
-              className="mt-2 w-full rounded-md border border-white/20 px-3 py-1.5 text-xs font-bold text-white/90 hover:border-white/40"
-            >
-              Sign out
-            </button>
-          </form>
-          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-white/40">
-            <span>Built by</span>
-            <div className="rounded bg-white px-1 py-0.5">
-              <Image src="/fridayms.png" alt="Friday Management Solutions" width={56} height={21} />
-            </div>
-          </div>
-        </div>
-      </aside>
-
+      <Sidebar
+        activeMunicipality={activeMunicipality ? { name: activeMunicipality.name, logoUrl: muniPolicy?.muniLogoUrl ?? null } : null}
+        userName={me.profile?.full_name || me.user.email || "—"}
+        membershipCount={memberships.length}
+        canManageUsers={canManageUsers}
+        canManageOrgs={canManageOrgs}
+        initialCollapsed={initialCollapsed}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between border-b border-line bg-white px-6 py-3">
           {/* Every page under here renders its own <h1> + subtitle (the
