@@ -5,17 +5,22 @@ import { AutoPrint } from "./AutoPrint";
 import { PrintButton } from "./PrintButton";
 
 const QUARTER_WINDOWS = [
-  { label: "Jul – Sep" },
-  { label: "Oct – Dec" },
-  { label: "Jan – Mar" },
-  { label: "Apr – Jun" },
+  { label: "July – September" },
+  { label: "October – December" },
+  { label: "January – March" },
+  { label: "April – June" },
 ];
 
-function quarterWindow(startYear: number | null, q: number): string {
-  if (!startYear) return "";
+function quarterWindowParts(startYear: number | null, q: number): { label: string; year: string } {
+  if (!startYear) return { label: "", year: "" };
   const label = QUARTER_WINDOWS[q - 1].label;
   const year = q <= 2 ? startYear : startYear + 1;
-  return `${label} ${year}`;
+  return { label, year: String(year) };
+}
+
+function quarterWindow(startYear: number | null, q: number): string {
+  const { label, year } = quarterWindowParts(startYear, q);
+  return label ? `${label} ${year}` : "";
 }
 
 // Fixed 2-5 competency-rating terminology - the reference's COMP_SCALE. Not
@@ -296,8 +301,9 @@ export default async function AgreementPage({
 
               <ClHead n="3">Commencement and duration</ClHead>
               <Cl n="3.1">
-                This Agreement will commence on 1 July {y1} and will remain in force until 30 June {y2} where after a
-                new Performance Agreement shall be concluded between the parties for the next financial year.
+                This Agreement will commence on 1 July <Mf>{y1}</Mf> and will remain in force until 30 June{" "}
+                <Mf>{y2}</Mf> where after a new Performance Agreement shall be concluded between the parties for the
+                next financial year.
               </Cl>
               <Cl n="3.2">
                 The parties will review the provisions of this Agreement during June each year. The parties will
@@ -398,7 +404,7 @@ export default async function AgreementPage({
                   </tr>
                   <tr className="pt-total">
                     <td>Total</td>
-                    <td className="c">{kpaSubtotalCount + data.competencies.length}</td>
+                    <td className="c"></td>
                     <td className="c">{kpaSubtotalPct + data.policy.competencyWeight}%</td>
                   </tr>
                 </tbody>
@@ -521,7 +527,7 @@ export default async function AgreementPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {[5, 4, 3, 2].map((r) => (
+                  {[2, 3, 4, 5].map((r) => (
                     <tr key={r}>
                       <td className="c">{r}</td>
                       <td>{COMPETENCY_SCALE_TERMS[r]}</td>
@@ -588,15 +594,20 @@ export default async function AgreementPage({
                   </tr>
                 </thead>
                 <tbody>
-                  {data.reviewSchedule.map((r) => (
-                    <tr key={r.quarter}>
-                      <td className="c">{r.quarter}</td>
-                      <td>{quarterWindow(data.fyStartYear, r.quarter)}</td>
-                      <td>
-                        <b>{r.dueDate}</b> ({r.reviewType})
-                      </td>
-                    </tr>
-                  ))}
+                  {data.reviewSchedule.map((r) => {
+                    const { label, year } = quarterWindowParts(data.fyStartYear, r.quarter);
+                    return (
+                      <tr key={r.quarter}>
+                        <td className="c">{r.quarter}</td>
+                        <td>
+                          {label} <Mf>{year}</Mf>
+                        </td>
+                        <td>
+                          <Mf>{r.dueDate}</Mf> ({r.reviewType})
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
 

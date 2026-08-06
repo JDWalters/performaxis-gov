@@ -38,10 +38,10 @@ export type PolicyConfig = {
 };
 
 export const REVIEW_TYPE = [
-  "Informal assessment",
-  "Mid-year panel assessment",
-  "Informal assessment",
-  "Year-end panel assessment",
+  "informal assessment by MM",
+  "Mid-year Panel Assessment",
+  "informal assessment by MM",
+  "Year-end Panel Assessment",
 ] as const;
 
 const REVIEW_DUE_MONTH = ["December", "March", "June", "September"] as const;
