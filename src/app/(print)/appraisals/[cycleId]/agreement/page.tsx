@@ -271,7 +271,7 @@ export default async function AgreementPage({
                 Comply with the provisions of Section {sectionNum}(1)(b), (4B) and (5) of the Systems Act, and the
                 Municipal Performance Regulations for Municipal Managers and Managers directly accountable to
                 Municipal Managers (2006) as amended by the Regulations on Appointment and Conditions of Employment
-                of Senior Managers (17 January 2014), as well as the Contract of Employment entered into between the
+                of Senior Managers (<Mf>{signMonth}</Mf>), as well as the Contract of Employment entered into between the
                 parties;
               </Cl>
               <Cl n="2.3">
@@ -406,7 +406,7 @@ export default async function AgreementPage({
 
               <Cl n="5.10">
                 The competency framework as set out in the Regulations on Appointment and Conditions of Employment of
-                Senior Managers (17 January 2014) consists of six leading competencies which comprise the driving
+                Senior Managers (17 January 2014) consists of six leading competencies which comprise twenty driving
                 competencies that communicate what is expected for effective performance in local government, and
                 six core competencies that act as drivers to ensure that the leading competencies are executed at an
                 optimal level.
