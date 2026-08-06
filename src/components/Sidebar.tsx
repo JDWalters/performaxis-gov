@@ -91,16 +91,23 @@ export function Sidebar({
         collapsed ? "w-[64px]" : "w-60"
       }`}
     >
-      <div className={`relative flex-none border-b border-white/10 py-4 ${collapsed ? "px-2" : "px-4"}`}>
+      {/* Its own row, not absolutely positioned over the branding block below
+         - the earlier version overlapped the collapsed crest/logo and got
+         clipped by the aside's overflow-hidden edge. A dedicated row can't
+         collide with anything and stays inside the aside's bounds at any
+         width. */}
+      <div className={`flex flex-none items-center border-b border-white/10 py-1.5 ${collapsed ? "justify-center px-1" : "justify-end px-2"}`}>
         <button
           type="button"
           onClick={toggle}
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="absolute -right-2.5 top-4 flex h-5 w-5 items-center justify-center rounded-full border border-white/20 bg-ink text-[10px] text-white/70 hover:border-gold hover:text-gold"
+          className="flex h-6 w-6 items-center justify-center rounded-full border border-white/30 bg-white/15 text-xs font-bold text-white hover:border-gold hover:bg-white/25 hover:text-gold"
         >
           {collapsed ? "›" : "‹"}
         </button>
+      </div>
 
+      <div className={`flex-none border-b border-white/10 py-4 ${collapsed ? "px-2" : "px-4"}`}>
         {activeMunicipality ? (
           collapsed ? (
             activeMunicipality.logoUrl ? (
