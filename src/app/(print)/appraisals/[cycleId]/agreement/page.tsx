@@ -57,11 +57,11 @@ tr, th, td { page-break-inside: avoid; }
 
 .c { text-align: center; }
 table.pt { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 9pt; }
-table.pt th { background: #f0dfae; color: #17313a; font-weight: 800; text-align: left; padding: 6px 6px; border: 0.5pt solid #d8b25a; font-size: 9.5pt; white-space: nowrap; }
+table.pt th { background: #f0dfae; color: #17313a; font-weight: 800; text-align: left; padding: 6px 6px; border: 0.5pt solid #d8b25a; font-size: 9.5pt; white-space: nowrap; text-transform: uppercase; }
 table.pt td { padding: 5px 6px; border: 0.5pt solid #d8e0dd; vertical-align: top; }
 table.pt tr:nth-child(even) td { background: #fbfbfb; }
 table.pt tr.pt-total td { background: #fdf6ea; font-weight: 700; }
-table.pt tr.pt-groupHead td { background: #17313a; color: #fff; font-weight: 700; }
+table.pt tr.pt-groupHead td { background: #f0dfae; color: #17313a; font-weight: 800; border: 0.5pt solid #d8b25a; font-size: 9.5pt; white-space: nowrap; text-transform: uppercase; }
 
 /* Matches the reference tool's .agparties/.agtitle/.agsub/.agsub2/.agpt/.agk
    exactly - a bordered block (agreement title, municipality name in gold,

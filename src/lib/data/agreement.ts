@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPolicyConfig, defaultReviewDate, REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
 import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
+import { competencyRank, type CompetencyGroup } from "@/lib/data/competencies";
 import type { Tables } from "@/lib/supabase/types";
 
 type EmployeeRole = Tables<"employees">["role"];
@@ -152,9 +153,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   const { data: competencies, error: compErr } = await (municipalityOrgId
     ? compQuery.eq("org_id", municipalityOrgId)
     : compQuery
-  )
-    .order("group_name")
-    .order("name");
+  );
   if (compErr) throw compErr;
 
   const policy = await getPolicyConfig(municipalityOrgId);
@@ -226,11 +225,24 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   });
 
   const compRows = (competencies ?? []) as unknown as CompetencyRow[];
-  const agreementCompetencies: AgreementCompetency[] = compRows.map((c) => ({
-    name: c.name,
-    groupName: c.group_name,
-    drivingText: c.driving_text,
-  }));
+  // Same regulatory ordering as the setup screen's competency list (Leading
+  // before Core, and within each group the Regulations' own prescribed
+  // sequence) - not alphabetical. This table has its own Supabase query
+  // (not getCompetencies()) so it needs the same rank-based sort applied
+  // explicitly rather than relying on SQL .order().
+  const agreementCompetencies: AgreementCompetency[] = compRows
+    .map((c) => ({
+      name: c.name,
+      groupName: c.group_name as CompetencyGroup | null,
+      drivingText: c.driving_text,
+    }))
+    .sort((a, b) => {
+      const [ga, ra] = competencyRank(a.name, a.groupName);
+      const [gb, rb] = competencyRank(b.name, b.groupName);
+      if (ga !== gb) return ga - gb;
+      if (ra !== rb) return ra - rb;
+      return a.name.localeCompare(b.name);
+    });
 
   // The Municipal Manager is a Section 57 employee, assessed by the Mayor's
   // panel and employed (for agreement purposes) by the Mayor personally;

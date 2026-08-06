@@ -17,7 +17,7 @@ export type CompetencyRow = {
  * Falls back to alphabetical for anything renamed away from a prescribed
  * name or genuinely custom-added.
  */
-function competencyRank(name: string, groupName: CompetencyGroup | null): [number, number] {
+export function competencyRank(name: string, groupName: CompetencyGroup | null): [number, number] {
   const groupRank = groupName === "Leading" ? 0 : groupName === "Core" ? 1 : 2;
   const prescribedIndex = PRESCRIBED_COMPETENCIES.findIndex((c) => c.name.toLowerCase() === name.toLowerCase());
   return [groupRank, prescribedIndex === -1 ? 999 : prescribedIndex];
