@@ -4,12 +4,13 @@ import { useRef, useState, useTransition, type ChangeEvent } from "react";
 import {
   saveKpiRating,
   saveKpiNa,
+  saveKpiComment,
   saveCompetencyRating,
   saveCompetencyComment,
   saveAssessmentMetaField,
 } from "./assessment-actions";
-import { finalRating } from "@/lib/data/appraisal-scoring";
-import type { AppraisalKpi } from "@/lib/data/appraisals-shared";
+import { finalRating, DEFAULT_RATING_SCALE } from "@/lib/data/appraisal-scoring";
+import { friendlyAppraisalActual, type AppraisalKpi } from "@/lib/data/appraisals-shared";
 import type { CompetencyAssessment, AssessmentMeta } from "@/lib/data/appraisals";
 
 type RatingView = "self" | "mgr" | "panel";
@@ -18,13 +19,23 @@ const VIEW_LABEL: Record<RatingView, string> = { self: "Self-assessment", mgr: "
 const CELL_CLASS =
   "w-full rounded-md border border-line bg-white px-2 py-1 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
 
-/** A 1-5 rating dropdown. Selecting a value is itself the deliberate action - no onBlur dirty-tracking needed (unlike free-text cells, a select's onChange never fires without the user actually choosing something). */
+// Short achievement-level names for competency ratings (2-5) - the
+// Regulations don't name a "1" tier for competencies, unlike KPIs.
+const COMPETENCY_SCALE_TERMS: Record<number, string> = { 5: "Superior", 4: "Advanced", 3: "Competent", 2: "Basic" };
+
+function fmt2(n: number): string {
+  return n.toFixed(2);
+}
+
+/** A 1-5 (or 2-5) rating dropdown. Selecting a value is itself the deliberate action - no onBlur dirty-tracking needed. */
 function RatingSelect({
   value,
+  options,
   onSave,
   disabled,
 }: {
   value: number | null;
+  options: number[];
   onSave: (v: string) => void;
   disabled: boolean;
 }) {
@@ -40,7 +51,7 @@ function RatingSelect({
       className={`${CELL_CLASS} disabled:cursor-not-allowed disabled:border-transparent disabled:bg-paper disabled:text-ink2`}
     >
       <option value="">—</option>
-      {[1, 2, 3, 4, 5].map((n) => (
+      {options.map((n) => (
         <option key={n} value={n}>
           {n}
         </option>
@@ -49,7 +60,7 @@ function RatingSelect({
   );
 }
 
-/** Free-text cell that only saves onBlur if it actually changed - the same fix applied to every other capture surface in this app. */
+/** Free-text cell that only saves onBlur if it actually changed. */
 function EditableField({
   value,
   onSave,
@@ -83,23 +94,24 @@ function EditableField({
   return multiline ? <textarea rows={2} {...common} /> : <input type="text" {...common} />;
 }
 
-function ReadOnlyRating({ value }: { value: number | null }) {
-  return <span className="block text-center text-sm text-ink2">{value ?? "—"}</span>;
-}
+const TH_CLASS = "px-2 py-2 text-left text-[11px] font-extrabold uppercase tracking-wide text-white";
 
 /**
  * The self / manager / panel rating capture screen - the reference's
- * pageAssess(). A toggle picks which of the three columns the signed-in
- * user is currently entering (each still individually gated by
- * canSelfAssess/canManagerRate); the other two columns are always visible
- * read-only so nobody has to flip views just to see what's already been
- * captured. Part A rates each KPI (with an N/A escape hatch and a live
- * rebased weight %), Part B rates the 12 competencies, and the Assessment
- * record panel captures the meeting metadata the printed report needs.
+ * pageAssess(). One "Rating" column is shown per table, bound to whichever
+ * of self/mgr/panel the segmented toggle currently has selected (matching
+ * the reference exactly - not three always-visible columns), so entering a
+ * rating is unambiguous about which of the three columns is being written.
+ * Part A rates each KPI against its live-captured actual/target and a
+ * rebased weight %, Part B rates the 12 competencies, and the Assessment
+ * record panel below captures the meeting metadata the printed report needs.
  */
 export function AssessmentRatingsPanel({
   cycleId,
   quarter,
+  quarterLabel,
+  reviewType,
+  reviewDueDate,
   kpis,
   competencies,
   meta,
@@ -108,6 +120,9 @@ export function AssessmentRatingsPanel({
 }: {
   cycleId: string;
   quarter: number;
+  quarterLabel: string;
+  reviewType: string;
+  reviewDueDate: string;
   kpis: AppraisalKpi[];
   competencies: CompetencyAssessment[];
   meta: AssessmentMeta;
@@ -135,6 +150,14 @@ export function AssessmentRatingsPanel({
     fd.set("na", String(na));
     startTransition(() => saveKpiNa(fd));
   };
+  const saveComment = (kpiId: string, comment: string) => {
+    const fd = new FormData();
+    fd.set("cycleId", cycleId);
+    fd.set("kpiId", kpiId);
+    fd.set("quarter", String(quarter));
+    fd.set("comment", comment);
+    startTransition(() => saveKpiComment(fd));
+  };
   const saveCompRating = (competencyId: string, v: string) => {
     const fd = new FormData();
     fd.set("cycleId", cycleId);
@@ -161,190 +184,269 @@ export function AssessmentRatingsPanel({
     startTransition(() => saveAssessmentMetaField(fd));
   };
 
+  // Applicable = counted in the rebased weight column (not N/A, has a target
+  // this quarter) - the reference's kpiWeights() "excluded" figure.
+  const kpaApplicable = kpis.filter((k) => k.effectiveWeightPct > 0);
+  const kpaExcluded = kpis.length - kpaApplicable.length;
+  const kpaBase = kpaApplicable.reduce((sum, k) => sum + (k.weight ? Number(k.weight) : 0), 0);
+
+  const compCount = competencies.length;
+  const compPct100 = compCount ? 100 / compCount : 0;
+
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        {(["self", "mgr", "panel"] as RatingView[]).map((v) => (
-          <button
-            key={v}
-            type="button"
-            onClick={() => setView(v)}
-            className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-              view === v ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
-            }`}
-          >
-            {VIEW_LABEL[v]}
-          </button>
-        ))}
-        {!editable && (
-          <span className="rounded-md bg-blue-bg px-2 py-1 text-xs font-medium text-blue">
-            You don&apos;t have permission to capture the &quot;{VIEW_LABEL[view]}&quot; column - showing view-only.
-          </span>
-        )}
+      <p className="rounded-[9px] border border-line border-l-4 border-l-gold bg-white px-3.5 py-2.5 text-[13px] leading-relaxed text-ink2">
+        <b className="text-ink">{reviewType}</b> for {quarterLabel}, to be completed by{" "}
+        <b className="text-ink">{reviewDueDate}</b>. The employee submits a self-assessment before the formal
+        assessment. Where the employee could not perform for reasons outside the control of the employer and
+        employee, mark the indicator <b className="text-ink">N/A</b> with evidence and it is excluded from the
+        calculation.
+      </p>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          {(["self", "mgr", "panel"] as RatingView[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+                view === v ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+              }`}
+            >
+              {VIEW_LABEL[v]}
+            </button>
+          ))}
+          {!editable && (
+            <span className="rounded-md bg-blue-bg px-2 py-1 text-xs font-medium text-blue">
+              You don&apos;t have permission to capture the &quot;{VIEW_LABEL[view]}&quot; column - showing view-only.
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-ink2">
+          The final score uses the <b className="text-ink">panel rating</b> where captured, otherwise the employer
+          rating.
+        </span>
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-extrabold text-ink">Part A — Key Performance Areas</h3>
+        <div className="mb-2 flex items-baseline gap-2">
+          <h3 className="text-sm font-extrabold text-ink">Part A — Key Performance Areas</h3>
+          <span className="text-xs font-semibold text-ink2">rating scale 1 – 5</span>
+        </div>
+
         {kpis.length === 0 ? (
           <p className="text-sm text-ink2">No performance indicators on this plan yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-line bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">
-                  <th className="p-2">KPI</th>
-                  <th className="p-2">Weight</th>
-                  <th className="p-2 text-center">Self</th>
-                  <th className="p-2 text-center">Employer/MM</th>
-                  <th className="p-2 text-center">Panel</th>
-                  <th className="p-2 text-center">Final</th>
-                  <th className="p-2 text-center">N/A</th>
-                </tr>
-              </thead>
-              <tbody>
-                {kpis.map((k) => {
-                  const r = k.result;
-                  const na = r?.na ?? false;
-                  const final = finalRating(r?.selfRating ?? null, r?.mgrRating ?? null, r?.panelRating ?? null);
-                  return (
-                    <tr key={k.id} className="border-b border-line last:border-0">
-                      <td className="min-w-[220px] p-2">
-                        {k.kpa && <div className="text-[10px] font-bold uppercase tracking-wide text-ink2">{k.kpa}</div>}
-                        <div className="font-medium text-ink">{k.name}</div>
-                      </td>
-                      <td className="p-2 text-ink2">{na ? "—" : `${k.effectiveWeightPct.toFixed(1)}%`}</td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "self" ? (
-                          <RatingSelect
-                            key={`${k.id}:self:${r?.selfRating ?? ""}`}
-                            value={r?.selfRating ?? null}
-                            disabled={!editable || na}
-                            onSave={(v) => saveRating(k.id, v)}
+          <>
+            <div className="mb-2 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-md border border-gold bg-gold-bg px-3 py-2 text-xs text-ink2">
+              <span>
+                <b className="text-ink">
+                  {kpaApplicable.length} of {kpis.length}
+                </b>{" "}
+                indicators apply in Q{quarter}
+                {kpaExcluded > 0 && (
+                  <>
+                    {" "}
+                    — <b className="text-ink">{kpaExcluded}</b> excluded (no Q{quarter} target, or marked N/A)
+                  </>
+                )}
+              </span>
+              <span>
+                Their weightings are re-based to total <b className="text-ink">100%</b>
+                {kpaBase > 0 && Math.abs(kpaBase - 100) > 0.01 && (
+                  <> (agreed weightings for these indicators come to {fmt2(kpaBase)}%)</>
+                )}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-line bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-ink">
+                    <th className={`${TH_CLASS} text-center`}>#</th>
+                    <th className={TH_CLASS}>KPA</th>
+                    <th className={TH_CLASS}>Indicator</th>
+                    <th className={`${TH_CLASS} text-center`}>Q{quarter} target</th>
+                    <th className={`${TH_CLASS} text-center`}>Weight</th>
+                    <th className={TH_CLASS}>Actual / evidence</th>
+                    <th className={`${TH_CLASS} text-center`}>Rating (1–5)</th>
+                    <th className={`${TH_CLASS} text-center`}>Weighted</th>
+                    <th className={`${TH_CLASS} text-center`}>N/A</th>
+                    <th className={TH_CLASS}>Comment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {kpis.map((k, i) => {
+                    const r = k.result;
+                    const na = r?.na ?? false;
+                    const final = finalRating(r?.selfRating ?? null, r?.mgrRating ?? null, r?.panelRating ?? null);
+                    const applicable = k.effectiveWeightPct > 0;
+                    const weighted = applicable && final != null ? (final * k.effectiveWeightPct) / 100 : null;
+                    const rowEditable = applicable && editable;
+                    return (
+                      <tr key={k.id} className={`border-b border-line last:border-0 ${na ? "bg-missed-bg" : ""}`}>
+                        <td className="p-2 text-center font-mono text-ink2">{i + 1}</td>
+                        <td className="p-2 font-mono text-ink2">{k.kpa ?? "—"}</td>
+                        <td className="min-w-[220px] p-2 text-ink">{k.name}</td>
+                        <td className="p-2 text-center">
+                          {r?.targetValue ? (
+                            <b className="text-ink">{r.targetValue}</b>
+                          ) : (
+                            <span className="italic text-ink2">no target</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-center text-ink2">{applicable ? `${fmt2(k.effectiveWeightPct)}%` : "—"}</td>
+                        <td className="min-w-[160px] p-2 text-ink2">{friendlyAppraisalActual(k) ?? "—"}</td>
+                        <td className="min-w-[90px] p-2">
+                          {applicable ? (
+                            <RatingSelect
+                              key={`${k.id}:${view}:${r?.selfRating ?? ""}:${r?.mgrRating ?? ""}:${r?.panelRating ?? ""}`}
+                              value={view === "self" ? r?.selfRating ?? null : view === "mgr" ? r?.mgrRating ?? null : r?.panelRating ?? null}
+                              options={[1, 2, 3, 4, 5]}
+                              disabled={!rowEditable}
+                              onSave={(v) => saveRating(k.id, v)}
+                            />
+                          ) : (
+                            <span className="block text-center text-sm text-ink2">{na ? "N/A" : "Not assessed this quarter"}</span>
+                          )}
+                        </td>
+                        <td className="p-2 text-center font-bold text-ink">{weighted != null ? fmt2(weighted) : "—"}</td>
+                        <td className="p-2 text-center">
+                          <input
+                            type="checkbox"
+                            checked={na}
+                            disabled={!canManagerRate}
+                            onChange={(e) => saveNa(k.id, e.target.checked)}
                           />
-                        ) : (
-                          <ReadOnlyRating value={r?.selfRating ?? null} />
-                        )}
-                      </td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "mgr" ? (
-                          <RatingSelect
-                            key={`${k.id}:mgr:${r?.mgrRating ?? ""}`}
-                            value={r?.mgrRating ?? null}
-                            disabled={!editable || na}
-                            onSave={(v) => saveRating(k.id, v)}
-                          />
-                        ) : (
-                          <ReadOnlyRating value={r?.mgrRating ?? null} />
-                        )}
-                      </td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "panel" ? (
-                          <RatingSelect
-                            key={`${k.id}:panel:${r?.panelRating ?? ""}`}
-                            value={r?.panelRating ?? null}
-                            disabled={!editable || na}
-                            onSave={(v) => saveRating(k.id, v)}
-                          />
-                        ) : (
-                          <ReadOnlyRating value={r?.panelRating ?? null} />
-                        )}
-                      </td>
-                      <td className="p-2 text-center font-bold text-ink">{final ?? "—"}</td>
-                      <td className="p-2 text-center">
-                        <input
-                          type="checkbox"
-                          checked={na}
-                          disabled={!canManagerRate}
-                          onChange={(e) => saveNa(k.id, e.target.checked)}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        </td>
+                        <td className="min-w-[200px] p-2">
+                          {rowEditable ? (
+                            <EditableField
+                              key={r?.comment ?? ""}
+                              value={r?.comment ?? ""}
+                              placeholder="Comment"
+                              onSave={(v) => saveComment(k.id, v)}
+                            />
+                          ) : (
+                            <span className="block text-sm text-ink2">{r?.comment ?? ""}</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="bg-gold-bg">
+                    <td className="p-2 font-bold text-ink" colSpan={4}>
+                      Total
+                    </td>
+                    <td className="p-2 text-center font-bold text-ink">{kpaApplicable.length ? "100.00%" : "—"}</td>
+                    <td colSpan={5}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
+              {DEFAULT_RATING_SCALE.map((s) => (
+                <span key={s.r}>
+                  <b className="text-ink">{s.r}</b> {s.term}
+                </span>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       <div>
-        <h3 className="mb-2 text-sm font-extrabold text-ink">Part B — Competencies</h3>
+        <div className="mb-2 flex items-baseline gap-2">
+          <h3 className="text-sm font-extrabold text-ink">Part B — Competencies</h3>
+          <span className="text-xs font-semibold text-ink2">equal weighting · rating scale 2 – 5</span>
+        </div>
+
         {competencies.length === 0 ? (
           <p className="text-sm text-ink2">No competency framework configured for this municipality yet.</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-line bg-white">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">
-                  <th className="p-2">Competency</th>
-                  <th className="p-2 text-center">Self</th>
-                  <th className="p-2 text-center">Employer/MM</th>
-                  <th className="p-2 text-center">Panel</th>
-                  <th className="p-2 text-center">Final</th>
-                  <th className="p-2">Comment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {competencies.map((c) => {
-                  const final = finalRating(c.selfRating, c.mgrRating, c.panelRating);
-                  return (
+          <>
+            <div className="mb-2 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-md border border-gold bg-gold-bg px-3 py-2 text-xs text-ink2">
+              <span>
+                <b className="text-ink">{compCount}</b> competencies
+              </span>
+              <span>
+                each re-based to <b className="text-ink">{fmt2(compPct100)}% of 100</b>
+              </span>
+            </div>
+
+            <div className="overflow-x-auto rounded-xl border border-line bg-white">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-ink">
+                    <th className={`${TH_CLASS} text-center`}>#</th>
+                    <th className={TH_CLASS}>Competency</th>
+                    <th className={TH_CLASS}>Group</th>
+                    <th className={TH_CLASS}>Driving competencies</th>
+                    <th className={`${TH_CLASS} text-center`}>Weight</th>
+                    <th className={`${TH_CLASS} text-center`}>Rating (2–5)</th>
+                    <th className={TH_CLASS}>Comment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {competencies.map((c, i) => (
                     <tr key={c.id} className="border-b border-line last:border-0">
-                      <td className="min-w-[200px] p-2">
-                        {c.groupName && <div className="text-[10px] font-bold uppercase tracking-wide text-ink2">{c.groupName}</div>}
-                        <div className="font-medium text-ink">{c.name}</div>
+                      <td className="p-2 text-center font-mono text-ink2">{i + 1}</td>
+                      <td className="min-w-[180px] p-2 font-medium text-ink">{c.name}</td>
+                      <td className="p-2">
+                        <span
+                          className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                            c.groupName === "Core" ? "bg-blue-bg text-blue" : "bg-gold-bg text-gold"
+                          }`}
+                        >
+                          {c.groupName ?? "—"}
+                        </span>
                       </td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "self" ? (
-                          <RatingSelect
-                            key={`${c.id}:self:${c.selfRating ?? ""}`}
-                            value={c.selfRating}
-                            disabled={!editable}
-                            onSave={(v) => saveCompRating(c.id, v)}
-                          />
-                        ) : (
-                          <ReadOnlyRating value={c.selfRating} />
-                        )}
-                      </td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "mgr" ? (
-                          <RatingSelect
-                            key={`${c.id}:mgr:${c.mgrRating ?? ""}`}
-                            value={c.mgrRating}
-                            disabled={!editable}
-                            onSave={(v) => saveCompRating(c.id, v)}
-                          />
-                        ) : (
-                          <ReadOnlyRating value={c.mgrRating} />
-                        )}
-                      </td>
-                      <td className="min-w-[80px] p-2">
-                        {view === "panel" ? (
-                          <RatingSelect
-                            key={`${c.id}:panel:${c.panelRating ?? ""}`}
-                            value={c.panelRating}
-                            disabled={!editable}
-                            onSave={(v) => saveCompRating(c.id, v)}
-                          />
-                        ) : (
-                          <ReadOnlyRating value={c.panelRating} />
-                        )}
-                      </td>
-                      <td className="p-2 text-center font-bold text-ink">{final ?? "—"}</td>
-                      <td className="min-w-[220px] p-2">
-                        <EditableField
-                          key={c.comment ?? ""}
-                          value={c.comment ?? ""}
-                          placeholder="Comment"
-                          disabled={!canManagerRate && !canSelfAssess}
-                          onSave={(v) => saveCompComment(c.id, v)}
+                      <td className="min-w-[220px] p-2 text-xs text-ink2">{c.drivingText || "—"}</td>
+                      <td className="p-2 text-center text-ink2">{fmt2(compPct100)}%</td>
+                      <td className="min-w-[90px] p-2">
+                        <RatingSelect
+                          key={`${c.id}:${view}:${c.selfRating ?? ""}:${c.mgrRating ?? ""}:${c.panelRating ?? ""}`}
+                          value={view === "self" ? c.selfRating : view === "mgr" ? c.mgrRating : c.panelRating}
+                          options={[2, 3, 4, 5]}
+                          disabled={!editable}
+                          onSave={(v) => saveCompRating(c.id, v)}
                         />
                       </td>
+                      <td className="min-w-[200px] p-2">
+                        {editable ? (
+                          <EditableField
+                            key={c.comment ?? ""}
+                            value={c.comment ?? ""}
+                            placeholder="Comment"
+                            onSave={(v) => saveCompComment(c.id, v)}
+                          />
+                        ) : (
+                          <span className="block text-sm text-ink2">{c.comment ?? ""}</span>
+                        )}
+                      </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                  ))}
+                  <tr className="bg-gold-bg">
+                    <td className="p-2 font-bold text-ink" colSpan={4}>
+                      Total
+                    </td>
+                    <td className="p-2 text-center font-bold text-ink">{compCount ? "100.00%" : "—"}</td>
+                    <td colSpan={2}></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink2">
+              {[5, 4, 3, 2].map((r) => (
+                <span key={r}>
+                  <b className="text-ink">{r}</b> {COMPETENCY_SCALE_TERMS[r]}
+                </span>
+              ))}
+            </div>
+          </>
         )}
       </div>
 

@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import { getPolicyConfig, defaultReviewDate, REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
+import { getPolicyConfig, defaultReviewDate, AGREEMENT_REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
 import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
 import { competencyRank, type CompetencyGroup } from "@/lib/data/competencies";
 import type { Tables } from "@/lib/supabase/types";
@@ -171,7 +171,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   const fyStartYear = header.financial_year?.start_year ?? null;
   const reviewSchedule: ReviewScheduleRow[] = [0, 1, 2, 3].map((qi) => ({
     quarter: qi + 1,
-    reviewType: REVIEW_TYPE[qi],
+    reviewType: AGREEMENT_REVIEW_TYPE[qi],
     dueDate: policy.reviewDates[qi] || (fyStartYear != null ? defaultReviewDate(fyStartYear, qi as 0 | 1 | 2 | 3) : "—"),
   }));
 

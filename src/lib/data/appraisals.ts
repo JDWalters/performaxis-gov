@@ -14,7 +14,7 @@ import {
   type BonusEligibility,
   type PartialScore,
 } from "@/lib/data/appraisal-scoring";
-import { getPolicyConfig, resolveMunicipalityOrgId } from "@/lib/data/policy";
+import { getPolicyConfig, resolveMunicipalityOrgId, defaultReviewDate, REVIEW_TYPE } from "@/lib/data/policy";
 import { getCompetencies } from "@/lib/data/competencies";
 import { getAnnexureData } from "@/lib/data/annexure";
 import type { EmployeeRole } from "@/lib/data/employees-shared";
@@ -107,6 +107,12 @@ export type AppraisalDetail = {
   orgName: string;
   fyLabel: string;
   quarter: number;
+  /** e.g. "Q1 (Jul–Sep)" - the reference's QL[q]. */
+  quarterLabel: string;
+  /** e.g. "informal assessment by MM" / "Mid-year Panel Assessment" - the reference's REVIEW_TYPE[q]. */
+  reviewType: string;
+  /** e.g. "December 2025" - the org's configured review date, falling back to the regulation-derived default. */
+  reviewDueDate: string;
   canCapture: boolean;
   /** True only via org-level capture_appraisal_ratings (a real manager/admin) - the reference's canManagerRate(), gates the Manager and Panel rating columns. */
   canManagerRate: boolean;
@@ -120,10 +126,16 @@ export type AppraisalDetail = {
   meta: AssessmentMeta;
 };
 
+// The reference's QL - short quarter label with its month range, used on the
+// Assessments screen header (distinct from the print agreement's full
+// "July – September" wording, which reads better in legal prose).
+const QUARTER_LABEL = ["Q1 (Jul–Sep)", "Q2 (Oct–Dec)", "Q3 (Jan–Mar)", "Q4 (Apr–Jun)"];
+
 export type CompetencyAssessment = {
   id: string;
   name: string;
   groupName: string | null;
+  drivingText: string | null;
   selfRating: number | null;
   mgrRating: number | null;
   panelRating: number | null;
@@ -184,7 +196,7 @@ type AppraisalHeaderRow = {
   id: string;
   employee_id: string;
   employee: { name: string; position: string | null; org: { id: string; name: string } | null } | null;
-  financial_year: { label: string } | null;
+  financial_year: { label: string; start_year: number } | null;
 };
 
 type AppraisalKpiRow = {
@@ -227,7 +239,7 @@ export async function getAppraisalDetail(
   const { data: cycle, error: cycleErr } = await supabase
     .from("appraisal_cycles")
     .select(
-      "id, employee_id, employee:employees(name, position, org:orgs(id, name)), financial_year:financial_years(label)"
+      "id, employee_id, employee:employees(name, position, org:orgs(id, name)), financial_year:financial_years(label, start_year)"
     )
     .eq("id", cycleId)
     .maybeSingle();
@@ -358,6 +370,7 @@ export async function getAppraisalDetail(
       id: c.id,
       name: c.name,
       groupName: c.groupName,
+      drivingText: c.drivingText,
       selfRating: r?.self_rating ?? null,
       mgrRating: r?.mgr_rating ?? null,
       panelRating: r?.panel_rating ?? null,
@@ -423,6 +436,12 @@ export async function getAppraisalDetail(
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
+  const fyStartYear = header.financial_year?.start_year ?? null;
+  const reviewType = REVIEW_TYPE[quarter - 1] ?? "";
+  const reviewDueDate =
+    policy.reviewDates[quarter - 1] ||
+    (fyStartYear != null ? defaultReviewDate(fyStartYear, (quarter - 1) as 0 | 1 | 2 | 3) : "—");
+
   return {
     cycleId: header.id,
     employeeId: header.employee_id,
@@ -431,6 +450,9 @@ export async function getAppraisalDetail(
     orgName: header.employee.org?.name ?? "—",
     fyLabel: header.financial_year?.label ?? "—",
     quarter,
+    quarterLabel: QUARTER_LABEL[quarter - 1] ?? `Q${quarter}`,
+    reviewType,
+    reviewDueDate,
     canCapture: Boolean(canCaptureData),
     canManagerRate,
     canSelfAssess,

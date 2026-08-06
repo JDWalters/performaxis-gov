@@ -100,6 +100,30 @@ export async function saveCompetencyRating(formData: FormData) {
   revalidatePath(`/appraisals/${cycleId}`);
 }
 
+/** Sets one KPI's assessment comment for a quarter - the same appraisal_ratings row the Capture Results tab's comment field writes to, so both screens show one shared note rather than two divergent ones. */
+export async function saveKpiComment(formData: FormData) {
+  const cycleId = str(formData, "cycleId");
+  const kpiId = str(formData, "kpiId");
+  const quarter = Number(str(formData, "quarter"));
+  const comment = str(formData, "comment");
+  if (!kpiId || !quarter) throw new Error("Missing KPI or quarter.");
+
+  const supabase = await createClient();
+  const { error } = await (
+    supabase.from("appraisal_ratings") as unknown as {
+      upsert: (
+        rows: Record<string, unknown>[],
+        opts: { onConflict: string }
+      ) => Promise<{ error: { message: string } | null }>;
+    }
+  ).upsert([{ appraisal_kpi_id: kpiId, quarter, comment: comment || null }], {
+    onConflict: "appraisal_kpi_id,quarter",
+  });
+  if (error) throw error;
+
+  revalidatePath(`/appraisals/${cycleId}`);
+}
+
 /** Sets one competency's comment for a quarter. */
 export async function saveCompetencyComment(formData: FormData) {
   const cycleId = str(formData, "cycleId");

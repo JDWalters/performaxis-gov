@@ -23,17 +23,19 @@ export function AssessmentSummary({ assessment }: { assessment: AssessmentSummar
   const { kpa, competencies, overall } = assessment;
 
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 items-center gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr]">
       <ScoreCard
         label={`KPA Component (${kpa.weightPct}%)`}
         score={kpa.score}
         subtitle={`${kpa.ratedCount} of ${kpa.totalCount} applicable indicators rated`}
       />
+      <div className="hidden text-sm font-bold text-ink2 sm:block">×{kpa.weightPct}%</div>
       <ScoreCard
         label={`Competencies (${competencies.weightPct}%)`}
         score={competencies.score}
         subtitle={`${competencies.ratedCount} of ${competencies.totalCount} rated`}
       />
+      <div className="hidden text-sm font-bold text-ink2 sm:block">=</div>
       <div
         className={`rounded-xl border-2 p-4 ${
           overall.band ? BAND_CARD_CLASS[overall.band.tagClass] : "border-line bg-white"

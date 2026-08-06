@@ -134,6 +134,13 @@ export default async function AppraisalDetailPage({
         </Link>
       </div>
 
+      {isRatingsView && (
+        <div className="text-xs font-semibold text-ink2">
+          {detail.quarterLabel} · <b className="text-ink">{detail.reviewType}</b> · due{" "}
+          <b className="text-ink">{detail.reviewDueDate}</b>
+        </div>
+      )}
+
       {isPdpView ? (
         pdp ? (
           <>
@@ -202,6 +209,9 @@ export default async function AppraisalDetailPage({
             key={quarter}
             cycleId={detail.cycleId}
             quarter={quarter}
+            quarterLabel={detail.quarterLabel}
+            reviewType={detail.reviewType}
+            reviewDueDate={detail.reviewDueDate}
             kpis={detail.kpis}
             competencies={detail.competencies}
             meta={detail.meta}

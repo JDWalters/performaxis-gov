@@ -37,7 +37,20 @@ export type PolicyConfig = {
   reviewDates: [string | null, string | null, string | null, string | null];
 };
 
+// The reference's REVIEW_TYPE JS array - used on the Assessments/Ratings
+// screen's per-quarter intro callout ("Informal assessment for Q1...").
 export const REVIEW_TYPE = [
+  "Informal assessment",
+  "Mid-year panel assessment",
+  "Informal assessment",
+  "Year-end panel assessment",
+] as const;
+
+// The agreement's clause 7.1 "Review to be completed by" column uses its own
+// hardcoded wording, distinct from REVIEW_TYPE above (confirmed by reading
+// both raw templates directly - two genuinely different strings in the
+// source, not one shared constant).
+export const AGREEMENT_REVIEW_TYPE = [
   "informal assessment by MM",
   "Mid-year Panel Assessment",
   "informal assessment by MM",
