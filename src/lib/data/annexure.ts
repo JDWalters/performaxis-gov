@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { kpaRank } from "@/lib/data/kpa-shared";
 
 export type AnnexureKpi = {
   id: string;
@@ -59,6 +60,7 @@ type AnnexureKpiRow = {
   poe: string | null;
   weight: number;
   weight_locked: boolean;
+  created_at: string;
   appraisal_ratings: { quarter: number; target_value: string | null }[];
 };
 
@@ -135,7 +137,7 @@ export async function getAnnexureData(cycleId: string): Promise<AnnexureData | n
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
     .select(
-      "id, kpa, name, unit_of_measure, baseline, annual_target, poe, weight, weight_locked, appraisal_ratings(quarter, target_value)"
+      "id, kpa, name, unit_of_measure, baseline, annual_target, poe, weight, weight_locked, created_at, appraisal_ratings(quarter, target_value)"
     )
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
@@ -154,7 +156,16 @@ export async function getAnnexureData(cycleId: string): Promise<AnnexureData | n
   });
 
   const rows = (kpis ?? []) as unknown as AnnexureKpiRow[];
-  const annexureKpis: AnnexureKpi[] = rows
+  const annexureKpis: AnnexureKpi[] = [...rows]
+    // Grouped by KPA in the regulatory order, then by capture order within
+    // each KPA - matches the reference tool and the other KPI lists in this
+    // app (Assessment ratings, the printed agreement), not alphabetical.
+    .sort((a, b) => {
+      const ra = kpaRank(a.kpa);
+      const rb = kpaRank(b.kpa);
+      if (ra !== rb) return ra - rb;
+      return a.created_at.localeCompare(b.created_at);
+    })
     .map((r) => {
       const byQuarter = (q: number) => (r.appraisal_ratings ?? []).find((x) => x.quarter === q)?.target_value ?? null;
       return {
@@ -169,8 +180,7 @@ export async function getAnnexureData(cycleId: string): Promise<AnnexureData | n
         weightLocked: r.weight_locked,
         quarterlyTargets: [byQuarter(1), byQuarter(2), byQuarter(3), byQuarter(4)] as AnnexureKpi["quarterlyTargets"],
       };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    });
 
   const totalWeight = Math.round(annexureKpis.reduce((sum, k) => sum + (k.weight || 0), 0) * 100) / 100;
 

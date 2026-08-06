@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { getPolicyConfig, defaultReviewDate, AGREEMENT_REVIEW_TYPE, type PolicyConfig } from "@/lib/data/policy";
-import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
+import { NATIONAL_KPAS, kpaRank } from "@/lib/data/kpa-shared";
 import { competencyRank, type CompetencyGroup } from "@/lib/data/competencies";
 import type { Tables } from "@/lib/supabase/types";
 
@@ -97,6 +97,7 @@ type AgreementKpiRow = {
   annual_target: string | null;
   weight: string | null;
   poe: string | null;
+  created_at: string;
   appraisal_ratings: { quarter: number; target_value: string | null }[];
 };
 
@@ -132,7 +133,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
     .select(
-      "kpa, name, unit_of_measure, baseline, annual_target, weight, poe, appraisal_ratings(quarter, target_value)"
+      "kpa, name, unit_of_measure, baseline, annual_target, weight, poe, created_at, appraisal_ratings(quarter, target_value)"
     )
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
@@ -196,7 +197,16 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
   };
 
   const kpiRows = (kpis ?? []) as unknown as AgreementKpiRow[];
-  const agreementKpis: AgreementKpi[] = kpiRows
+  const agreementKpis: AgreementKpi[] = [...kpiRows]
+    // Grouped by KPA in the regulatory order, then by capture order within
+    // each KPA - matches the reference tool and the app's other KPI lists,
+    // not alphabetical.
+    .sort((a, b) => {
+      const ra = kpaRank(a.kpa);
+      const rb = kpaRank(b.kpa);
+      if (ra !== rb) return ra - rb;
+      return a.created_at.localeCompare(b.created_at);
+    })
     .map((k) => {
       const byQuarter = (q: number) => (k.appraisal_ratings ?? []).find((r) => r.quarter === q)?.target_value ?? null;
       return {
@@ -209,8 +219,7 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
         weight: k.weight,
         poe: k.poe,
       };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    });
 
   const totalWeight = agreementKpis.reduce((sum, k) => sum + (k.weight ? Number(k.weight) : 0), 0);
 

@@ -18,6 +18,7 @@ import { getPolicyConfig, resolveMunicipalityOrgId, defaultReviewDate, REVIEW_TY
 import { getCompetencies } from "@/lib/data/competencies";
 import { getAnnexureData } from "@/lib/data/annexure";
 import type { EmployeeRole } from "@/lib/data/employees-shared";
+import { kpaRank } from "@/lib/data/kpa-shared";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -209,6 +210,7 @@ type AppraisalKpiRow = {
   annual_target: string | null;
   poe: string | null;
   calc_config: { calc?: KpiCalc } | null;
+  created_at: string;
   appraisal_ratings: {
     quarter: number;
     actual: string | null;
@@ -253,7 +255,7 @@ export async function getAppraisalDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
     .select(
-      "id, name, kpa, unit_of_measure, weight, baseline, annual_target, poe, calc_config, appraisal_ratings(quarter, actual, inputs, target_value, na, evidence_url, comment, corrective_action, self_rating, mgr_rating, panel_rating)"
+      "id, name, kpa, unit_of_measure, weight, baseline, annual_target, poe, calc_config, created_at, appraisal_ratings(quarter, actual, inputs, target_value, na, evidence_url, comment, corrective_action, self_rating, mgr_rating, panel_rating)"
     )
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
@@ -404,7 +406,17 @@ export async function getAppraisalDetail(
     },
   };
 
-  const rows: AppraisalKpi[] = kpiRows
+  const rows: AppraisalKpi[] = [...kpiRows]
+    // Grouped by KPA in the regulatory order (kpaRank), then by capture
+    // order within each KPA - matches the reference tool's KPI ordering
+    // (Capture results, Assessment ratings, the printed agreement), which
+    // is never alphabetical by indicator name.
+    .sort((a, b) => {
+      const ra = kpaRank(a.kpa);
+      const rb = kpaRank(b.kpa);
+      if (ra !== rb) return ra - rb;
+      return a.created_at.localeCompare(b.created_at);
+    })
     .map((k) => {
       const result = (k.appraisal_ratings ?? []).find((r) => r.quarter === quarter);
       return {
@@ -433,8 +445,7 @@ export async function getAppraisalDetail(
             }
           : null,
       };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+    });
 
   const fyStartYear = header.financial_year?.start_year ?? null;
   const reviewType = REVIEW_TYPE[quarter - 1] ?? "";

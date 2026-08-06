@@ -12,3 +12,17 @@ export const NATIONAL_KPAS = [
   { code: "MFVM", name: "Municipal Financial Viability and Management" },
   { code: "GGPP", name: "Good Governance and Public Participation" },
 ] as const;
+
+/**
+ * A KPI's position in the canonical KPA order above (999 for an unrecognised
+ * or blank code, sorting after every real KPA) - the reference tool groups
+ * every KPI list (Capture results, Annexure A, Assessment ratings, the
+ * printed agreement) by KPA in this order, never alphabetically by
+ * indicator name. Pair with a stable secondary key (e.g. created_at) so
+ * KPIs within one KPA keep a consistent, natural reading order.
+ */
+export function kpaRank(kpaCode: string | null): number {
+  if (!kpaCode) return 999;
+  const idx = NATIONAL_KPAS.findIndex((k) => k.code === kpaCode.trim().toUpperCase());
+  return idx === -1 ? 999 : idx;
+}
