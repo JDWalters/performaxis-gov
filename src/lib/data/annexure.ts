@@ -13,6 +13,22 @@ export type AnnexureKpi = {
   quarterlyTargets: [string | null, string | null, string | null, string | null];
 };
 
+export type AgreementSignature = {
+  employeeSignatory: string | null;
+  employerSignatory: string | null;
+  signPlace: string | null;
+  signDate: string | null;
+  status: "draft" | "signed";
+};
+
+const BLANK_SIGNATURE: AgreementSignature = {
+  employeeSignatory: null,
+  employerSignatory: null,
+  signPlace: null,
+  signDate: null,
+  status: "draft",
+};
+
 export type AnnexureData = {
   cycleId: string;
   employeeName: string;
@@ -20,6 +36,11 @@ export type AnnexureData = {
   canEdit: boolean;
   kpis: AnnexureKpi[];
   totalWeight: number;
+  agreement: AgreementSignature;
+  /** True only via org-level sign_agreements (a real manager) - gates the employer signatory field. Same distinction as canManagerRate on the Ratings tab. */
+  canSignAsEmployer: boolean;
+  /** canSignAsEmployer OR the signed-in user is this exact employee (employee_only membership) - gates the employee signatory field. */
+  canSignAsEmployee: boolean;
 };
 
 type CycleHeaderRow = {
@@ -61,6 +82,55 @@ export async function getAnnexureData(cycleId: string): Promise<AnnexureData | n
 
   const header = cycle as unknown as CycleHeaderRow | null;
   if (!header || !header.employee) return null;
+
+  const { data: agreementRow } = await supabase
+    .from("agreements")
+    .select("employee_signatory, employer_signatory, sign_place, sign_date, status")
+    .eq("appraisal_cycle_id", cycleId)
+    .maybeSingle();
+  const agreementData = agreementRow as unknown as {
+    employee_signatory: string | null;
+    employer_signatory: string | null;
+    sign_place: string | null;
+    sign_date: string | null;
+    status: "draft" | "signed";
+  } | null;
+  const agreement: AgreementSignature = agreementData
+    ? {
+        employeeSignatory: agreementData.employee_signatory,
+        employerSignatory: agreementData.employer_signatory,
+        signPlace: agreementData.sign_place,
+        signDate: agreementData.sign_date,
+        status: agreementData.status,
+      }
+    : BLANK_SIGNATURE;
+
+  // canSignAsEmployer checks org-level access only (has_org_access) -
+  // matches canManagerRate on the Ratings tab. canSignAsEmployee additionally
+  // admits the employee's own employee_only-scoped self-service membership.
+  const { data: cycleOrgRow } = await supabase
+    .from("employees")
+    .select("org_id")
+    .eq("id", header.employee_id)
+    .maybeSingle();
+  const employeeOrgId = (cycleOrgRow as unknown as { org_id: string } | null)?.org_id ?? null;
+
+  const { data: canSignEmployerData } = employeeOrgId
+    ? await (
+        supabase.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>
+        ) => Promise<{ data: boolean | null }>
+      )("has_org_access", { target_org_id: employeeOrgId, required_permission: "sign_agreements" })
+    : { data: false };
+  const canSignAsEmployer = Boolean(canSignEmployerData);
+
+  const { data: selfMembershipData } = await supabase
+    .from("memberships")
+    .select("id")
+    .eq("employee_id", header.employee_id)
+    .limit(1);
+  const canSignAsEmployee = canSignAsEmployer || Boolean((selfMembershipData ?? []).length);
 
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
@@ -110,5 +180,8 @@ export async function getAnnexureData(cycleId: string): Promise<AnnexureData | n
     canEdit: Boolean(canEditData),
     kpis: annexureKpis,
     totalWeight,
+    agreement,
+    canSignAsEmployer,
+    canSignAsEmployee,
   };
 }

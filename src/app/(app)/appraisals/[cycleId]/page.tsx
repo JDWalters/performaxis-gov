@@ -2,10 +2,13 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getAppraisalDetail, friendlyAppraisalActual } from "@/lib/data/appraisals";
 import { getAnnexureData } from "@/lib/data/annexure";
+import { getPdpData } from "@/lib/data/pdp";
 import { AppraisalCaptureCard } from "./AppraisalCaptureCard";
 import { AssessmentSummary } from "./AssessmentSummaryCards";
 import { AnnexureEditor } from "./AnnexureEditor";
 import { AssessmentRatingsPanel } from "./AssessmentRatingsPanel";
+import { AgreementSignaturePanel } from "./AgreementSignaturePanel";
+import { PdpEditor } from "./PdpEditor";
 
 export default async function AppraisalDetailPage({
   params,
@@ -19,11 +22,13 @@ export default async function AppraisalDetailPage({
   const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
   const isAnnexureView = view === "annexure";
   const isRatingsView = view === "ratings";
+  const isPdpView = view === "pdp";
 
   const detail = await getAppraisalDetail(cycleId, quarter);
   if (!detail) notFound();
 
   const annexure = isAnnexureView ? await getAnnexureData(cycleId) : null;
+  const pdp = isPdpView ? await getPdpData(cycleId) : null;
 
   return (
     <div className="flex flex-col gap-6">
@@ -39,7 +44,7 @@ export default async function AppraisalDetailPage({
           </div>
         </div>
         <div className="flex flex-wrap items-start gap-2">
-          {!isAnnexureView && (
+          {!isAnnexureView && !isPdpView && (
             <div className="flex gap-1">
               {[1, 2, 3, 4].map((qq) => (
                 <Link
@@ -79,7 +84,7 @@ export default async function AppraisalDetailPage({
           href={`/appraisals/${cycleId}?q=${quarter}`}
           prefetch={false}
           className={`rounded-md px-3 py-1.5 text-xs font-bold ${
-            !isAnnexureView && !isRatingsView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+            !isAnnexureView && !isRatingsView && !isPdpView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
           }`}
         >
           Capture results
@@ -102,9 +107,31 @@ export default async function AppraisalDetailPage({
         >
           Annexure A — Performance Plan
         </Link>
+        <Link
+          href={`/appraisals/${cycleId}?view=pdp`}
+          prefetch={false}
+          className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+            isPdpView ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+          }`}
+        >
+          Development plan
+        </Link>
       </div>
 
-      {isAnnexureView ? (
+      {isPdpView ? (
+        pdp ? (
+          <>
+            {!pdp.canEdit && (
+              <p className="rounded-md bg-blue-bg px-3 py-2 text-sm font-medium text-blue">
+                You have view-only access to this development plan.
+              </p>
+            )}
+            <PdpEditor cycleId={pdp.cycleId} items={pdp.items} totalDays={pdp.totalDays} canEdit={pdp.canEdit} />
+          </>
+        ) : (
+          <p className="text-sm text-ink2">Couldn&apos;t load the development plan.</p>
+        )
+      ) : isAnnexureView ? (
         annexure ? (
           <>
             {!annexure.canEdit && (
@@ -113,6 +140,12 @@ export default async function AppraisalDetailPage({
               </p>
             )}
             <AnnexureEditor cycleId={annexure.cycleId} kpis={annexure.kpis} totalWeight={annexure.totalWeight} />
+            <AgreementSignaturePanel
+              cycleId={annexure.cycleId}
+              agreement={annexure.agreement}
+              canSignAsEmployer={annexure.canSignAsEmployer}
+              canSignAsEmployee={annexure.canSignAsEmployee}
+            />
           </>
         ) : (
           <p className="text-sm text-ink2">Couldn&apos;t load the performance plan.</p>

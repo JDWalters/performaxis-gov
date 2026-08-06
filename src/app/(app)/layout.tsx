@@ -59,6 +59,12 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             EPAS Appraisals
           </Link>
           <Link
+            href="/reports"
+            className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
+          >
+            Reports
+          </Link>
+          <Link
             href="/kpi-library"
             className="rounded-md px-3 py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white"
           >

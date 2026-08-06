@@ -44,6 +44,13 @@ export type AgreementData = {
   competencies: AgreementCompetency[];
   policy: PolicyConfig;
   generatedAt: string;
+  signature: {
+    employeeSignatory: string | null;
+    employerSignatory: string | null;
+    signPlace: string | null;
+    signDate: string | null;
+    status: "draft" | "signed";
+  };
 };
 
 type AgreementCycleRow = {
@@ -131,6 +138,26 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
 
   const policy = await getPolicyConfig(municipalityOrgId);
 
+  const { data: agreementRow } = await supabase
+    .from("agreements")
+    .select("employee_signatory, employer_signatory, sign_place, sign_date, status")
+    .eq("appraisal_cycle_id", cycleId)
+    .maybeSingle();
+  const agreementData = agreementRow as unknown as {
+    employee_signatory: string | null;
+    employer_signatory: string | null;
+    sign_place: string | null;
+    sign_date: string | null;
+    status: "draft" | "signed";
+  } | null;
+  const signature = {
+    employeeSignatory: agreementData?.employee_signatory ?? null,
+    employerSignatory: agreementData?.employer_signatory ?? null,
+    signPlace: agreementData?.sign_place ?? null,
+    signDate: agreementData?.sign_date ?? null,
+    status: agreementData?.status ?? ("draft" as const),
+  };
+
   const kpiRows = (kpis ?? []) as unknown as AgreementKpiRow[];
   const agreementKpis: AgreementKpi[] = kpiRows
     .map((k) => {
@@ -193,5 +220,6 @@ export async function getAgreementData(cycleId: string): Promise<AgreementData |
     competencies: agreementCompetencies,
     policy,
     generatedAt: new Date().toISOString(),
+    signature,
   };
 }

@@ -197,3 +197,58 @@ export async function scaleAnnexureWeightsTo100(formData: FormData) {
   await persistWeights(cycleId, scaleWeightsTo100(rows), true);
   revalidatePath(`/appraisals/${cycleId}`);
 }
+
+const AGREEMENT_FIELDS: Record<string, string> = {
+  employeeSignatory: "employee_signatory",
+  employerSignatory: "employer_signatory",
+  signPlace: "sign_place",
+  signDate: "sign_date",
+};
+
+/**
+ * Updates one field of the performance agreement's signature block - upserts
+ * against the (appraisal_cycle_id) unique key, touching only the named
+ * field. RLS (agreements_insert/update, via has_employee_access(...,
+ * 'sign_agreements')) is the real gatekeeper; canSignAsEmployer/
+ * canSignAsEmployee in annexure.ts only decide which field the UI exposes.
+ */
+export async function saveAgreementField(formData: FormData) {
+  const cycleId = str(formData, "cycleId");
+  const field = str(formData, "field");
+  const value = str(formData, "value");
+  const column = AGREEMENT_FIELDS[field];
+  if (!cycleId || !column) throw new Error("Invalid field.");
+
+  const supabase = await createClient();
+  const { error } = await (
+    supabase.from("agreements") as unknown as {
+      upsert: (
+        rows: Record<string, unknown>[],
+        opts: { onConflict: string }
+      ) => Promise<{ error: { message: string } | null }>;
+    }
+  ).upsert([{ appraisal_cycle_id: cycleId, [column]: value || null }], { onConflict: "appraisal_cycle_id" });
+  if (error) throw error;
+
+  revalidatePath(`/appraisals/${cycleId}`);
+}
+
+/** Toggles the agreement's signed/draft status - a manual finalisation step, gated (via RLS) the same way as every other field on this record. */
+export async function setAgreementStatus(formData: FormData) {
+  const cycleId = str(formData, "cycleId");
+  const status = str(formData, "status");
+  if (!cycleId || (status !== "draft" && status !== "signed")) throw new Error("Invalid status.");
+
+  const supabase = await createClient();
+  const { error } = await (
+    supabase.from("agreements") as unknown as {
+      upsert: (
+        rows: Record<string, unknown>[],
+        opts: { onConflict: string }
+      ) => Promise<{ error: { message: string } | null }>;
+    }
+  ).upsert([{ appraisal_cycle_id: cycleId, status }], { onConflict: "appraisal_cycle_id" });
+  if (error) throw error;
+
+  revalidatePath(`/appraisals/${cycleId}`);
+}

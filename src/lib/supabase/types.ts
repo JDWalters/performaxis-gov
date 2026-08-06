@@ -713,6 +713,65 @@ export type Database = {
           },
         ]
       }
+      pdp_items: {
+        Row: {
+          activity: string | null
+          appraisal_cycle_id: string
+          created_at: string
+          days: number | null
+          gap: string | null
+          id: string
+          mode: string | null
+          opportunity: string | null
+          outcome: string | null
+          priority: string | null
+          sort_order: number
+          status: string
+          support_person: string | null
+          timeframe: string | null
+        }
+        Insert: {
+          activity?: string | null
+          appraisal_cycle_id: string
+          created_at?: string
+          days?: number | null
+          gap?: string | null
+          id?: string
+          mode?: string | null
+          opportunity?: string | null
+          outcome?: string | null
+          priority?: string | null
+          sort_order?: number
+          status?: string
+          support_person?: string | null
+          timeframe?: string | null
+        }
+        Update: {
+          activity?: string | null
+          appraisal_cycle_id?: string
+          created_at?: string
+          days?: number | null
+          gap?: string | null
+          id?: string
+          mode?: string | null
+          opportunity?: string | null
+          outcome?: string | null
+          priority?: string | null
+          sort_order?: number
+          status?: string
+          support_person?: string | null
+          timeframe?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pdp_items_appraisal_cycle_id_fkey"
+            columns: ["appraisal_cycle_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       permissions: {
         Row: {
           description: string

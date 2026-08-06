@@ -255,17 +255,34 @@ export default async function AgreementPage({ params }: { params: Promise<{ cycl
                 </tbody>
               </table>
 
+              {data.signature.signPlace && (
+                <div style={{ fontSize: "9pt", marginTop: "10px" }}>
+                  Signed at <b>{data.signature.signPlace}</b>
+                  {data.signature.signDate
+                    ? ` on ${new Date(data.signature.signDate).toLocaleDateString("en-ZA", { day: "numeric", month: "long", year: "numeric" })}`
+                    : ""}
+                  {data.signature.status === "signed" && (
+                    <span style={{ marginLeft: "8px", color: "#2f7d4f", fontWeight: 700 }}>✓ Signed</span>
+                  )}
+                </div>
+              )}
               <div className="psign">
                 <div className="sigcol">
                   <div className="sigline">
                     <div className="sigrole">Employee</div>
-                    {data.employee.name} · Date: ______________________
+                    {data.signature.employeeSignatory || data.employee.name} · Date:{" "}
+                    {data.signature.signDate
+                      ? new Date(data.signature.signDate).toLocaleDateString("en-ZA")
+                      : "______________________"}
                   </div>
                 </div>
                 <div className="sigcol">
                   <div className="sigline">
                     <div className="sigrole">{data.employerTitle} (Employer)</div>
-                    Name: {data.employerName || "______________________"} · Date: ______________________
+                    Name: {data.signature.employerSignatory || data.employerName || "______________________"} · Date:{" "}
+                    {data.signature.signDate
+                      ? new Date(data.signature.signDate).toLocaleDateString("en-ZA")
+                      : "______________________"}
                   </div>
                 </div>
                 <div className="sigcol">

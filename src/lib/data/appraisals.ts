@@ -16,6 +16,7 @@ import {
 } from "@/lib/data/appraisal-scoring";
 import { getPolicyConfig, resolveMunicipalityOrgId } from "@/lib/data/policy";
 import { getCompetencies } from "@/lib/data/competencies";
+import { getAnnexureData } from "@/lib/data/annexure";
 
 export type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 export { friendlyAppraisalActual } from "@/lib/data/appraisals-shared";
@@ -416,4 +417,250 @@ export async function getAppraisalDetail(
     competencies,
     meta,
   };
+}
+
+export type AnnualQuarterSummary = {
+  quarter: number;
+  kpaScore: number | null;
+  competencyScore: number | null;
+  overallScore: number | null;
+  band: ScoreBand | null;
+};
+
+export type AnnualSummary = {
+  cycleId: string;
+  employeeName: string;
+  position: string | null;
+  orgName: string;
+  fyLabel: string;
+  quarters: AnnualQuarterSummary[];
+  /** Q4's score if assessed, else the last quarter that was - the reference's buildAnnual() year-end figure. */
+  yearEndScore: number | null;
+  yearEndBand: ScoreBand | null;
+  averageScore: number | null;
+  bonus: BonusEligibility;
+  kpis: AppraisalKpi[];
+};
+
+/**
+ * All four quarters of one employee's cycle rolled up into a single
+ * year-end view - the reference's buildAnnual(). Reuses getAppraisalDetail()
+ * once per quarter rather than duplicating its scoring logic; this is a
+ * report page, not a hot path, so four sequential fetches are an acceptable
+ * trade for not maintaining two copies of the same scoring rules.
+ */
+export async function getAnnualSummary(cycleId: string): Promise<AnnualSummary | null> {
+  const details = await Promise.all([1, 2, 3, 4].map((q) => getAppraisalDetail(cycleId, q)));
+  const first = details[0];
+  if (!first) return null;
+
+  const quarters: AnnualQuarterSummary[] = details.map((d, i) => ({
+    quarter: i + 1,
+    kpaScore: d?.assessment.kpa.score ?? null,
+    competencyScore: d?.assessment.competencies.score ?? null,
+    overallScore: d?.assessment.overall.score ?? null,
+    band: d?.assessment.overall.band ?? null,
+  }));
+
+  const scored = quarters.filter((q) => q.overallScore != null);
+  const q4 = quarters[3];
+  const yearEndScore = q4.overallScore ?? (scored.length ? scored[scored.length - 1].overallScore : null);
+  const averageScore = scored.length
+    ? scored.reduce((sum, q) => sum + (q.overallScore ?? 0), 0) / scored.length
+    : null;
+
+  const supabase = await createClient();
+  const { data: empOrgRow } = await supabase
+    .from("employees")
+    .select("org_id")
+    .eq("id", first.employeeId)
+    .maybeSingle();
+  const employeeOrgId = (empOrgRow as unknown as { org_id: string } | null)?.org_id ?? null;
+  const municipalityOrgId = employeeOrgId ? await resolveMunicipalityOrgId(employeeOrgId) : null;
+  const policy = await getPolicyConfig(municipalityOrgId);
+
+  return {
+    cycleId: first.cycleId,
+    employeeName: first.employeeName,
+    position: first.position,
+    orgName: first.orgName,
+    fyLabel: first.fyLabel,
+    quarters,
+    yearEndScore,
+    yearEndBand: bandOf(yearEndScore, policy.ratingScale),
+    averageScore,
+    bonus: bonusEligibility(yearEndScore, policy.bonusBands),
+    kpis: first.kpis,
+  };
+}
+
+export type OrgSummaryRow = {
+  cycleId: string;
+  employeeName: string;
+  position: string | null;
+  orgName: string;
+  kpiCount: number;
+  quarters: AnnualQuarterSummary[];
+};
+
+export type OrgSummary = {
+  fyLabel: string;
+  quarter: number;
+  rows: OrgSummaryRow[];
+};
+
+type FinancialYearRow = { id: string; label: string; start_year: number };
+
+/**
+ * Every accessible employee's score for one quarter, for the organisational
+ * summary report - the reference's buildOrg(). RLS on appraisal_cycles
+ * already scopes this to whatever the signed-in user can see (their own
+ * department and below), exactly like Performance Progress does, so no
+ * separate access check is needed here.
+ */
+export async function getOrgSummary(quarter: number, financialYearId?: string): Promise<OrgSummary | null> {
+  const supabase = await createClient();
+
+  let fyId = financialYearId ?? null;
+  let fyLabel = "—";
+  if (!fyId) {
+    const { data: fyRow } = await supabase
+      .from("financial_years")
+      .select("id, label, start_year")
+      .eq("is_current", true)
+      .order("start_year", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const fy = fyRow as unknown as FinancialYearRow | null;
+    if (fy) {
+      fyId = fy.id;
+      fyLabel = fy.label;
+    }
+  } else {
+    const { data: fyRow } = await supabase
+      .from("financial_years")
+      .select("id, label, start_year")
+      .eq("id", fyId)
+      .maybeSingle();
+    fyLabel = (fyRow as unknown as FinancialYearRow | null)?.label ?? "—";
+  }
+  if (!fyId) return null;
+
+  const { data: cycles, error: cyclesErr } = await supabase
+    .from("appraisal_cycles")
+    .select("id, employee:employees(name, position, org:orgs(name))")
+    .eq("financial_year_id", fyId);
+  if (cyclesErr) throw cyclesErr;
+
+  type CycleRow = { id: string; employee: { name: string; position: string | null; org: { name: string } | null } | null };
+  const cycleRows = (cycles ?? []) as unknown as CycleRow[];
+
+  const rows: OrgSummaryRow[] = [];
+  for (const c of cycleRows) {
+    if (!c.employee) continue;
+    const detail = await getAppraisalDetail(c.id, quarter);
+    if (!detail) continue;
+    rows.push({
+      cycleId: c.id,
+      employeeName: c.employee.name,
+      position: c.employee.position,
+      orgName: c.employee.org?.name ?? "—",
+      kpiCount: detail.kpis.length,
+      quarters: [
+        {
+          quarter,
+          kpaScore: detail.assessment.kpa.score,
+          competencyScore: detail.assessment.competencies.score,
+          overallScore: detail.assessment.overall.score,
+          band: detail.assessment.overall.band,
+        },
+      ],
+    });
+  }
+
+  rows.sort((a, b) => a.employeeName.localeCompare(b.employeeName));
+
+  return { fyLabel, quarter, rows };
+}
+
+/**
+ * A CSV of every accessible employee's indicators, quarterly targets, final
+ * ratings and N/A flags - the reference's exportCsv(). RLS on
+ * appraisal_cycles already scopes this to whatever cycles the signed-in
+ * user can see. Returned as a plain string[][] (header row first) so the
+ * route handler that turns this into a download stays trivial.
+ */
+export async function getCsvExportRows(): Promise<string[][]> {
+  const cycles = await getAppraisalsList();
+
+  const header = [
+    "Employee",
+    "Position",
+    "Department",
+    "Financial year",
+    "#",
+    "KPA",
+    "Indicator",
+    "Unit",
+    "Baseline",
+    "Annual target",
+    "Q1 target",
+    "Q2 target",
+    "Q3 target",
+    "Q4 target",
+    "Weight %",
+    "Q1 final",
+    "Q2 final",
+    "Q3 final",
+    "Q4 final",
+    "Q1 N/A",
+    "Q2 N/A",
+    "Q3 N/A",
+    "Q4 N/A",
+    "Evidence",
+  ];
+  const rows: string[][] = [header];
+
+  for (const c of cycles) {
+    const [annexure, d1, d2, d3, d4] = await Promise.all([
+      getAnnexureData(c.cycleId),
+      getAppraisalDetail(c.cycleId, 1),
+      getAppraisalDetail(c.cycleId, 2),
+      getAppraisalDetail(c.cycleId, 3),
+      getAppraisalDetail(c.cycleId, 4),
+    ]);
+    if (!annexure) continue;
+    const details = [d1, d2, d3, d4];
+
+    annexure.kpis.forEach((k, i) => {
+      const perQuarter = details.map((d) => d?.kpis.find((x) => x.id === k.id) ?? null);
+      const finals = perQuarter.map((k2) =>
+        k2 ? String(finalRating(k2.result?.selfRating ?? null, k2.result?.mgrRating ?? null, k2.result?.panelRating ?? null) ?? "") : ""
+      );
+      const nas = perQuarter.map((k2) => (k2?.result?.na ? "Yes" : ""));
+
+      rows.push([
+        c.employeeName,
+        c.position ?? "",
+        c.orgName,
+        c.fyLabel,
+        String(i + 1),
+        k.kpa ?? "",
+        k.name,
+        k.unitOfMeasure ?? "",
+        k.baseline ?? "",
+        k.annualTarget ?? "",
+        k.quarterlyTargets[0] ?? "",
+        k.quarterlyTargets[1] ?? "",
+        k.quarterlyTargets[2] ?? "",
+        k.quarterlyTargets[3] ?? "",
+        String(k.weight ?? ""),
+        ...finals,
+        ...nas,
+        k.poe ?? "",
+      ]);
+    });
+  }
+
+  return rows;
 }
