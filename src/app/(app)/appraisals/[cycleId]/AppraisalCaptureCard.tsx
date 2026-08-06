@@ -61,6 +61,11 @@ export function AppraisalCaptureCard({
   const [, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether anything has actually changed since the last save - see
+  // the matching note in scorecards/[id]/KpiCaptureCard.tsx. Without this,
+  // merely focusing a field and clicking away (no typing) still fired
+  // onBlur -> saveNow() and re-saved the form's current state.
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -105,13 +110,21 @@ export function AppraisalCaptureCard({
   }
 
   function scheduleSave(overrides: Record<string, string>) {
+    dirtyRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => doSave(overrides), DEBOUNCE_MS);
   }
 
   function saveNow(overrides: Record<string, string>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    dirtyRef.current = false;
     doSave(overrides);
+  }
+
+  /** Blur handler for text/numeric fields - only flushes a save if something was actually typed since the last save. */
+  function saveOnBlurIfDirty(overrides: Record<string, string>) {
+    if (!dirtyRef.current) return;
+    saveNow(overrides);
   }
 
   const currentLabel = friendlyAppraisalActual(kpi);
@@ -194,7 +207,7 @@ export function AppraisalCaptureCard({
                 setValue(e.target.value);
                 scheduleSave({ value: e.target.value });
               }}
-              onBlur={() => saveNow({ value })}
+              onBlur={() => saveOnBlurIfDirty({ value })}
               className={FIELD_CLASS}
             />
             <StatusPill status={status} />
@@ -214,7 +227,7 @@ export function AppraisalCaptureCard({
                 setNumerator(e.target.value);
                 scheduleSave({ numerator: e.target.value });
               }}
-              onBlur={() => saveNow({ numerator })}
+              onBlur={() => saveOnBlurIfDirty({ numerator })}
               className={FIELD_CLASS}
             />
           </label>
@@ -236,7 +249,7 @@ export function AppraisalCaptureCard({
                   setDenominator(e.target.value);
                   scheduleSave({ denominator: e.target.value });
                 }}
-                onBlur={() => saveNow({ denominator })}
+                onBlur={() => saveOnBlurIfDirty({ denominator })}
                 className={FIELD_CLASS}
               />
             </label>
@@ -267,7 +280,7 @@ export function AppraisalCaptureCard({
                   setter(e.target.value);
                   scheduleSave({ [key]: e.target.value });
                 }}
-                onBlur={() => saveNow({ [key]: val })}
+                onBlur={() => saveOnBlurIfDirty({ [key]: val })}
                 className={FIELD_CLASS}
               />
             </label>
@@ -291,7 +304,7 @@ export function AppraisalCaptureCard({
                 setFallbackActual(e.target.value);
                 scheduleSave({ actual: e.target.value });
               }}
-              onBlur={() => saveNow({ actual: fallbackActual })}
+              onBlur={() => saveOnBlurIfDirty({ actual: fallbackActual })}
               className={FIELD_CLASS}
             />
             <StatusPill status={status} />
@@ -326,7 +339,7 @@ export function AppraisalCaptureCard({
                 setEvidenceUrl(e.target.value);
                 scheduleSave({ evidenceUrl: e.target.value });
               }}
-              onBlur={() => saveNow({ evidenceUrl })}
+              onBlur={() => saveOnBlurIfDirty({ evidenceUrl })}
               className={FIELD_CLASS}
             />
           </label>
@@ -339,7 +352,7 @@ export function AppraisalCaptureCard({
                 setComment(e.target.value);
                 scheduleSave({ comment: e.target.value });
               }}
-              onBlur={() => saveNow({ comment })}
+              onBlur={() => saveOnBlurIfDirty({ comment })}
               className={FIELD_CLASS}
             />
           </label>
@@ -352,7 +365,7 @@ export function AppraisalCaptureCard({
                 setCorrectiveAction(e.target.value);
                 scheduleSave({ correctiveAction: e.target.value });
               }}
-              onBlur={() => saveNow({ correctiveAction })}
+              onBlur={() => saveOnBlurIfDirty({ correctiveAction })}
               className={FIELD_CLASS}
             />
           </label>

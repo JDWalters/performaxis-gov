@@ -115,6 +115,14 @@ export function KpiCaptureCard({
   const [, startTransition] = useTransition();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether anything has actually changed since the last save. Without
+  // this, merely tabbing/clicking into a field and back out (no typing at
+  // all) still fired onBlur -> saveNow() and re-saved the form's current
+  // state - harmless when that state matched the DB, but destructive for
+  // free-text "to be reviewed" values that don't match what the live
+  // calc-recompute would derive. Set true by every onChange, cleared once a
+  // blur-triggered save actually runs.
+  const dirtyRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -158,16 +166,29 @@ export function KpiCaptureCard({
     });
   }
 
-  /** Debounced save for text/numeric fields - waits for a pause in typing. */
+  /** Debounced save for text/numeric fields - waits for a pause in typing. Marks the form dirty so a later blur knows a save is actually warranted. */
   function scheduleSave(overrides: Record<string, string>) {
+    dirtyRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => doSave(overrides), DEBOUNCE_MS);
   }
 
-  /** Immediate save - used for discrete choices (Yes/No) and on blur. */
+  /** Immediate save - used for discrete choices (Yes/No, rating) that are always a deliberate change. */
   function saveNow(overrides: Record<string, string>) {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+    dirtyRef.current = false;
     doSave(overrides);
+  }
+
+  /**
+   * Blur handler for text/numeric fields - flushes the debounced save
+   * immediately instead of waiting out DEBOUNCE_MS, but only if something
+   * was actually typed since the last save. Focusing a field and clicking
+   * away without editing it must never trigger a save.
+   */
+  function saveOnBlurIfDirty(overrides: Record<string, string>) {
+    if (!dirtyRef.current) return;
+    saveNow(overrides);
   }
 
   const savedLabel = friendlyActual(kpi);
@@ -255,7 +276,7 @@ export function KpiCaptureCard({
                 setValue(e.target.value);
                 scheduleSave({ value: e.target.value });
               }}
-              onBlur={() => saveNow({ value })}
+              onBlur={() => saveOnBlurIfDirty({ value })}
               className={FIELD_CLASS}
             />
           </label>
@@ -273,7 +294,7 @@ export function KpiCaptureCard({
                   setNumerator(e.target.value);
                   scheduleSave({ numerator: e.target.value });
                 }}
-                onBlur={() => saveNow({ numerator })}
+                onBlur={() => saveOnBlurIfDirty({ numerator })}
                 className={FIELD_CLASS}
               />
             </label>
@@ -295,7 +316,7 @@ export function KpiCaptureCard({
                     setDenominator(e.target.value);
                     scheduleSave({ denominator: e.target.value });
                   }}
-                  onBlur={() => saveNow({ denominator })}
+                  onBlur={() => saveOnBlurIfDirty({ denominator })}
                   className={FIELD_CLASS}
                 />
               </label>
@@ -322,7 +343,7 @@ export function KpiCaptureCard({
                     setter(e.target.value);
                     scheduleSave({ [key]: e.target.value });
                   }}
-                  onBlur={() => saveNow({ [key]: val })}
+                  onBlur={() => saveOnBlurIfDirty({ [key]: val })}
                   className={FIELD_CLASS}
                 />
               </label>
@@ -342,7 +363,7 @@ export function KpiCaptureCard({
                 setFallbackActual(e.target.value);
                 scheduleSave({ actual: e.target.value });
               }}
-              onBlur={() => saveNow({ actual: fallbackActual })}
+              onBlur={() => saveOnBlurIfDirty({ actual: fallbackActual })}
               className={FIELD_CLASS}
             />
           </label>
@@ -383,7 +404,7 @@ export function KpiCaptureCard({
                   setEvidenceUrl(e.target.value);
                   scheduleSave({ evidenceUrl: e.target.value });
                 }}
-                onBlur={() => saveNow({ evidenceUrl })}
+                onBlur={() => saveOnBlurIfDirty({ evidenceUrl })}
                 className={FIELD_CLASS}
               />
             </label>
@@ -397,7 +418,7 @@ export function KpiCaptureCard({
                   setComment(e.target.value);
                   scheduleSave({ comment: e.target.value });
                 }}
-                onBlur={() => saveNow({ comment })}
+                onBlur={() => saveOnBlurIfDirty({ comment })}
                 className={commentMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
               />
               {commentMissing && <span className="text-[11px] font-semibold text-missed">Required — target not met</span>}
@@ -412,7 +433,7 @@ export function KpiCaptureCard({
                   setCorrectiveAction(e.target.value);
                   scheduleSave({ correctiveAction: e.target.value });
                 }}
-                onBlur={() => saveNow({ correctiveAction })}
+                onBlur={() => saveOnBlurIfDirty({ correctiveAction })}
                 className={correctiveMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
               />
               {correctiveMissing && (
