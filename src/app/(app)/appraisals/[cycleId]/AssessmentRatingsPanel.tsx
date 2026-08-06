@@ -290,8 +290,8 @@ export function AssessmentRatingsPanel({
                         <td className="p-2 font-mono text-ink2">{k.kpa ?? "—"}</td>
                         <td className="min-w-[220px] p-2 text-ink">{k.name}</td>
                         <td className="p-2 text-center">
-                          {r?.targetValue ? (
-                            <b className="text-ink">{r.targetValue}</b>
+                          {r?.targetValue ?? k.annualTarget ? (
+                            <b className="text-ink">{r?.targetValue ?? k.annualTarget}</b>
                           ) : (
                             <span className="italic text-ink2">no target</span>
                           )}
