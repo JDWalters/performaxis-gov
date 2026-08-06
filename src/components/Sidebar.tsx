@@ -43,7 +43,7 @@ function NavLink({ href, icon, label, collapsed }: NavItem & { collapsed: boolea
         collapsed ? "justify-center px-2" : "px-3"
       }`}
     >
-      <span className="w-[18px] flex-none text-center text-[13px] opacity-90">{icon}</span>
+      <span className="w-[22px] flex-none text-center text-[17px] opacity-90">{icon}</span>
       {!collapsed && <span className="truncate">{label}</span>}
     </Link>
   );
@@ -91,22 +91,6 @@ export function Sidebar({
         collapsed ? "w-[64px]" : "w-60"
       }`}
     >
-      {/* Its own row, not absolutely positioned over the branding block below
-         - the earlier version overlapped the collapsed crest/logo and got
-         clipped by the aside's overflow-hidden edge. A dedicated row can't
-         collide with anything and stays inside the aside's bounds at any
-         width. */}
-      <div className={`flex flex-none items-center border-b border-white/10 py-1.5 ${collapsed ? "justify-center px-1" : "justify-end px-2"}`}>
-        <button
-          type="button"
-          onClick={toggle}
-          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-          className="flex h-6 w-6 items-center justify-center rounded-full border border-white/30 bg-white/15 text-xs font-bold text-white hover:border-gold hover:bg-white/25 hover:text-gold"
-        >
-          {collapsed ? "›" : "‹"}
-        </button>
-      </div>
-
       <div className={`flex-none border-b border-white/10 py-4 ${collapsed ? "px-2" : "px-4"}`}>
         {activeMunicipality ? (
           collapsed ? (
@@ -195,13 +179,24 @@ export function Sidebar({
           </button>
         </form>
         {!collapsed && (
-          <div className="mt-3 flex items-center gap-1.5 text-[10px] text-white/40">
-            <span>Built by</span>
-            <div className="rounded bg-white px-1 py-0.5">
-              <Image src="/fridayms.png" alt="Friday Management Solutions" width={56} height={21} />
-            </div>
+          <div className="mt-3 w-fit rounded bg-white px-1.5 py-1">
+            <Image src="/fridayms.png" alt="Friday Management Solutions" width={90} height={34} />
           </div>
         )}
+      </div>
+
+      <div className={`flex-none border-t border-white/10 py-2 ${collapsed ? "px-1" : "px-2"}`}>
+        <button
+          type="button"
+          onClick={toggle}
+          title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          className={`flex items-center gap-2.5 rounded-md py-2 text-sm font-semibold text-white/70 hover:bg-white/10 hover:text-white ${
+            collapsed ? "w-full justify-center px-2" : "w-full px-3"
+          }`}
+        >
+          <span className="w-[22px] flex-none text-center text-[17px]">{collapsed ? "›" : "‹"}</span>
+          {!collapsed && <span>Collapse sidebar</span>}
+        </button>
       </div>
     </aside>
   );
