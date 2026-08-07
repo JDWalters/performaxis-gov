@@ -41,14 +41,49 @@ export async function getRoles(): Promise<RoleOption[]> {
   return data ?? [];
 }
 
-export type OrgOption = { id: string; name: string; kind: string };
+export type OrgOption = { id: string; name: string; kind: string; depth: number };
 
-/** Orgs the caller can assign a new membership to - their accessible tree. */
+/**
+ * Orgs the caller can assign a new membership to, in ltree/hierarchy order
+ * (national -> provincial -> district -> municipality -> department,
+ * parent immediately followed by its own children) rather than flat
+ * alphabetical - a flat A-Z list interleaved provinces with departments
+ * with no indication either was related. Same parent_id-based tree-build +
+ * per-level alphabetical sort as getOrgTree() in orgs.ts, just flattened
+ * depth-first into an ordered array (with a `depth` for indentation)
+ * instead of a nested structure, since the checklist renders a flat list
+ * of checkboxes rather than a recursive tree.
+ */
 export async function getAssignableOrgs(): Promise<OrgOption[]> {
   const orgs = await getMyAccessibleOrgs();
-  return orgs
-    .map((o) => ({ id: o.id, name: o.name, kind: o.kind }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+
+  type Node = { id: string; name: string; kind: string; parentId: string | null; children: Node[] };
+  const nodes = new Map<string, Node>();
+  for (const o of orgs) {
+    nodes.set(o.id, { id: o.id, name: o.name, kind: o.kind, parentId: o.parent_id, children: [] });
+  }
+  const roots: Node[] = [];
+  for (const node of nodes.values()) {
+    const parent = node.parentId ? nodes.get(node.parentId) : undefined;
+    if (parent) parent.children.push(node);
+    else roots.push(node);
+  }
+  const sortTree = (list: Node[]) => {
+    list.sort((a, b) => a.name.localeCompare(b.name));
+    for (const n of list) sortTree(n.children);
+  };
+  sortTree(roots);
+
+  const flat: OrgOption[] = [];
+  const visit = (list: Node[], depth: number) => {
+    for (const n of list) {
+      flat.push({ id: n.id, name: n.name, kind: n.kind, depth });
+      visit(n.children, depth + 1);
+    }
+  };
+  visit(roots, 0);
+
+  return flat;
 }
 
 export type MemberRow = {

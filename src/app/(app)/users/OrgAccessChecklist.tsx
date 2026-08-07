@@ -20,6 +20,12 @@ const KIND_LABEL: Record<string, string> = {
  * per-person "Edit access" panel (which pre-checks whatever they already
  * have). Selection state lives here and is handed up via onChange so the
  * parent can build the FormData/action payload however it needs to.
+ *
+ * `orgs` arrives from getAssignableOrgs() already walked in ltree/hierarchy
+ * order (parent immediately followed by its own children, matching the org
+ * tree used on the Org Management page) rather than flat A-Z - so this just
+ * renders that order as-is and indents each row by `o.depth`, same
+ * `depth * 20` padding convention as OrgTree.tsx.
  */
 export function OrgAccessChecklist({
   orgs,
@@ -62,7 +68,8 @@ export function OrgAccessChecklist({
         return (
           <label
             key={o.id}
-            className={`flex items-center gap-2.5 border-b border-line px-3 py-1.5 text-sm last:border-0 ${
+            style={{ paddingLeft: 12 + o.depth * 20 }}
+            className={`flex items-center gap-2.5 border-b border-line py-1.5 pr-3 text-sm last:border-0 ${
               checked ? "bg-gold-bg/40" : ""
             }`}
           >
