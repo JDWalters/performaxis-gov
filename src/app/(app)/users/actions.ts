@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { SITE_URL } from "@/lib/site-url";
 
 function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
@@ -210,13 +211,6 @@ export async function updateUserAccess(formData: FormData) {
 
   revalidatePath("/users");
 }
-
-// NEXT_PUBLIC_SITE_URL should be set in Vercel (Project Settings > Environment
-// Variables) to the deployed URL - this fallback only covers the case where
-// it hasn't been set yet, so invites still land somewhere real instead of
-// whatever Supabase's dashboard-configured default Site URL happens to be
-// (which is what was sending invite links to localhost:3000).
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://performaxis-gov.vercel.app";
 
 async function inviteNewUser(
   admin: ReturnType<typeof createAdminClient>,
