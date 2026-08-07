@@ -24,9 +24,24 @@ export default function AcceptInvitePage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
+    // Only ever act on a session that this exact link just minted - never
+    // fall back to "is someone already logged in?". Supabase invite/recovery
+    // tokens are one-time-use: re-clicking an already-consumed link (an old
+    // invite email sitting in an inbox, a link opened twice) fails silently
+    // and leaves the URL with no access_token (often an #error= instead).
+    // The old version here only checked getSession() truthiness, which is
+    // also true for anyone who simply already has an active session in that
+    // browser - so a stale/reused link would silently show the "set a new
+    // password" form against whoever's currently logged in, not the invited
+    // person, and submitting it would overwrite that unrelated account's
+    // real password. Requiring access_token in the hash makes this page
+    // strictly "did this specific link just authenticate someone" instead.
+    const hash = window.location.hash;
+    const hasValidToken = /[#&]access_token=/.test(hash) && !/[#&]error=/.test(hash);
+
     const supabase = createClient();
     supabase.auth.getSession().then(({ data }) => {
-      setStatus(data.session ? "ready" : "invalid");
+      setStatus(hasValidToken && data.session ? "ready" : "invalid");
     });
   }, []);
 
