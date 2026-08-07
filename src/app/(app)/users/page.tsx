@@ -31,7 +31,7 @@ export default async function UsersPage() {
 
       <InviteUserForm orgs={orgs} roles={roles} />
 
-      <div className="overflow-hidden rounded-xl border border-line bg-white">
+      <div className="overflow-x-auto rounded-xl border border-line bg-white">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">

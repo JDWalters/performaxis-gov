@@ -22,7 +22,11 @@ function OrgRow({ node, depth }: { node: OrgNode; depth: number }) {
         {node.isMetro && <span className="stag stag-blue">Metro</span>}
         {!node.isActive && <span className="stag stag-missed">Inactive</span>}
         {node.kind === "department" && (
-          <Link href={`/kpi-library/new?org=${node.id}`} className="ml-auto text-xs font-semibold text-blue hover:underline">
+          <Link
+            href={`/kpi-library/new?org=${node.id}`}
+            prefetch={false}
+            className="ml-auto text-xs font-semibold text-blue hover:underline"
+          >
             Create KPI →
           </Link>
         )}

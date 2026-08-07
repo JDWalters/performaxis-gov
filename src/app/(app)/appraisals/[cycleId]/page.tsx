@@ -42,7 +42,7 @@ export default async function AppraisalDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
         <div>
-          <Link href="/appraisals" className="text-xs font-semibold text-ink2 hover:underline">
+          <Link href="/appraisals" prefetch={false} className="text-xs font-semibold text-ink2 hover:underline">
             ← All appraisals
           </Link>
           <h1 className="mt-1 text-xl font-extrabold text-ink">{detail.employeeName}</h1>

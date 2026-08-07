@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getScorecardDetail } from "@/lib/data/scorecards";
 import { KpiListWithSearch } from "./KpiListWithSearch";
+import { PerformAxisBrandMark } from "@/components/PerformAxisBrandMark";
 
 const QUARTER_WINDOW: Record<number, string> = {
   1: "Jul–Sep",
@@ -55,6 +56,9 @@ export default async function ScorecardDetailPage({
             </Link>
           ))}
         </div>
+      </div>
+      <div className="-mt-4 flex justify-end">
+        <PerformAxisBrandMark />
       </div>
 
       <p className="text-sm text-ink2">

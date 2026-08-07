@@ -167,7 +167,7 @@ export function KpiLibraryFilters({ kpis }: { kpis: KpiLibraryItem[] }) {
               <h2 className="mb-2 text-sm font-bold uppercase tracking-wide text-ink2">
                 {group.orgName} ({group.items.length})
               </h2>
-              <div className="overflow-hidden rounded-xl border border-line bg-white">
+              <div className="overflow-x-auto rounded-xl border border-line bg-white">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">
@@ -192,6 +192,7 @@ export function KpiLibraryFilters({ kpis }: { kpis: KpiLibraryItem[] }) {
                         <td className="px-4 py-2 text-right">
                           <Link
                             href={`/kpi-library/${k.id}`}
+                            prefetch={false}
                             className="text-xs font-semibold text-ink2 hover:text-ink hover:underline"
                           >
                             Edit

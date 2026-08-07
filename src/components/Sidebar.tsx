@@ -38,8 +38,18 @@ function NavLink({ href, icon, label, collapsed }: NavItem & { collapsed: boolea
   return (
     <Link
       href={href}
+      // Every route under here is fully dynamic (per-request Supabase reads
+      // behind RLS, no static shell) - Next's default hover/viewport prefetch
+      // was firing a full server render of every OTHER sidebar link's page
+      // on every single page load (confirmed via network timing: ~8 background
+      // RSC fetches, 500-1200ms each, on every dashboard visit). That's dead
+      // weight competing for the same DB connections as the page the user
+      // actually asked for, which is the main thing making navigation feel
+      // sluggish. A real click still fetches instantly - it just does it on
+      // demand instead of speculatively for every link on screen.
+      prefetch={false}
       title={collapsed ? label : undefined}
-      className={`flex items-center gap-2.5 rounded-md py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white ${
+      className={`flex items-center gap-2.5 rounded-md py-2 text-sm font-semibold text-white/80 hover:bg-white/10 hover:text-white max-[900px]:px-2.5 max-[900px]:py-1.5 max-[900px]:text-xs ${
         collapsed ? "justify-center px-2" : "px-3"
       }`}
     >
@@ -87,11 +97,18 @@ export function Sidebar({
 
   return (
     <aside
-      className={`sticky top-0 flex h-screen flex-none flex-col overflow-hidden bg-ink text-white transition-[width] duration-150 ${
+      // The reference tool turns this same rail into a wrapping horizontal
+      // toolbar at <=900px (position:static, flex-direction:row, flex-wrap)
+      // instead of a vertical rail with its own scroll - ported literally
+      // rather than reinvented, since it's the one screen-shape decision the
+      // source already made for us.
+      className={`sticky top-0 flex h-screen flex-none flex-col overflow-hidden bg-ink text-white transition-[width] duration-150 max-[900px]:static max-[900px]:h-auto max-[900px]:w-full max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-2 max-[900px]:overflow-visible max-[900px]:p-2.5 ${
         collapsed ? "w-[64px]" : "w-60"
       }`}
     >
-      <div className={`flex-none border-b border-white/10 py-4 ${collapsed ? "px-2" : "px-4"}`}>
+      <div
+        className={`flex-none border-b border-white/10 py-4 max-[900px]:flex max-[900px]:items-center max-[900px]:gap-2 max-[900px]:border-0 max-[900px]:px-0 max-[900px]:py-0 ${collapsed ? "px-2" : "px-4"}`}
+      >
         {activeMunicipality ? (
           collapsed ? (
             activeMunicipality.logoUrl ? (
@@ -110,21 +127,23 @@ export function Sidebar({
           ) : (
             <>
               {activeMunicipality.logoUrl ? (
-                <div className="w-fit max-w-[150px] rounded-md bg-white p-1.5">
+                <div className="w-fit max-w-[150px] rounded-md bg-white p-1.5 max-[900px]:max-w-none max-[900px]:p-1">
                   {/* eslint-disable-next-line @next/next/no-img-element -- external municipality-supplied URL, not a local asset */}
                   <img
                     src={activeMunicipality.logoUrl}
                     alt={activeMunicipality.name}
-                    className="max-h-[46px] max-w-full object-contain"
+                    className="max-h-[46px] max-w-full object-contain max-[900px]:max-h-8"
                   />
                 </div>
               ) : (
-                <div className="mb-2.5 inline-block rounded border-[1.5px] border-gold px-2.5 py-1.5 font-mono text-xs font-semibold tracking-widest text-gold">
+                <div className="mb-2.5 inline-block rounded border-[1.5px] border-gold px-2.5 py-1.5 font-mono text-xs font-semibold tracking-widest text-gold max-[900px]:mb-0">
                   {crestInitials}
                 </div>
               )}
-              <div className="mt-2.5 truncate text-[14.5px] font-extrabold leading-tight">{activeMunicipality.name}</div>
-              <div className="mt-0.5 text-[11px] text-white/60">Management Performance Assessment</div>
+              <div className="mt-2.5 truncate text-[14.5px] font-extrabold leading-tight max-[900px]:hidden">
+                {activeMunicipality.name}
+              </div>
+              <div className="mt-0.5 text-[11px] text-white/60 max-[900px]:hidden">Management Performance Assessment</div>
             </>
           )
         ) : collapsed ? (
@@ -133,24 +152,31 @@ export function Sidebar({
           </div>
         ) : (
           <>
-            <div className="w-fit rounded-md bg-white p-2">
-              <Image src="/performaxis-logo.svg" alt="PerformAxis" width={168} height={72} priority />
+            <div className="w-fit rounded-md bg-white p-2 max-[900px]:p-1">
+              <Image
+                src="/performaxis-logo.svg"
+                alt="PerformAxis"
+                width={168}
+                height={72}
+                priority
+                className="max-[900px]:h-8 max-[900px]:w-auto"
+              />
             </div>
-            <div className="mt-2 text-[11px] uppercase tracking-wide text-white/50">Government</div>
+            <div className="mt-2 text-[11px] uppercase tracking-wide text-white/50 max-[900px]:hidden">Government</div>
           </>
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2">
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2 max-[900px]:flex-none max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-1.5 max-[900px]:overflow-visible max-[900px]:p-0">
         {PRIMARY_NAV.map((item) => (
           <NavLink key={item.href} {...item} collapsed={collapsed} />
         ))}
 
         {(canManageOrgs || canManageUsers) &&
           (collapsed ? (
-            <div className="my-2 border-t border-white/10" />
+            <div className="my-2 border-t border-white/10 max-[900px]:my-0 max-[900px]:h-6 max-[900px]:w-px max-[900px]:border-t-0 max-[900px]:border-l" />
           ) : (
-            <div className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wide text-white/40">
+            <div className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wide text-white/40 max-[900px]:m-0 max-[900px]:hidden">
               Administration
             </div>
           ))}
@@ -158,11 +184,13 @@ export function Sidebar({
         {canManageUsers && USER_ADMIN_NAV.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)}
       </nav>
 
-      <div className={`flex-none border-t border-white/10 py-4 ${collapsed ? "px-2" : "px-4"}`}>
+      <div
+        className={`flex-none border-t border-white/10 py-4 max-[900px]:border-0 max-[900px]:px-0 max-[900px]:py-0 ${collapsed ? "px-2" : "px-4"}`}
+      >
         {!collapsed && (
           <>
-            <div className="truncate text-xs font-semibold text-white/80">{userName}</div>
-            <div className="mt-0.5 text-[11px] text-white/50">
+            <div className="truncate text-xs font-semibold text-white/80 max-[900px]:hidden">{userName}</div>
+            <div className="mt-0.5 text-[11px] text-white/50 max-[900px]:hidden">
               {membershipCount} membership{membershipCount === 1 ? "" : "s"}
             </div>
           </>
@@ -171,21 +199,22 @@ export function Sidebar({
           <button
             type="submit"
             title="Sign out"
-            className={`mt-2 rounded-md border border-white/20 text-xs font-bold text-white/90 hover:border-white/40 ${
+            className={`mt-2 rounded-md border border-white/20 text-xs font-bold text-white/90 hover:border-white/40 max-[900px]:mt-0 max-[900px]:flex max-[900px]:h-8 max-[900px]:w-8 max-[900px]:items-center max-[900px]:justify-center max-[900px]:px-0 max-[900px]:py-0 ${
               collapsed ? "flex h-8 w-8 items-center justify-center" : "w-full px-3 py-1.5"
             }`}
           >
-            {collapsed ? "⏻" : "Sign out"}
+            <span className="max-[900px]:hidden">{collapsed ? "⏻" : "Sign out"}</span>
+            <span className="hidden max-[900px]:inline">⏻</span>
           </button>
         </form>
         {!collapsed && (
-          <div className="mt-3 w-fit rounded bg-white px-1.5 py-1">
+          <div className="mt-3 w-fit rounded bg-white px-1.5 py-1 max-[900px]:hidden">
             <Image src="/fridayms.png" alt="Friday Management Solutions" width={90} height={34} />
           </div>
         )}
       </div>
 
-      <div className={`flex-none border-t border-white/10 py-2 ${collapsed ? "px-1" : "px-2"}`}>
+      <div className={`flex-none border-t border-white/10 py-2 max-[900px]:hidden ${collapsed ? "px-1" : "px-2"}`}>
         <button
           type="button"
           onClick={toggle}

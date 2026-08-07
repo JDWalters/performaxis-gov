@@ -5,6 +5,7 @@ import type { Period } from "@/lib/data/sdbip-status";
 import { STATUS_META } from "@/lib/data/sdbip-status";
 import { DonutChart, BigStat, StatusBar, QuarterTrend } from "./DashboardCharts";
 import { ScorecardPicker } from "./ScorecardPicker";
+import { PerformAxisBrandMark } from "@/components/PerformAxisBrandMark";
 
 const PERIOD_OPTIONS: { key: string; label: string; period: Period }[] = [
   { key: "q1", label: "Q1", period: 1 },
@@ -48,6 +49,9 @@ export default async function ScorecardsDashboardPage({
             Capture this scorecard →
           </Link>
         )}
+      </div>
+      <div className="-mt-4 flex justify-end">
+        <PerformAxisBrandMark />
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -196,7 +200,7 @@ export default async function ScorecardsDashboardPage({
             {dashboard.attention.length === 0 ? (
               <p className="text-sm text-ink2">Nothing below target for this period.</p>
             ) : (
-              <div className="overflow-hidden rounded-xl border border-line bg-white">
+              <div className="overflow-x-auto rounded-xl border border-line bg-white">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">

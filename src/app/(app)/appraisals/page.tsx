@@ -38,6 +38,7 @@ export default async function AppraisalsListPage() {
             <Link
               key={a.cycleId}
               href={`/appraisals/${a.cycleId}`}
+              prefetch={false}
               className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
             >
               <div className="flex items-start justify-between gap-2">

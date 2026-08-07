@@ -120,6 +120,7 @@ export default async function ReportsPage() {
                   </a>
                   <Link
                     href={`/appraisals/${a.cycleId}`}
+                    prefetch={false}
                     className="rounded-md border border-line px-2 py-1 text-[11px] font-bold text-ink2 hover:border-gold hover:text-ink"
                   >
                     Open cycle

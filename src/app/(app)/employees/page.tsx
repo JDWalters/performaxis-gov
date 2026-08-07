@@ -36,6 +36,7 @@ export default async function EmployeesPage() {
         </div>
         <Link
           href="/employees/new"
+          prefetch={false}
           className="rounded-md bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink/90"
         >
           + Add employee
@@ -59,7 +60,7 @@ export default async function EmployeesPage() {
       {employees.length === 0 ? (
         <p className="text-sm text-ink2">No employees yet.</p>
       ) : (
-        <div className="overflow-hidden rounded-xl border border-line bg-white">
+        <div className="overflow-x-auto rounded-xl border border-line bg-white">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">
@@ -68,6 +69,7 @@ export default async function EmployeesPage() {
                 <th className="px-4 py-2">Role</th>
                 <th className="px-4 py-2">Department</th>
                 <th className="px-4 py-2">Employee no.</th>
+                <th className="px-4 py-2">Contract</th>
                 <th className="px-4 py-2">Reports to</th>
                 <th className="px-4 py-2">Status</th>
                 <th className="px-4 py-2" />
@@ -77,7 +79,7 @@ export default async function EmployeesPage() {
               {employees.map((e) => (
                 <tr key={e.id} className={`border-b border-line last:border-0 ${e.isActive ? "" : "opacity-50"}`}>
                   <td className="px-4 py-2 font-semibold text-ink">
-                    <Link href={`/employees/${e.id}`} className="hover:underline">
+                    <Link href={`/employees/${e.id}`} prefetch={false} className="hover:underline">
                       {e.name}
                     </Link>
                   </td>
@@ -90,6 +92,7 @@ export default async function EmployeesPage() {
                     {e.municipalityName ? ` — ${e.municipalityName}` : ""}
                   </td>
                   <td className="px-4 py-2 text-ink2">{e.empno ?? "—"}</td>
+                  <td className="px-4 py-2 text-ink2">{e.contract ?? "—"}</td>
                   <td className="px-4 py-2 text-ink2">{reportsToLabel(e.role)}</td>
                   <td className="px-4 py-2">
                     <span className={`stag ${e.isActive ? "stag-met" : "stag-missed"}`}>

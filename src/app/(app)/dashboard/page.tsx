@@ -142,36 +142,38 @@ export default async function DashboardPage() {
           {appraisalOverview.employees.length === 0 ? (
             <p className="text-sm text-ink2">No appraisal cycles in view yet.</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-ink2">
-                  <th className="pb-2 font-extrabold">Employee</th>
-                  <th className="pb-2 font-extrabold">Dept</th>
-                  <th className="pb-2 font-extrabold">Ratings</th>
-                  <th className="pb-2 font-extrabold">Rating</th>
-                </tr>
-              </thead>
-              <tbody>
-                {appraisalOverview.employees.map((e) => {
-                  const badge = ratingBadge(e.avgMgrRating);
-                  return (
-                    <tr key={e.employeeId} className="border-b border-line last:border-0">
-                      <td className="py-2">
-                        <div className="font-semibold text-ink">{e.name}</div>
-                        <div className="text-xs text-ink2">{e.position}</div>
-                      </td>
-                      <td className="py-2 text-xs text-ink2">{e.orgName}</td>
-                      <td className="py-2 font-mono text-xs text-ink2">
-                        {e.ratingsCaptured}/{e.ratingsTotal}
-                      </td>
-                      <td className="py-2">
-                        <span className={`stag ${badge.className}`}>{badge.label}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-ink2">
+                    <th className="pb-2 font-extrabold">Employee</th>
+                    <th className="pb-2 font-extrabold">Dept</th>
+                    <th className="pb-2 font-extrabold">Ratings</th>
+                    <th className="pb-2 font-extrabold">Rating</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {appraisalOverview.employees.map((e) => {
+                    const badge = ratingBadge(e.avgMgrRating);
+                    return (
+                      <tr key={e.employeeId} className="border-b border-line last:border-0">
+                        <td className="py-2">
+                          <div className="font-semibold text-ink">{e.name}</div>
+                          <div className="text-xs text-ink2">{e.position}</div>
+                        </td>
+                        <td className="py-2 text-xs text-ink2">{e.orgName}</td>
+                        <td className="py-2 font-mono text-xs text-ink2">
+                          {e.ratingsCaptured}/{e.ratingsTotal}
+                        </td>
+                        <td className="py-2">
+                          <span className={`stag ${badge.className}`}>{badge.label}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>

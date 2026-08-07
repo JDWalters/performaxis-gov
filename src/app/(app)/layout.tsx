@@ -38,7 +38,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSE_COOKIE)?.value === "1";
 
   return (
-    <div className="flex min-h-screen">
+    <div className="flex min-h-screen max-[900px]:flex-col">
       <Sidebar
         activeMunicipality={activeMunicipality ? { name: activeMunicipality.name, logoUrl: muniPolicy?.muniLogoUrl ?? null } : null}
         userName={me.profile?.full_name || me.user.email || "—"}
@@ -48,7 +48,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         initialCollapsed={initialCollapsed}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between border-b border-line bg-white px-6 py-3">
+        <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-white px-6 py-3 max-[900px]:px-4 max-[900px]:py-2.5">
           {/* Every page under here renders its own <h1> + subtitle (the
              reference tool's pageTitle()/pageSub() pair), so this bar only
              carries global identity chrome - the reference's .whoami chip -
@@ -85,7 +85,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             ))}
           </div>
         </header>
-        <main className="flex-1 bg-paper p-6">{children}</main>
+        <main className="flex-1 overflow-x-hidden bg-paper p-6 max-[900px]:p-4">{children}</main>
       </div>
     </div>
   );
