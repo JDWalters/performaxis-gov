@@ -58,13 +58,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
              other place, besides the footer, the vendor's own brand shows
              through); the signed-in user's chip now sits with the role
              chips on the right instead of standing alone on the left. */}
-          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
-            <Image
-              src="/performaxis-logo.svg"
-              alt="PerformAxis"
-              fill
-              style={{ objectFit: "cover", objectPosition: "left" }}
-            />
+          <div className="flex shrink-0 items-center gap-2">
+            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
+              <Image
+                src="/performaxis-logo.svg"
+                alt=""
+                fill
+                style={{ objectFit: "cover", objectPosition: "left" }}
+              />
+            </div>
+            {/* The logo file's own baked-in wordmark reads fine at the sidebar's
+               large size but turns to an illegible smear at header scale, so
+               the name here is real text set in the same two brand colours
+               instead of a shrunk copy of the SVG type. */}
+            <span className="text-[15px] font-extrabold tracking-tight">
+              <span className="text-ink">Perform</span>
+              <span className="text-gold">Axis</span>
+            </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
