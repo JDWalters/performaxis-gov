@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition } from "react";
 import { savePolicyConfig } from "./actions";
+import { LogoUploadField } from "./LogoUploadField";
 import type { PolicyConfig, MayorTitle } from "@/lib/data/policy";
 import type { BonusBand } from "@/lib/data/appraisal-scoring";
 
@@ -55,10 +56,7 @@ export function PolicyForm({ orgId, policy }: { orgId: string; policy: PolicyCon
       <div className="rounded-xl border border-line bg-white p-4">
         <div className="mb-3 text-xs font-bold uppercase tracking-wide text-ink2">Municipality &amp; Mayor</div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className={LABEL_CLASS}>
-            Municipality logo URL
-            <input name="muniLogoUrl" defaultValue={policy.muniLogoUrl ?? ""} className={FIELD_CLASS} placeholder="https://…" />
-          </label>
+          <LogoUploadField orgId={orgId} defaultValue={policy.muniLogoUrl ?? ""} />
           <label className={LABEL_CLASS}>
             Mayoral title
             <select name="mayorTitle" defaultValue={policy.mayorTitle} className={FIELD_CLASS}>

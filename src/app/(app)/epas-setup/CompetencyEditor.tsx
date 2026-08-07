@@ -14,7 +14,7 @@ function CompetencyRowEditor({ orgId, c }: { orgId: string; c: CompetencyRow }) 
     <tr className="border-b border-line last:border-0">
       <td className="px-3 py-1.5">
         <input
-          className={FIELD_CLASS}
+          className={`${FIELD_CLASS} w-full`}
           defaultValue={c.name}
           onBlur={(e) => {
             if (e.target.value === c.name) return;
@@ -50,8 +50,9 @@ function CompetencyRowEditor({ orgId, c }: { orgId: string; c: CompetencyRow }) 
         </select>
       </td>
       <td className="px-3 py-1.5">
-        <input
-          className={FIELD_CLASS}
+        <textarea
+          rows={2}
+          className={`${FIELD_CLASS} w-full resize-y`}
           defaultValue={c.drivingText ?? ""}
           placeholder={c.groupName === "Leading" ? "e.g. Impact and Influence; Strategic Planning…" : "—"}
           onBlur={(e) => {
@@ -94,7 +95,13 @@ export function CompetencyEditor({ orgId, competencies }: { orgId: string; compe
         <div className="text-xs font-bold uppercase tracking-wide text-ink2">Competency framework</div>
         <span className="text-[11px] text-ink2">Regulations, 17 January 2014</span>
       </div>
-      <table className="w-full text-sm">
+      <table className="w-full table-fixed text-sm">
+        <colgroup>
+          <col className="w-[26%]" />
+          <col className="w-[12%]" />
+          <col className="w-[54%]" />
+          <col className="w-[8%]" />
+        </colgroup>
         <thead>
           <tr className="border-b border-line text-left text-xs font-bold uppercase tracking-wide text-ink2">
             <th className="px-3 py-1.5">Competency</th>
