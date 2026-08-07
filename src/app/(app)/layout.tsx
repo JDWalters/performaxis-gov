@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 import { getMyMemberships, getMyAccessibleOrgs, getMyProfile } from "@/lib/data/access";
 import { getManageableScopes } from "@/lib/data/users";
 import { getOrgManageScopes } from "@/lib/data/orgs";
@@ -53,9 +54,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
              carries global identity chrome - the reference's .whoami chip -
              not a page title. It used to say a hardcoded "Dashboard" on
              every single page, which was wrong everywhere except the actual
-             dashboard. */}
-          <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
-          <div className="flex flex-wrap gap-1.5">
+             dashboard. The PerformAxis mark anchors the left edge (the one
+             other place, besides the footer, the vendor's own brand shows
+             through); the signed-in user's chip now sits with the role
+             chips on the right instead of standing alone on the left. */}
+          <Image src="/performaxis-logo.svg" alt="PerformAxis" width={26} height={26} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
             {memberships.map((m) => (
               <span key={m.membership_id} className="stag stag-blue">
                 {m.role_name} · {m.org_name}
