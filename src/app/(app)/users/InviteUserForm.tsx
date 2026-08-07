@@ -12,11 +12,16 @@ export function InviteUserForm({ orgs, roles }: { orgs: OrgOption[]; roles: Role
   const formRef = useRef<HTMLFormElement>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "error" | "done">("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  const [wasExistingUser, setWasExistingUser] = useState(false);
   const [, startTransition] = useTransition();
 
   return (
     <div className="rounded-xl border border-line bg-white p-4">
-      <div className="mb-3 text-xs font-bold uppercase tracking-wide text-ink2">Invite a user</div>
+      <div className="mb-1 text-xs font-bold uppercase tracking-wide text-ink2">Invite a user</div>
+      <p className="mb-3 text-xs text-ink2">
+        New email: sends an invite. Email of someone who already has an account: just grants them this
+        extra org, no new invite sent.
+      </p>
       <form
         ref={formRef}
         action={(formData) => {
@@ -24,10 +29,11 @@ export function InviteUserForm({ orgs, roles }: { orgs: OrgOption[]; roles: Role
           setErrorMsg("");
           startTransition(async () => {
             try {
-              await inviteUser(formData);
+              const result = await inviteUser(formData);
+              setWasExistingUser(result.existingUser);
               formRef.current?.reset();
               setStatus("done");
-              setTimeout(() => setStatus("idle"), 3000);
+              setTimeout(() => setStatus("idle"), 4000);
             } catch (e) {
               setStatus("error");
               setErrorMsg(e instanceof Error ? e.message : "Couldn't send the invite.");
@@ -78,7 +84,11 @@ export function InviteUserForm({ orgs, roles }: { orgs: OrgOption[]; roles: Role
           >
             {status === "saving" ? "Sending invite…" : "Send invite"}
           </button>
-          {status === "done" && <span className="text-xs font-semibold text-met">Invite sent.</span>}
+          {status === "done" && (
+            <span className="text-xs font-semibold text-met">
+              {wasExistingUser ? "Access granted - they already had an account." : "Invite sent."}
+            </span>
+          )}
           {status === "error" && <span className="text-xs font-semibold text-missed">{errorMsg}</span>}
         </div>
       </form>

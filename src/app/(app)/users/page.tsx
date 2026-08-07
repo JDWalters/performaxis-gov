@@ -19,13 +19,31 @@ export default async function UsersPage() {
 
   const [members, roles, orgs] = await Promise.all([getOrgMembers(), getRoles(), getAssignableOrgs()]);
 
+  // One row per person, not per membership - the flat one-row-per-org-access
+  // table used to repeat the same name/email on however many rows a person
+  // had (a Platform Admin who's also a Municipal Admin showed up twice with
+  // no visual link between the rows). Grouped by user, each person's org
+  // access shows as chips within their one row instead - the same "name
+  // chip + role chips" pattern already used for the signed-in user in the
+  // app header, just applied here to every user in the list.
+  const byUser = new Map<
+    string,
+    { userId: string; fullName: string | null; email: string | null; memberships: typeof members }
+  >();
+  for (const m of members) {
+    const existing = byUser.get(m.userId);
+    if (existing) existing.memberships.push(m);
+    else byUser.set(m.userId, { userId: m.userId, fullName: m.fullName, email: m.email, memberships: [m] });
+  }
+  const people = [...byUser.values()];
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-extrabold text-ink">Manage Users</h1>
         <p className="mt-1 max-w-2xl text-sm text-ink2">
-          Invite users and control which org they can capture or manage data for. Each row below is one person&apos;s
-          access to one org - the same person can have several rows if they work across departments.
+          Invite users and control which org they can capture or manage data for. Someone who works across
+          several orgs or departments shows up once below, with a chip for each org they can access.
         </p>
       </div>
 
@@ -37,29 +55,32 @@ export default async function UsersPage() {
             <tr className="border-b border-line bg-paper text-left text-xs font-bold uppercase tracking-wide text-ink2">
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
-              <th className="px-4 py-2">Org</th>
-              <th className="px-4 py-2">Role</th>
-              <th className="px-4 py-2" />
+              <th className="px-4 py-2">Org access</th>
             </tr>
           </thead>
           <tbody>
-            {members.length === 0 ? (
+            {people.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-4 py-6 text-center text-sm text-ink2">
+                <td colSpan={3} className="px-4 py-6 text-center text-sm text-ink2">
                   No users yet - invite the first one above.
                 </td>
               </tr>
             ) : (
-              members.map((m) => (
-                <tr key={m.membershipId} className="border-b border-line last:border-0">
-                  <td className="px-4 py-2 text-ink">{m.fullName ?? "—"}</td>
-                  <td className="px-4 py-2 text-ink2">{m.email ?? "—"}</td>
-                  <td className="px-4 py-2 text-ink2">{m.orgName}</td>
-                  <td className="px-4 py-2">
-                    <span className="stag stag-blue">{m.roleName}</span>
-                  </td>
-                  <td className="px-4 py-2 text-right">
-                    <RevokeButton membershipId={m.membershipId} />
+              people.map((p) => (
+                <tr key={p.userId} className="border-b border-line last:border-0">
+                  <td className="px-4 py-2 align-top text-ink">{p.fullName ?? "—"}</td>
+                  <td className="px-4 py-2 align-top text-ink2">{p.email ?? "—"}</td>
+                  <td className="px-4 py-3 align-top">
+                    <div className="flex flex-col gap-1.5">
+                      {p.memberships.map((m) => (
+                        <div key={m.membershipId} className="flex flex-wrap items-center gap-2">
+                          <span className="stag stag-blue">
+                            {m.roleName} · {m.orgName}
+                          </span>
+                          <RevokeButton membershipId={m.membershipId} />
+                        </div>
+                      ))}
+                    </div>
                   </td>
                 </tr>
               ))
