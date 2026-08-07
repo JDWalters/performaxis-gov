@@ -8,6 +8,22 @@ function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
 
+/**
+ * Re-throws any Supabase/postgrest error as a plain Error carrying just its
+ * message. Supabase's error classes (PostgrestError, AuthApiError, etc.)
+ * carry extra non-plain fields (status codes, internal flags, sometimes a
+ * `cause` referencing the raw fetch Response) - throwing one of those
+ * directly from a Server Action risks failing Next's RSC/Flight
+ * serialization on the way back to the client, which surfaces to the user
+ * as a blank "An error occurred in the Server Components render" instead of
+ * the actual message (this is exactly what happened when Supabase's invite
+ * email rate limit was hit: a real, expected, user-facing error became an
+ * opaque crash). Every throw site in this file should route through this.
+ */
+function fail(err: { message?: string } | null | undefined): never {
+  throw new Error(err?.message || "Something went wrong.");
+}
+
 type Grant = { orgId: string; roleId: string };
 type MembershipsTable = {
   insert: (rows: Record<string, unknown>[]) => Promise<{ error: { message: string } | null }>;
@@ -69,7 +85,7 @@ export async function inviteUser(formData: FormData): Promise<{ existingUser: bo
       required_permission: "manage_users",
       target_org_id: g.orgId,
     });
-    if (accessErr) throw accessErr;
+    if (accessErr) fail(accessErr);
     if (!allowed) throw new Error("You don't have permission to add users to one of the checked orgs.");
   }
 
@@ -83,7 +99,7 @@ export async function inviteUser(formData: FormData): Promise<{ existingUser: bo
   const wantedEmail = email.toLowerCase();
   for (let page = 1; page <= 20 && !existingUserId; page++) {
     const { data: usersPage, error: listErr } = await admin.auth.admin.listUsers({ page, perPage: 1000 });
-    if (listErr) throw listErr;
+    if (listErr) fail(listErr);
     const match = usersPage.users.find((u) => u.email?.toLowerCase() === wantedEmail);
     if (match) existingUserId = match.id;
     if (usersPage.users.length < 1000) break;
@@ -99,7 +115,7 @@ export async function inviteUser(formData: FormData): Promise<{ existingUser: bo
       .from("memberships")
       .select("org_id")
       .eq("user_id", userId);
-    if (existingErr) throw existingErr;
+    if (existingErr) fail(existingErr);
     const alreadyHeld = new Set(((existingRows ?? []) as unknown as { org_id: string }[]).map((r) => r.org_id));
     const newGrants = grants.filter((g) => !alreadyHeld.has(g.orgId));
     if (newGrants.length === 0) throw new Error("This person already has access to every org you checked.");
@@ -113,7 +129,7 @@ export async function inviteUser(formData: FormData): Promise<{ existingUser: bo
     // client bypasses that, which is fine since we already checked
     // manage_users above.
     const { error: profileErr } = await admin.from("profiles").upsert({ id: userId, full_name: fullName });
-    if (profileErr) throw profileErr;
+    if (profileErr) fail(profileErr);
   }
 
   // Insert via the caller's own session client (not admin) so RLS
@@ -131,7 +147,7 @@ async function insertMemberships(table: MembershipsTable, grants: Grant[], userI
   const { error } = await table.insert(
     grants.map((g) => ({ user_id: userId, org_id: g.orgId, role_id: g.roleId, invited_by: invitedBy }))
   );
-  if (error) throw error;
+  if (error) fail(error);
 }
 
 /**
@@ -158,7 +174,7 @@ export async function updateUserAccess(formData: FormData) {
     .from("memberships")
     .select("id, org_id, role_id")
     .eq("user_id", userId);
-  if (currentErr) throw currentErr;
+  if (currentErr) fail(currentErr);
   const current = (currentRows ?? []) as unknown as { id: string; org_id: string; role_id: string }[];
 
   const wantedByOrg = new Map(grants.map((g) => [g.orgId, g.roleId]));
@@ -176,7 +192,7 @@ export async function updateUserAccess(formData: FormData) {
       .from("memberships")
       .delete()
       .in("id", toRevoke.map((r) => r.id));
-    if (error) throw error;
+    if (error) fail(error);
   }
   // Cast: same pragmatic workaround as the insert helper above - the generic
   // update() overload doesn't always resolve cleanly across postgrest-js
@@ -186,7 +202,7 @@ export async function updateUserAccess(formData: FormData) {
   };
   for (const r of toUpdate) {
     const { error } = await updateTable.update({ role_id: wantedByOrg.get(r.org_id) }).eq("id", r.id);
-    if (error) throw error;
+    if (error) fail(error);
   }
   if (toAdd.length > 0) {
     await insertMemberships(supabase.from("memberships") as unknown as MembershipsTable, toAdd, userId, caller.id);
@@ -211,7 +227,21 @@ async function inviteNewUser(
     data: fullName ? { full_name: fullName } : undefined,
     redirectTo: `${SITE_URL}/accept-invite`,
   });
-  if (inviteErr) throw inviteErr;
+  if (inviteErr) {
+    // Supabase's built-in email service (no custom SMTP configured) caps
+    // outgoing auth emails at a low hourly rate - easy to trip while
+    // repeatedly testing the invite flow (delete + re-invite). Worth a
+    // specific message since "email rate limit exceeded" as raw text
+    // doesn't explain itself, and this isn't a bug, just a testing-speed
+    // limit that needs either a short wait or custom SMTP in Supabase
+    // Dashboard > Authentication > Emails to remove.
+    if ((inviteErr as { code?: string }).code === "over_email_send_rate_limit") {
+      throw new Error(
+        "Supabase's email service is rate-limited right now (too many invites sent recently). Wait a few minutes and try again, or set up custom SMTP in Supabase Dashboard > Authentication > Emails to remove this limit."
+      );
+    }
+    fail(inviteErr);
+  }
   return inviteData.user.id;
 }
 
@@ -222,7 +252,7 @@ export async function revokeMembership(formData: FormData) {
 
   const supabase = await createClient();
   const { error } = await supabase.from("memberships").delete().eq("id", membershipId);
-  if (error) throw error;
+  if (error) fail(error);
 
   revalidatePath("/users");
 }
@@ -249,7 +279,7 @@ export async function deleteUser(formData: FormData) {
   if (!caller) throw new Error("Not signed in.");
 
   const { data: rows, error: rowsErr } = await supabase.from("memberships").select("id").eq("user_id", userId);
-  if (rowsErr) throw rowsErr;
+  if (rowsErr) fail(rowsErr);
   const membershipIds = (rows ?? []) as unknown as { id: string }[];
 
   if (membershipIds.length > 0) {
@@ -262,7 +292,7 @@ export async function deleteUser(formData: FormData) {
     // partially cleaned up - safer to stop and say so than to proceed into
     // an admin-level delete that would strand a valid membership for an
     // org this caller can't even see.
-    if (delMembershipsErr) throw delMembershipsErr;
+    if (delMembershipsErr) fail(delMembershipsErr);
     const { count } = await supabase
       .from("memberships")
       .select("id", { count: "exact", head: true })
@@ -275,7 +305,7 @@ export async function deleteUser(formData: FormData) {
   const admin = createAdminClient();
   await admin.from("profiles").delete().eq("id", userId);
   const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
-  if (deleteErr) throw deleteErr;
+  if (deleteErr) fail(deleteErr);
 
   revalidatePath("/users");
 }
