@@ -1,6 +1,6 @@
 import { getManageableScopes, getOrgMembers, getRoles, getAssignableOrgs } from "@/lib/data/users";
 import { InviteUserForm } from "./InviteUserForm";
-import { RevokeButton } from "./RevokeButton";
+import { PersonAccessCell } from "./PersonAccessCell";
 
 export default async function UsersPage() {
   const scopes = await getManageableScopes();
@@ -71,16 +71,7 @@ export default async function UsersPage() {
                   <td className="px-4 py-2 align-top text-ink">{p.fullName ?? "—"}</td>
                   <td className="px-4 py-2 align-top text-ink2">{p.email ?? "—"}</td>
                   <td className="px-4 py-3 align-top">
-                    <div className="flex flex-col gap-1.5">
-                      {p.memberships.map((m) => (
-                        <div key={m.membershipId} className="flex flex-wrap items-center gap-2">
-                          <span className="stag stag-blue">
-                            {m.roleName} · {m.orgName}
-                          </span>
-                          <RevokeButton membershipId={m.membershipId} />
-                        </div>
-                      ))}
-                    </div>
+                    <PersonAccessCell userId={p.userId} memberships={p.memberships} orgs={orgs} roles={roles} />
                   </td>
                 </tr>
               ))

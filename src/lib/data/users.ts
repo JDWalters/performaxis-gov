@@ -56,6 +56,7 @@ export type MemberRow = {
   userId: string;
   fullName: string | null;
   email: string | null;
+  roleId: string;
   roleName: string;
   orgId: string;
   orgName: string;
@@ -67,7 +68,7 @@ type MembershipRow = {
   user_id: string;
   created_at: string;
   org: { id: string; name: string } | null;
-  role: { name: string } | null;
+  role: { id: string; name: string } | null;
 };
 
 /**
@@ -84,7 +85,7 @@ export async function getOrgMembers(): Promise<MemberRow[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("memberships")
-    .select("id, user_id, created_at, org:orgs(id, name), role:roles(name)")
+    .select("id, user_id, created_at, org:orgs(id, name), role:roles(id, name)")
     .order("created_at", { ascending: false });
   if (error) throw error;
   const rows = (data ?? []) as unknown as MembershipRow[];
@@ -108,6 +109,7 @@ export async function getOrgMembers(): Promise<MemberRow[]> {
     userId: r.user_id,
     fullName: nameById.get(r.user_id) ?? null,
     email: emailById.get(r.user_id) ?? null,
+    roleId: r.role?.id ?? "",
     roleName: r.role?.name ?? "—",
     orgId: r.org?.id ?? "",
     orgName: r.org?.name ?? "—",
