@@ -1,6 +1,7 @@
 import { getManageableScopes, getOrgMembers, getRoles, getAssignableOrgs } from "@/lib/data/users";
 import { InviteUserForm } from "./InviteUserForm";
 import { PersonAccessCell } from "./PersonAccessCell";
+import { DeleteUserButton } from "./DeleteUserButton";
 
 export default async function UsersPage() {
   const scopes = await getManageableScopes();
@@ -56,12 +57,13 @@ export default async function UsersPage() {
               <th className="px-4 py-2">Name</th>
               <th className="px-4 py-2">Email</th>
               <th className="px-4 py-2">Org access</th>
+              <th className="px-4 py-2" />
             </tr>
           </thead>
           <tbody>
             {people.length === 0 ? (
               <tr>
-                <td colSpan={3} className="px-4 py-6 text-center text-sm text-ink2">
+                <td colSpan={4} className="px-4 py-6 text-center text-sm text-ink2">
                   No users yet - invite the first one above.
                 </td>
               </tr>
@@ -72,6 +74,9 @@ export default async function UsersPage() {
                   <td className="px-4 py-2 align-top text-ink2">{p.email ?? "—"}</td>
                   <td className="px-4 py-3 align-top">
                     <PersonAccessCell userId={p.userId} memberships={p.memberships} orgs={orgs} roles={roles} />
+                  </td>
+                  <td className="px-4 py-2 align-top text-right">
+                    <DeleteUserButton userId={p.userId} name={p.fullName ?? p.email ?? "this person"} />
                   </td>
                 </tr>
               ))

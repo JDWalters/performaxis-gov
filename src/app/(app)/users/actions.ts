@@ -195,6 +195,13 @@ export async function updateUserAccess(formData: FormData) {
   revalidatePath("/users");
 }
 
+// NEXT_PUBLIC_SITE_URL should be set in Vercel (Project Settings > Environment
+// Variables) to the deployed URL - this fallback only covers the case where
+// it hasn't been set yet, so invites still land somewhere real instead of
+// whatever Supabase's dashboard-configured default Site URL happens to be
+// (which is what was sending invite links to localhost:3000).
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://performaxis-gov.vercel.app";
+
 async function inviteNewUser(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
@@ -202,6 +209,7 @@ async function inviteNewUser(
 ): Promise<string> {
   const { data: inviteData, error: inviteErr } = await admin.auth.admin.inviteUserByEmail(email, {
     data: fullName ? { full_name: fullName } : undefined,
+    redirectTo: `${SITE_URL}/accept-invite`,
   });
   if (inviteErr) throw inviteErr;
   return inviteData.user.id;
@@ -215,6 +223,59 @@ export async function revokeMembership(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("memberships").delete().eq("id", membershipId);
   if (error) throw error;
+
+  revalidatePath("/users");
+}
+
+/**
+ * Deletes a person's account outright - not just one org's access, the
+ * whole auth user (mainly for cleaning up test invites while trying the
+ * invite flow, but works for any account). Requires manage_users on every
+ * org they currently hold, not just one: revoking access somewhere the
+ * caller doesn't manage would be a silent permission escalation, so this
+ * refuses instead. memberships and the profile row are removed first via
+ * the caller's own session client (RLS-checked, so this doubles as the
+ * per-org permission check) before the admin client deletes the auth user
+ * itself, since there's no guarantee those foreign keys cascade.
+ */
+export async function deleteUser(formData: FormData) {
+  const userId = str(formData, "userId");
+  if (!userId) throw new Error("Missing user.");
+
+  const supabase = await createClient();
+  const {
+    data: { user: caller },
+  } = await supabase.auth.getUser();
+  if (!caller) throw new Error("Not signed in.");
+
+  const { data: rows, error: rowsErr } = await supabase.from("memberships").select("id").eq("user_id", userId);
+  if (rowsErr) throw rowsErr;
+  const membershipIds = (rows ?? []) as unknown as { id: string }[];
+
+  if (membershipIds.length > 0) {
+    const { error: delMembershipsErr } = await supabase
+      .from("memberships")
+      .delete()
+      .in("id", membershipIds.map((r) => r.id));
+    // A row that didn't actually delete (RLS silently filtered it because
+    // the caller doesn't manage that org) leaves the account only
+    // partially cleaned up - safer to stop and say so than to proceed into
+    // an admin-level delete that would strand a valid membership for an
+    // org this caller can't even see.
+    if (delMembershipsErr) throw delMembershipsErr;
+    const { count } = await supabase
+      .from("memberships")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId);
+    if (count && count > 0) {
+      throw new Error("This person has access to an org you don't manage - ask an admin over that org too.");
+    }
+  }
+
+  const admin = createAdminClient();
+  await admin.from("profiles").delete().eq("id", userId);
+  const { error: deleteErr } = await admin.auth.admin.deleteUser(userId);
+  if (deleteErr) throw deleteErr;
 
   revalidatePath("/users");
 }
