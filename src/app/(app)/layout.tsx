@@ -58,7 +58,14 @@ export default async function AppLayout({ children }: { children: React.ReactNod
              other place, besides the footer, the vendor's own brand shows
              through); the signed-in user's chip now sits with the role
              chips on the right instead of standing alone on the left. */}
-          <Image src="/performaxis-logo.svg" alt="PerformAxis" width={26} height={26} />
+          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-md">
+            <Image
+              src="/performaxis-logo.svg"
+              alt="PerformAxis"
+              fill
+              style={{ objectFit: "cover", objectPosition: "left" }}
+            />
+          </div>
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
             {memberships.map((m) => (
