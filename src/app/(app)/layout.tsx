@@ -7,7 +7,6 @@ import { getOrgManageScopes } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
 import Link from "next/link";
 import { getActiveFinancialYear, canManageFinancialYears } from "@/lib/data/financial-years";
-import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import { Sidebar, SIDEBAR_COLLAPSE_COOKIE, SIDEBAR_SECTIONS_COOKIE, DEFAULT_COLLAPSED_SECTIONS } from "@/components/Sidebar";
 import { FinancialYearSwitcher } from "@/components/FinancialYearSwitcher";
 
@@ -27,8 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const canManageUsers = manageableScopes.length > 0;
   const canManageOrgs = orgManageScopes.length > 0;
-  const showFySwitcher = canPreviewNewFeatures(me.profile?.full_name);
-  const canAddYear = showFySwitcher && (await canManageFinancialYears(activeFy.muniOrgId).catch(() => false));
+  const canAddYear = await canManageFinancialYears(activeFy.muniOrgId).catch(() => false);
 
   // The reference tool's sidebar identifies the municipality it's running
   // for (crest/logo + name + "Management Performance Assessment"), not the
@@ -98,20 +96,18 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            {showFySwitcher && (
-              <div className="flex items-center gap-1">
-                <FinancialYearSwitcher years={activeFy.years} selectedId={activeFy.selected?.id ?? null} />
-                {canAddYear && (
-                  <Link
-                    href="/financial-years/new"
-                    title="Create a new financial year"
-                    className="rounded-md border border-line bg-white px-2 py-1 text-xs font-bold text-ink2 hover:border-ink"
-                  >
-                    + Year
-                  </Link>
-                )}
-              </div>
-            )}
+            <div className="flex items-center gap-1">
+              <FinancialYearSwitcher years={activeFy.years} selectedId={activeFy.selected?.id ?? null} />
+              {canAddYear && (
+                <Link
+                  href="/financial-years/new"
+                  title="Create a new financial year"
+                  className="rounded-md border border-line bg-white px-2 py-1 text-xs font-bold text-ink2 hover:border-ink"
+                >
+                  + Year
+                </Link>
+              )}
+            </div>
             <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
             {memberships.map((m) => (
               <span key={m.membership_id} className="stag stag-blue">

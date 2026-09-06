@@ -66,9 +66,7 @@ export async function saveKpiLibraryEntry(formData: FormData) {
   const idpRef = str(formData, "idpRef");
   const unitOfMeasure = str(formData, "unitOfMeasure");
   const targetType = str(formData, "targetType") || "stand-alone";
-  // Scorecard-setup fields - all optional, and only ever sent by the form
-  // when the signed-in user can preview them (canPreviewNewFeatures), but
-  // read unconditionally here since an absent field just resolves to "".
+  // Scorecard-setup fields - all optional; an absent field just resolves to "".
   const method = str(formData, "method");
   const kpiType = str(formData, "kpiType");
   const wards = str(formData, "wards");

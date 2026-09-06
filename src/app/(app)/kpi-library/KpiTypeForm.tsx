@@ -21,18 +21,11 @@ export function KpiTypeForm({
   departments,
   kpas,
   defaultOrgId,
-  showScorecardSetupFields = false,
 }: {
   initial: KpiLibraryItem | null;
   departments: DepartmentOrg[];
   kpas: string[];
   defaultOrgId?: string;
-  // Preview-gated (canPreviewNewFeatures) - these fields came out of the
-  // original reference tool's admin-only "Scorecard setup" screen, which
-  // never got ported into this form. Kept behind the gate until they've
-  // been tried out, then flip FEATURE_PREVIEW_ONLY=false to show them to
-  // every policy writer without another deploy.
-  showScorecardSetupFields?: boolean;
 }) {
   const [orgId, setOrgId] = useState(initial?.orgId ?? defaultOrgId ?? departments[0]?.id ?? "");
   const [name, setName] = useState(initial?.name ?? "");
@@ -204,79 +197,77 @@ export function KpiTypeForm({
           </div>
         </div>
 
-        {showScorecardSetupFields && (
-          <div className="rounded-xl border border-line bg-white p-4">
-            <div className="mb-3 text-xs font-bold uppercase tracking-wide text-ink2">
-              Scorecard setup
-            </div>
-            <div className="flex flex-col gap-3">
-              <label className={LABEL_CLASS}>
-                Method of calculation
-                <textarea
-                  name="method"
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value)}
-                  rows={2}
-                  placeholder="Narrative description of how this indicator is measured"
-                  className={FIELD_CLASS}
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={LABEL_CLASS}>
-                  Type
-                  <input
-                    name="kpiType"
-                    value={kpiType}
-                    onChange={(e) => setKpiType(e.target.value)}
-                    placeholder="e.g. Output, Outcome"
-                    className={FIELD_CLASS}
-                  />
-                </label>
-                <label className={LABEL_CLASS}>
-                  Wards
-                  <input
-                    name="wards"
-                    value={wards}
-                    onChange={(e) => setWards(e.target.value)}
-                    placeholder="e.g. All, or Ward 3, 7"
-                    className={FIELD_CLASS}
-                  />
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <label className={LABEL_CLASS}>
-                  Baseline
-                  <input
-                    name="baseline"
-                    value={baseline}
-                    onChange={(e) => setBaseline(e.target.value)}
-                    className={FIELD_CLASS}
-                  />
-                </label>
-                <label className={LABEL_CLASS}>
-                  Annual target
-                  <input
-                    name="annualTarget"
-                    value={annualTarget}
-                    onChange={(e) => setAnnualTarget(e.target.value)}
-                    className={FIELD_CLASS}
-                  />
-                </label>
-              </div>
-              <label className={LABEL_CLASS}>
-                POE and notes
-                <textarea
-                  name="poe"
-                  value={poe}
-                  onChange={(e) => setPoe(e.target.value)}
-                  rows={2}
-                  placeholder="Portfolio of evidence guidance for the department"
-                  className={FIELD_CLASS}
-                />
-              </label>
-            </div>
+        <div className="rounded-xl border border-line bg-white p-4">
+          <div className="mb-3 text-xs font-bold uppercase tracking-wide text-ink2">
+            Scorecard setup
           </div>
-        )}
+          <div className="flex flex-col gap-3">
+            <label className={LABEL_CLASS}>
+              Method of calculation
+              <textarea
+                name="method"
+                value={method}
+                onChange={(e) => setMethod(e.target.value)}
+                rows={2}
+                placeholder="Narrative description of how this indicator is measured"
+                className={FIELD_CLASS}
+              />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={LABEL_CLASS}>
+                Type
+                <input
+                  name="kpiType"
+                  value={kpiType}
+                  onChange={(e) => setKpiType(e.target.value)}
+                  placeholder="e.g. Output, Outcome"
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className={LABEL_CLASS}>
+                Wards
+                <input
+                  name="wards"
+                  value={wards}
+                  onChange={(e) => setWards(e.target.value)}
+                  placeholder="e.g. All, or Ward 3, 7"
+                  className={FIELD_CLASS}
+                />
+              </label>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className={LABEL_CLASS}>
+                Baseline
+                <input
+                  name="baseline"
+                  value={baseline}
+                  onChange={(e) => setBaseline(e.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+              <label className={LABEL_CLASS}>
+                Annual target
+                <input
+                  name="annualTarget"
+                  value={annualTarget}
+                  onChange={(e) => setAnnualTarget(e.target.value)}
+                  className={FIELD_CLASS}
+                />
+              </label>
+            </div>
+            <label className={LABEL_CLASS}>
+              POE and notes
+              <textarea
+                name="poe"
+                value={poe}
+                onChange={(e) => setPoe(e.target.value)}
+                rows={2}
+                placeholder="Portfolio of evidence guidance for the department"
+                className={FIELD_CLASS}
+              />
+            </label>
+          </div>
+        </div>
 
         <div className="rounded-xl border border-line bg-white p-4">
           <div className="mb-3 text-xs font-bold uppercase tracking-wide text-ink2">

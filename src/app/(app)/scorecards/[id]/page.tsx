@@ -3,8 +3,6 @@ import { notFound } from "next/navigation";
 import { getScorecardDetail } from "@/lib/data/scorecards";
 import { getScorecardOptions } from "@/lib/data/sdbip-dashboard";
 import { getActiveFinancialYear } from "@/lib/data/financial-years";
-import { getMyProfile } from "@/lib/data/access";
-import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import type { Period } from "@/lib/data/sdbip-status";
 import { KpiListWithSearch } from "./KpiListWithSearch";
 import { DownloadOfflineFormButton } from "./DownloadOfflineFormButton";
@@ -44,9 +42,6 @@ export default async function ScorecardDetailPage({
   const detail = await getScorecardDetail(id, quarter);
   if (!detail) notFound();
 
-  const me = await getMyProfile();
-  const showOfflineCapture = canPreviewNewFeatures(me?.profile?.full_name);
-
   const activeFy = await getActiveFinancialYear();
   const departmentOptions = (await getScorecardOptions(activeFy.selected?.id ?? null)).filter(
     (o) => o.id !== "top"
@@ -66,7 +61,7 @@ export default async function ScorecardDetailPage({
             )}
           </div>
         </div>
-        {showOfflineCapture && (detail.canCapture || detail.canManageSetup) && (
+        {(detail.canCapture || detail.canManageSetup) && (
           <div className="flex flex-wrap items-center gap-2">
             {/* Offline capture/import and the per-quarter report export are
                tied to one real quarter's captured data - Mid-year/Annual are
