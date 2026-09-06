@@ -47,6 +47,22 @@ export type CaptureKpi = {
    * dashboard's aggregate rollup (see sdbip-status.ts).
    */
   quarters: { quarter: number; target: string | null; actual: string | null }[];
+  /**
+   * Uploaded evidence files for the currently-selected quarter (see `quarter`
+   * on CaptureKpi's parent scope) - independent of `result`, since a file can
+   * be attached before any other field of the result is captured (both are
+   * keyed on scorecard_kpi_id+quarter directly, not nested under kpi_results).
+   * `url` is a short-lived signed URL regenerated on every page load - see
+   * signEvidencePaths() in scorecards/[id]/evidence-actions.ts.
+   */
+  evidenceFiles: {
+    id: string;
+    fileName: string;
+    fileSize: number | null;
+    contentType: string | null;
+    url: string | null;
+    createdAt: string;
+  }[];
   result: {
     actual: string | null;
     inputs: Record<string, unknown>;

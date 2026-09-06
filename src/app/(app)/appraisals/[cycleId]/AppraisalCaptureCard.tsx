@@ -1,9 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition, type ChangeEvent } from "react";
 import { saveAppraisalResult } from "../actions";
+import { uploadAppraisalEvidence, deleteAppraisalEvidence } from "./evidence-actions";
 import { friendlyAppraisalActual, appraisalKpiNeedsReview, type AppraisalKpi } from "@/lib/data/appraisals-shared";
 import { NeedsReviewBanner } from "@/components/NeedsReviewBanner";
+
+/** "1.2 MB" / "48 KB" / "312 B" - display only, for the uploaded-files list. */
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";
@@ -53,12 +61,18 @@ export function AppraisalCaptureCard({
   const [b, setB] = useState(toStr(inputs.b));
   const [c, setC] = useState(toStr(inputs.c));
   const [fallbackActual, setFallbackActual] = useState(kpi.result?.actual ?? "");
-  const [evidenceUrl, setEvidenceUrl] = useState(kpi.result?.evidenceUrl ?? "");
+  // No setter needed - evidence is now captured as uploaded files (below),
+  // not a typed URL. This just carries any legacy value forward unchanged
+  // on every save, instead of silently wiping it out.
+  const [evidenceUrl] = useState(kpi.result?.evidenceUrl ?? "");
   const [comment, setComment] = useState(kpi.result?.comment ?? "");
   const [correctiveAction, setCorrectiveAction] = useState(kpi.result?.correctiveAction ?? "");
 
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [, startTransition] = useTransition();
+  const [fileUploading, setFileUploading] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+  const [deletingFileId, setDeletingFileId] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Tracks whether anything has actually changed since the last save - see
@@ -125,6 +139,44 @@ export function AppraisalCaptureCard({
   function saveOnBlurIfDirty(overrides: Record<string, string>) {
     if (!dirtyRef.current) return;
     saveNow(overrides);
+  }
+
+  /** Uploads every file picked in the file input, then clears it so the same filename can be re-selected later. */
+  function handleFilesSelected(e: ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const fd = new FormData();
+    fd.set("cycleId", cycleId);
+    fd.set("appraisalKpiId", kpi.id);
+    fd.set("quarter", String(quarter));
+    for (const f of Array.from(files)) fd.append("files", f);
+    e.target.value = "";
+
+    setFileUploading(true);
+    setFileError(null);
+    startTransition(async () => {
+      try {
+        await uploadAppraisalEvidence(fd);
+      } catch (err) {
+        setFileError(err instanceof Error ? err.message : "Upload failed.");
+      } finally {
+        setFileUploading(false);
+      }
+    });
+  }
+
+  function handleDeleteFile(fileId: string) {
+    setDeletingFileId(fileId);
+    setFileError(null);
+    startTransition(async () => {
+      try {
+        await deleteAppraisalEvidence(fileId, cycleId);
+      } catch (err) {
+        setFileError(err instanceof Error ? err.message : "Couldn't delete that file.");
+      } finally {
+        setDeletingFileId(null);
+      }
+    });
   }
 
   const currentLabel = friendlyAppraisalActual(kpi);
@@ -330,19 +382,65 @@ export function AppraisalCaptureCard({
           Evidence, comment &amp; corrective action
         </summary>
         <div className="mt-2 flex flex-col gap-2">
-          <label className={LABEL_CLASS}>
-            Evidence URL
+          <div className={LABEL_CLASS}>
+            Evidence files
             <input
-              type="text"
-              value={evidenceUrl}
-              onChange={(e) => {
-                setEvidenceUrl(e.target.value);
-                scheduleSave({ evidenceUrl: e.target.value });
-              }}
-              onBlur={() => saveOnBlurIfDirty({ evidenceUrl })}
-              className={FIELD_CLASS}
+              type="file"
+              multiple
+              onChange={handleFilesSelected}
+              disabled={fileUploading}
+              className="text-xs text-ink2 file:mr-2 file:rounded-md file:border file:border-line file:bg-white file:px-2 file:py-1 file:text-xs file:font-bold file:text-ink2 hover:file:border-ink disabled:opacity-50"
             />
-          </label>
+            {fileUploading && <span className="text-[11px] text-ink2">Uploading…</span>}
+            {fileError && <span className="text-[11px] font-semibold text-missed">{fileError}</span>}
+            {kpi.evidenceFiles.length > 0 && (
+              <ul className="mt-1 flex flex-col gap-1">
+                {kpi.evidenceFiles.map((f) => (
+                  <li
+                    key={f.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-line bg-paper px-2 py-1 text-xs"
+                  >
+                    {f.url ? (
+                      <a
+                        href={f.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="truncate font-semibold text-blue hover:underline"
+                      >
+                        {f.fileName}
+                      </a>
+                    ) : (
+                      <span className="truncate text-ink2">{f.fileName}</span>
+                    )}
+                    <div className="flex flex-none items-center gap-2 text-ink2">
+                      {f.fileSize != null && <span>{formatFileSize(f.fileSize)}</span>}
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFile(f.id)}
+                        disabled={deletingFileId === f.id}
+                        className="font-bold text-missed hover:underline disabled:opacity-50"
+                      >
+                        {deletingFileId === f.id ? "Removing…" : "Remove"}
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {kpi.result?.evidenceUrl && (
+              <div className="mt-1 text-[11px] text-ink2">
+                Previously captured link:{" "}
+                <a
+                  href={kpi.result.evidenceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-blue hover:underline"
+                >
+                  {kpi.result.evidenceUrl}
+                </a>
+              </div>
+            )}
+          </div>
           <label className={LABEL_CLASS}>
             Comment
             <textarea

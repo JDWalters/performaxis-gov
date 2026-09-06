@@ -10,10 +10,54 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
+      agreements: {
+        Row: {
+          appraisal_cycle_id: string
+          created_at: string
+          employee_signatory: string | null
+          employer_signatory: string | null
+          id: string
+          pdf_url: string | null
+          sign_date: string | null
+          sign_place: string | null
+          status: string
+        }
+        Insert: {
+          appraisal_cycle_id: string
+          created_at?: string
+          employee_signatory?: string | null
+          employer_signatory?: string | null
+          id?: string
+          pdf_url?: string | null
+          sign_date?: string | null
+          sign_place?: string | null
+          status?: string
+        }
+        Update: {
+          appraisal_cycle_id?: string
+          created_at?: string
+          employee_signatory?: string | null
+          employer_signatory?: string | null
+          id?: string
+          pdf_url?: string | null
+          sign_date?: string | null
+          sign_place?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agreements_appraisal_cycle_id_fkey"
+            columns: ["appraisal_cycle_id"]
+            isOneToOne: true
+            referencedRelation: "appraisal_cycles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appraisal_assessment_meta: {
         Row: {
           appraisal_cycle_id: string
@@ -57,50 +101,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "appraisal_assessment_meta_appraisal_cycle_id_fkey"
-            columns: ["appraisal_cycle_id"]
-            isOneToOne: false
-            referencedRelation: "appraisal_cycles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      agreements: {
-        Row: {
-          appraisal_cycle_id: string
-          created_at: string
-          employee_signatory: string | null
-          employer_signatory: string | null
-          id: string
-          pdf_url: string | null
-          sign_date: string | null
-          sign_place: string | null
-          status: string
-        }
-        Insert: {
-          appraisal_cycle_id: string
-          created_at?: string
-          employee_signatory?: string | null
-          employer_signatory?: string | null
-          id?: string
-          pdf_url?: string | null
-          sign_date?: string | null
-          sign_place?: string | null
-          status?: string
-        }
-        Update: {
-          appraisal_cycle_id?: string
-          created_at?: string
-          employee_signatory?: string | null
-          employer_signatory?: string | null
-          id?: string
-          pdf_url?: string | null
-          sign_date?: string | null
-          sign_place?: string | null
-          status?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "agreements_appraisal_cycle_id_fkey"
             columns: ["appraisal_cycle_id"]
             isOneToOne: false
             referencedRelation: "appraisal_cycles"
@@ -201,6 +201,50 @@ export type Database = {
             columns: ["policy_template_id"]
             isOneToOne: false
             referencedRelation: "policy_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appraisal_evidence_files: {
+        Row: {
+          appraisal_kpi_id: string
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          quarter: number
+          uploaded_by: string | null
+        }
+        Insert: {
+          appraisal_kpi_id: string
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          quarter: number
+          uploaded_by?: string | null
+        }
+        Update: {
+          appraisal_kpi_id?: string
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          quarter?: number
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appraisal_evidence_files_appraisal_kpi_id_fkey"
+            columns: ["appraisal_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "appraisal_kpis"
             referencedColumns: ["id"]
           },
         ]
@@ -361,6 +405,96 @@ export type Database = {
           },
         ]
       }
+      circular88_indicators: {
+        Row: {
+          accumulation: string
+          code: string
+          created_at: string
+          formula: string
+          frequency: string
+          indicator_text: string
+          indicator_type: string
+          labels: Json
+          list: string
+          method: string
+          poe: string
+          preset: string
+          sector: string
+          tier: string
+        }
+        Insert: {
+          accumulation?: string
+          code: string
+          created_at?: string
+          formula?: string
+          frequency: string
+          indicator_text: string
+          indicator_type: string
+          labels?: Json
+          list: string
+          method: string
+          poe: string
+          preset: string
+          sector: string
+          tier: string
+        }
+        Update: {
+          accumulation?: string
+          code?: string
+          created_at?: string
+          formula?: string
+          frequency?: string
+          indicator_text?: string
+          indicator_type?: string
+          labels?: Json
+          list?: string
+          method?: string
+          poe?: string
+          preset?: string
+          sector?: string
+          tier?: string
+        }
+        Relationships: []
+      }
+      circular88_overrides: {
+        Row: {
+          code: string
+          id: string
+          org_id: string
+          overrides: Json
+          updated_at: string
+        }
+        Insert: {
+          code: string
+          id?: string
+          org_id: string
+          overrides?: Json
+          updated_at?: string
+        }
+        Update: {
+          code?: string
+          id?: string
+          org_id?: string
+          overrides?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "circular88_overrides_code_fkey"
+            columns: ["code"]
+            isOneToOne: false
+            referencedRelation: "circular88_indicators"
+            referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "circular88_overrides_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "orgs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       competencies: {
         Row: {
           created_at: string
@@ -485,44 +619,116 @@ export type Database = {
           },
         ]
       }
+      kpi_evidence_files: {
+        Row: {
+          content_type: string | null
+          created_at: string
+          file_name: string
+          file_path: string
+          file_size: number | null
+          id: string
+          quarter: number
+          scorecard_kpi_id: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          content_type?: string | null
+          created_at?: string
+          file_name: string
+          file_path: string
+          file_size?: number | null
+          id?: string
+          quarter: number
+          scorecard_kpi_id: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          content_type?: string | null
+          created_at?: string
+          file_name?: string
+          file_path?: string
+          file_size?: number | null
+          id?: string
+          quarter?: number
+          scorecard_kpi_id?: string
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kpi_evidence_files_scorecard_kpi_id_fkey"
+            columns: ["scorecard_kpi_id"]
+            isOneToOne: false
+            referencedRelation: "scorecard_kpis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       kpi_library: {
         Row: {
+          annual_target: string | null
+          baseline: string | null
+          c88_code: string | null
           calc_config: Json
           created_at: string
           description: string | null
           id: string
           idp_ref: string | null
           kpa: string | null
+          kpi_type: string | null
+          method: string | null
           name: string
           org_id: string
+          poe: string | null
           target_type: string
           unit_of_measure: string | null
+          wards: string | null
         }
         Insert: {
+          annual_target?: string | null
+          baseline?: string | null
+          c88_code?: string | null
           calc_config?: Json
           created_at?: string
           description?: string | null
           id?: string
           idp_ref?: string | null
           kpa?: string | null
+          kpi_type?: string | null
+          method?: string | null
           name: string
           org_id: string
+          poe?: string | null
           target_type?: string
           unit_of_measure?: string | null
+          wards?: string | null
         }
         Update: {
+          annual_target?: string | null
+          baseline?: string | null
+          c88_code?: string | null
           calc_config?: Json
           created_at?: string
           description?: string | null
           id?: string
           idp_ref?: string | null
           kpa?: string | null
+          kpi_type?: string | null
+          method?: string | null
           name?: string
           org_id?: string
+          poe?: string | null
           target_type?: string
           unit_of_measure?: string | null
+          wards?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "kpi_library_c88_code_fkey"
+            columns: ["c88_code"]
+            isOneToOne: false
+            referencedRelation: "circular88_indicators"
+            referencedColumns: ["code"]
+          },
           {
             foreignKeyName: "kpi_library_org_id_fkey"
             columns: ["org_id"]
@@ -537,7 +743,10 @@ export type Database = {
           actual: string | null
           comment: string | null
           corrective_action: string | null
+          corrective_action_due: string | null
+          corrective_action_owner: string | null
           created_at: string
+          evidence_description: string | null
           evidence_url: string | null
           id: string
           inputs: Json
@@ -551,7 +760,10 @@ export type Database = {
           actual?: string | null
           comment?: string | null
           corrective_action?: string | null
+          corrective_action_due?: string | null
+          corrective_action_owner?: string | null
           created_at?: string
+          evidence_description?: string | null
           evidence_url?: string | null
           id?: string
           inputs?: Json
@@ -565,7 +777,10 @@ export type Database = {
           actual?: string | null
           comment?: string | null
           corrective_action?: string | null
+          corrective_action_due?: string | null
+          corrective_action_owner?: string | null
           created_at?: string
+          evidence_description?: string | null
           evidence_url?: string | null
           id?: string
           inputs?: Json
@@ -902,42 +1117,63 @@ export type Database = {
       }
       scorecard_kpis: {
         Row: {
+          annual_target: string | null
+          baseline: string | null
+          calc_config: Json
           created_at: string
           id: string
           idp_ref: string | null
           kpa: string | null
           kpi_library_id: string | null
+          kpi_type: string | null
+          method: string | null
           name: string
+          poe: string | null
           ref_code: string | null
           scorecard_id: string
           target_type: string
           unit_of_measure: string | null
+          wards: string | null
           weight: number
         }
         Insert: {
+          annual_target?: string | null
+          baseline?: string | null
+          calc_config?: Json
           created_at?: string
           id?: string
           idp_ref?: string | null
           kpa?: string | null
           kpi_library_id?: string | null
+          kpi_type?: string | null
+          method?: string | null
           name: string
+          poe?: string | null
           ref_code?: string | null
           scorecard_id: string
           target_type?: string
           unit_of_measure?: string | null
+          wards?: string | null
           weight?: number
         }
         Update: {
+          annual_target?: string | null
+          baseline?: string | null
+          calc_config?: Json
           created_at?: string
           id?: string
           idp_ref?: string | null
           kpa?: string | null
           kpi_library_id?: string | null
+          kpi_type?: string | null
+          method?: string | null
           name?: string
+          poe?: string | null
           ref_code?: string | null
           scorecard_id?: string
           target_type?: string
           unit_of_measure?: string | null
+          wards?: string | null
           weight?: number
         }
         Relationships: [
@@ -1063,12 +1299,12 @@ export type Tables<
   DefaultSchemaTableNameOrOptions extends
     | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
         DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1092,11 +1328,11 @@ export type TablesInsert<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1117,11 +1353,11 @@ export type TablesUpdate<
   DefaultSchemaTableNameOrOptions extends
     | keyof DefaultSchema["Tables"]
     | { schema: keyof DatabaseWithoutInternals },
-  TableName extends DefaultSchemaTableNameOrOptions extends {
+  TableName extends (DefaultSchemaTableNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaTableNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1142,11 +1378,11 @@ export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
     | { schema: keyof DatabaseWithoutInternals },
-  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+  EnumName extends (DefaultSchemaEnumNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
-    : never = never,
+    : never) = never,
 > = DefaultSchemaEnumNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }
@@ -1159,11 +1395,11 @@ export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
     | keyof DefaultSchema["CompositeTypes"]
     | { schema: keyof DatabaseWithoutInternals },
-  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+  CompositeTypeName extends (PublicCompositeTypeNameOrOptions extends {
     schema: keyof DatabaseWithoutInternals
   }
     ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
-    : never = never,
+    : never) = never,
 > = PublicCompositeTypeNameOrOptions extends {
   schema: keyof DatabaseWithoutInternals
 }

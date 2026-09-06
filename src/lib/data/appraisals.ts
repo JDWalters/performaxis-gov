@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KpiCalc, AppraisalKpi } from "@/lib/data/appraisals-shared";
 import { needsReview } from "@/lib/data/kpi-calc-shared";
+import { signEvidencePaths } from "@/app/(app)/appraisals/[cycleId]/evidence-actions";
 import {
   finalRating,
   weightedScore,
@@ -224,6 +225,15 @@ type AppraisalKpiRow = {
     mgr_rating: number | null;
     panel_rating: number | null;
   }[];
+  appraisal_evidence_files: {
+    id: string;
+    quarter: number;
+    file_name: string;
+    file_path: string;
+    file_size: number | null;
+    content_type: string | null;
+    created_at: string;
+  }[];
 };
 
 /**
@@ -255,7 +265,7 @@ export async function getAppraisalDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("appraisal_kpis")
     .select(
-      "id, name, kpa, unit_of_measure, weight, baseline, annual_target, poe, calc_config, created_at, appraisal_ratings(quarter, actual, inputs, target_value, na, evidence_url, comment, corrective_action, self_rating, mgr_rating, panel_rating)"
+      "id, name, kpa, unit_of_measure, weight, baseline, annual_target, poe, calc_config, created_at, appraisal_ratings(quarter, actual, inputs, target_value, na, evidence_url, comment, corrective_action, self_rating, mgr_rating, panel_rating), appraisal_evidence_files(id, quarter, file_name, file_path, file_size, content_type, created_at)"
     )
     .eq("appraisal_cycle_id", cycleId);
   if (kpiErr) throw kpiErr;
@@ -323,6 +333,11 @@ export async function getAppraisalDetail(
   const canSelfAssess = canManagerRate || Boolean((selfMembershipData ?? []).length);
 
   const kpiRows = (kpis ?? []) as unknown as AppraisalKpiRow[];
+
+  // One batched signing call for every evidence file on this cycle - see the
+  // identical comment in scorecards.ts's getScorecardDetail.
+  const allEvidencePaths = kpiRows.flatMap((k) => (k.appraisal_evidence_files ?? []).map((f) => f.file_path));
+  const signedEvidenceUrls = await signEvidencePaths(allEvidencePaths);
 
   const quartersNeedingReview = [...new Set(
     kpiRows.flatMap((k) =>
@@ -430,6 +445,17 @@ export async function getAppraisalDetail(
         poe: k.poe,
         calc: k.calc_config?.calc ?? null,
         effectiveWeightPct: effWeights.get(k.id) ?? 0,
+        evidenceFiles: (k.appraisal_evidence_files ?? [])
+          .filter((f) => f.quarter === quarter)
+          .map((f) => ({
+            id: f.id,
+            fileName: f.file_name,
+            fileSize: f.file_size,
+            contentType: f.content_type,
+            url: signedEvidenceUrls[f.file_path] ?? null,
+            createdAt: f.created_at,
+          }))
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
         result: result
           ? {
               actual: result.actual,

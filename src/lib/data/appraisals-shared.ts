@@ -27,6 +27,20 @@ export type AppraisalKpi = {
   calc: KpiCalc | null;
   /** This KPI's configured weight rebased to 100% among this quarter's applicable (non-N/A) KPIs - see kpiWeights() in appraisal-scoring.ts. */
   effectiveWeightPct: number;
+  /**
+   * Uploaded evidence files for the currently-selected quarter - independent
+   * of `result` (both are keyed on appraisal_kpi_id+quarter directly). `url`
+   * is a short-lived signed URL regenerated on every page load - see
+   * signEvidencePaths() in appraisals/[cycleId]/evidence-actions.ts.
+   */
+  evidenceFiles: {
+    id: string;
+    fileName: string;
+    fileSize: number | null;
+    contentType: string | null;
+    url: string | null;
+    createdAt: string;
+  }[];
   result: {
     actual: string | null;
     inputs: Record<string, unknown>;

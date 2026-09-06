@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
 import { needsReview } from "@/lib/data/kpi-calc-shared";
+import { signEvidencePaths } from "@/app/(app)/scorecards/[id]/evidence-actions";
 
 export type { KpiCalc, CaptureKpi } from "@/lib/data/scorecards-shared";
 export { friendlyActual } from "@/lib/data/scorecards-shared";
@@ -140,6 +141,15 @@ type ScorecardKpiRow = {
     corrective_action_owner: string | null;
     corrective_action_due: string | null;
   }[];
+  kpi_evidence_files: {
+    id: string;
+    quarter: number;
+    file_name: string;
+    file_path: string;
+    file_size: number | null;
+    content_type: string | null;
+    created_at: string;
+  }[];
 };
 
 /**
@@ -167,7 +177,7 @@ export async function getScorecardDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("scorecard_kpis")
     .select(
-      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due)"
+      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due), kpi_evidence_files(id, quarter, file_name, file_path, file_size, content_type, created_at)"
     )
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
@@ -195,6 +205,12 @@ export async function getScorecardDetail(
   ]);
 
   const kpiRows = (kpis ?? []) as unknown as ScorecardKpiRow[];
+
+  // One batched signing call for every evidence file on the scorecard (not
+  // just this quarter's) - cheap, and means switching quarters client-side
+  // never needs a fresh round trip just to get working download links.
+  const allEvidencePaths = kpiRows.flatMap((k) => (k.kpi_evidence_files ?? []).map((f) => f.file_path));
+  const signedEvidenceUrls = await signEvidencePaths(allEvidencePaths);
 
   const quartersNeedingReview = [...new Set(
     kpiRows.flatMap((k) =>
@@ -232,6 +248,17 @@ export async function getScorecardDetail(
           target: (k.kpi_targets ?? []).find((t) => t.quarter === q)?.target_value ?? null,
           actual: (k.kpi_results ?? []).find((r) => r.quarter === q)?.actual ?? null,
         })),
+        evidenceFiles: (k.kpi_evidence_files ?? [])
+          .filter((f) => f.quarter === quarter)
+          .map((f) => ({
+            id: f.id,
+            fileName: f.file_name,
+            fileSize: f.file_size,
+            contentType: f.content_type,
+            url: signedEvidenceUrls[f.file_path] ?? null,
+            createdAt: f.created_at,
+          }))
+          .sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
         result: result
           ? {
               actual: result.actual,
