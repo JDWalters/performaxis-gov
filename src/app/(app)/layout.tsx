@@ -8,7 +8,7 @@ import { getPolicyConfig } from "@/lib/data/policy";
 import Link from "next/link";
 import { getActiveFinancialYear, canManageFinancialYears } from "@/lib/data/financial-years";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
-import { Sidebar, SIDEBAR_COLLAPSE_COOKIE } from "@/components/Sidebar";
+import { Sidebar, SIDEBAR_COLLAPSE_COOKIE, SIDEBAR_SECTIONS_COOKIE, DEFAULT_COLLAPSED_SECTIONS } from "@/components/Sidebar";
 import { FinancialYearSwitcher } from "@/components/FinancialYearSwitcher";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
@@ -43,6 +43,19 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const cookieStore = await cookies();
   const initialCollapsed = cookieStore.get(SIDEBAR_COLLAPSE_COOKIE)?.value === "1";
+  // A malformed or tampered cookie just falls back to the default collapsed
+  // set (Mandate only) rather than crashing the layout - this only ever
+  // controls which nav sections start open, nothing security-sensitive.
+  let initialCollapsedSections: string[] = DEFAULT_COLLAPSED_SECTIONS;
+  const sectionsCookie = cookieStore.get(SIDEBAR_SECTIONS_COOKIE)?.value;
+  if (sectionsCookie) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(sectionsCookie));
+      if (Array.isArray(parsed) && parsed.every((v) => typeof v === "string")) initialCollapsedSections = parsed;
+    } catch {
+      // keep the default
+    }
+  }
 
   return (
     <div className="flex min-h-screen max-[900px]:flex-col">
@@ -53,6 +66,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         canManageUsers={canManageUsers}
         canManageOrgs={canManageOrgs}
         initialCollapsed={initialCollapsed}
+        initialCollapsedSections={initialCollapsedSections}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-white px-6 py-3 max-[900px]:px-4 max-[900px]:py-2.5">

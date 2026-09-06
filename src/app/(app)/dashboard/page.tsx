@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getMyAccessibleOrgs } from "@/lib/data/access";
 import { getScorecardOverview, getAppraisalOverview } from "@/lib/data/dashboard";
@@ -34,14 +35,6 @@ async function getStats(orgIds: string[], deptOrgIds: string[]) {
 
 function pct(n: number, d: number) {
   return d > 0 ? Math.round((n / d) * 100) : 0;
-}
-
-function ratingBadge(avg: number | null) {
-  if (avg == null) return { className: "stag-pending", label: "Not yet rated" };
-  if (avg >= 4) return { className: "stag-met", label: `${avg.toFixed(2)} avg` };
-  if (avg >= 3) return { className: "stag-okk", label: `${avg.toFixed(2)} avg` };
-  if (avg >= 2) return { className: "stag-almost", label: `${avg.toFixed(2)} avg` };
-  return { className: "stag-missed", label: `${avg.toFixed(2)} avg` };
 }
 
 function completionBadge(percent: number) {
@@ -96,85 +89,38 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <div className="rounded-xl border border-line bg-white p-5">
-          <h2 className="mb-1 text-sm font-extrabold uppercase tracking-wide text-ink2">
-            SDBIP — Service delivery scorecards
-          </h2>
-          <p className="mb-4 text-xs text-ink2">
-            Quarter 4 reporting completion by department, computed live from captured results.
-          </p>
-          {scorecardOverview.depts.length === 0 ? (
-            <p className="text-sm text-ink2">No scorecards in view yet.</p>
-          ) : (
-            <div className="flex flex-col gap-3">
-              {scorecardOverview.depts.map((d) => {
-                const p = pct(d.q4Captured, d.kpiCount);
-                return (
-                  <div key={d.orgId}>
-                    <div className="mb-1 flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-ink">{d.orgName}</span>
-                      <span className={`stag ${completionBadge(p)}`}>
-                        {d.q4Captured}/{d.kpiCount} KPIs · {p}%
-                      </span>
-                    </div>
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-paper">
-                      <div
-                        className="h-full rounded-full bg-[var(--color-met)]"
-                        style={{ width: `${p}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+      <div>
+        <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-ink2">Sections</h2>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Link
+            href="/scorecards"
+            className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-ink">SDBIP Dashboard</h3>
+              <span className={`stag ${completionBadge(sdbipCompletion)}`}>{sdbipCompletion}%</span>
             </div>
-          )}
-        </div>
+            <p className="mt-1 text-xs text-ink2">Service delivery scorecards — quarterly reporting.</p>
+            <div className="mt-3 text-xs text-ink2">
+              {scorecardOverview.totalQ4Captured} of {scorecardOverview.totalKpis} KPIs · {scorecardOverview.depts.length}{" "}
+              departments
+            </div>
+          </Link>
 
-        <div className="rounded-xl border border-line bg-white p-5">
-          <h2 className="mb-1 text-sm font-extrabold uppercase tracking-wide text-ink2">
-            EPAS — Performance agreements
-          </h2>
-          <p className="mb-4 text-xs text-ink2">
-            Manager ratings captured per employee, across all quarters and KPIs on their
-            agreement.
-          </p>
-          {appraisalOverview.employees.length === 0 ? (
-            <p className="text-sm text-ink2">No appraisal cycles in view yet.</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-ink2">
-                    <th className="pb-2 font-extrabold">Employee</th>
-                    <th className="pb-2 font-extrabold">Dept</th>
-                    <th className="pb-2 font-extrabold">Ratings</th>
-                    <th className="pb-2 font-extrabold">Rating</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {appraisalOverview.employees.map((e) => {
-                    const badge = ratingBadge(e.avgMgrRating);
-                    return (
-                      <tr key={e.employeeId} className="border-b border-line last:border-0">
-                        <td className="py-2">
-                          <div className="font-semibold text-ink">{e.name}</div>
-                          <div className="text-xs text-ink2">{e.position}</div>
-                        </td>
-                        <td className="py-2 text-xs text-ink2">{e.orgName}</td>
-                        <td className="py-2 font-mono text-xs text-ink2">
-                          {e.ratingsCaptured}/{e.ratingsTotal}
-                        </td>
-                        <td className="py-2">
-                          <span className={`stag ${badge.className}`}>{badge.label}</span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <Link
+            href="/appraisals"
+            className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-ink">EPAS Dashboard</h3>
+              <span className={`stag ${completionBadge(appraisalCompletion)}`}>{appraisalCompletion}%</span>
             </div>
-          )}
+            <p className="mt-1 text-xs text-ink2">Performance agreements — manager ratings captured.</p>
+            <div className="mt-3 text-xs text-ink2">
+              {appraisalOverview.totalRatingsCaptured} of {appraisalOverview.totalRatingsExpected} ratings ·{" "}
+              {appraisalOverview.employees.length} employees
+            </div>
+          </Link>
         </div>
       </div>
 

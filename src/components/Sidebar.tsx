@@ -6,8 +6,10 @@ import Link from "next/link";
 import { signOut } from "@/app/(app)/actions";
 
 export const SIDEBAR_COLLAPSE_COOKIE = "px_sidebar_collapsed";
+export const SIDEBAR_SECTIONS_COOKIE = "px_sidebar_sections";
 
 type NavItem = { href: string; icon: string; label: string };
+type NavSection = { id: string; label: string; items: NavItem[] };
 
 /** Icons mirror the reference tool's .navico glyphs where a direct equivalent
  * exists (Dashboard/Progress/Reports/library/setup all match literally); the
@@ -15,24 +17,73 @@ type NavItem = { href: string; icon: string; label: string };
  * products plus adds multi-tenant admin screens) get a same-weight Unicode
  * dingbat in the same style rather than an emoji, to keep the sidebar
  * visually flat. */
-const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", icon: "◴", label: "Dashboard" },
+const DASHBOARD_ITEM: NavItem = { href: "/dashboard", icon: "◴", label: "Dashboard" };
+
+// Reports covers both products (org-wide summary + CSV export are EPAS data,
+// the scorecards ZIP export is SDBIP data), so it's deliberately listed
+// under both sections rather than picking one home for it.
+const REPORTS_ITEM: NavItem = { href: "/reports", icon: "␙", label: "Reports" };
+
+const SDBIP_NAV: NavItem[] = [
   { href: "/scorecards", icon: "▦", label: "SDBIP Scorecards" },
   { href: "/progress", icon: "↗", label: "Performance Progress" },
-  { href: "/appraisals", icon: "✓", label: "EPAS Appraisals" },
-  { href: "/reports", icon: "␙", label: "Reports" },
-  { href: "/kpi-library", icon: "≡", label: "KPI Type Generator" },
+  REPORTS_ITEM,
 ];
+const EPAS_NAV: NavItem[] = [{ href: "/appraisals", icon: "✓", label: "EPAS Appraisals" }, REPORTS_ITEM];
+// Placeholder for a future section (Council/IDP mandate tracking etc.) -
+// scaffolded now, empty until that module exists.
+const MANDATE_NAV: NavItem[] = [];
 
 // Setup order, not alphabetical: orgs must exist before employees can be
 // added to them, employees before EPAS policy/competencies mean anything,
-// and inviting users is naturally the last step.
+// and inviting users is naturally the last step. KPI Type Generator has no
+// access gate of its own (unlike the three below it), so it's always present.
+const SETUP_NAV_BASE: NavItem[] = [{ href: "/kpi-library", icon: "≡", label: "KPI Type Generator" }];
 const ORG_ADMIN_NAV: NavItem[] = [
   { href: "/orgs", icon: "⌂", label: "Org Management" },
   { href: "/employees", icon: "☺", label: "Employees" },
   { href: "/epas-setup", icon: "⚙", label: "EPAS Setup" },
 ];
 const USER_ADMIN_NAV: NavItem[] = [{ href: "/users", icon: "☷", label: "Manage Users" }];
+
+// Sections collapsed by default (before any cookie override) - Mandate has
+// nothing in it yet, so it starts out of the way.
+export const DEFAULT_COLLAPSED_SECTIONS = ["mandate"];
+
+// Defined at module scope (rather than inline in the toggle handler) so the
+// write is a plain function call from the component, not a bare
+// `document.cookie = ...` statement inside it.
+function writeSectionsCookie(ids: string[]) {
+  document.cookie = `${SIDEBAR_SECTIONS_COOKIE}=${encodeURIComponent(JSON.stringify(ids))}; path=/; max-age=${60 * 60 * 24 * 365}`;
+}
+
+/** Chevron + label header that toggles a section's items open/closed - hidden entirely in the icon-only rail (nothing to collapse when there are no labels to hide). */
+function SectionHeader({
+  label,
+  open,
+  empty,
+  onToggle,
+}: {
+  label: string;
+  open: boolean;
+  empty: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className={`mt-3 flex w-full items-center gap-1.5 rounded-md px-3 py-1 text-[10px] font-bold uppercase tracking-wide hover:text-white/70 max-[900px]:hidden ${
+        empty ? "text-white/25" : "text-white/40"
+      }`}
+    >
+      <span className={`inline-block w-2.5 flex-none text-center text-[9px] transition-transform ${open ? "rotate-90" : ""}`}>
+        ▸
+      </span>
+      {label}
+    </button>
+  );
+}
 
 function NavLink({ href, icon, label, collapsed }: NavItem & { collapsed: boolean }) {
   return (
@@ -66,6 +117,7 @@ export function Sidebar({
   canManageUsers,
   canManageOrgs,
   initialCollapsed,
+  initialCollapsedSections,
 }: {
   activeMunicipality: { name: string; logoUrl: string | null } | null;
   userName: string;
@@ -73,8 +125,10 @@ export function Sidebar({
   canManageUsers: boolean;
   canManageOrgs: boolean;
   initialCollapsed: boolean;
+  initialCollapsedSections: string[];
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
+  const [collapsedSections, setCollapsedSections] = useState<string[]>(initialCollapsedSections);
 
   function toggle() {
     const next = !collapsed;
@@ -84,6 +138,36 @@ export function Sidebar({
     // instant and doesn't trigger a full page data refetch for a pure UI
     // preference. Read back server-side on next load to avoid a flash.
     document.cookie = `${SIDEBAR_COLLAPSE_COOKIE}=${next ? "1" : "0"}; path=/; max-age=${60 * 60 * 24 * 365}`;
+  }
+
+  function toggleSection(id: string) {
+    const nextIds = collapsedSections.includes(id)
+      ? collapsedSections.filter((existing) => existing !== id)
+      : [...collapsedSections, id];
+    setCollapsedSections(nextIds);
+    writeSectionsCookie(nextIds);
+  }
+
+  const setupItems: NavItem[] = [
+    ...SETUP_NAV_BASE,
+    ...(canManageOrgs ? ORG_ADMIN_NAV : []),
+    ...(canManageUsers ? USER_ADMIN_NAV : []),
+  ];
+  const sections: NavSection[] = [
+    { id: "sdbip", label: "SDBIP", items: SDBIP_NAV },
+    { id: "epas", label: "EPAS", items: EPAS_NAV },
+    { id: "mandate", label: "MANDATE", items: MANDATE_NAV },
+    { id: "setup", label: "SETUP", items: setupItems },
+  ];
+  // The icon-only rail has no room for section headers, so it falls back to
+  // one flat, deduplicated list (Reports would otherwise show up twice,
+  // once from SDBIP and once from EPAS).
+  const flatUnique: NavItem[] = [];
+  const seenHrefs = new Set<string>();
+  for (const item of [DASHBOARD_ITEM, ...sections.flatMap((s) => s.items)]) {
+    if (seenHrefs.has(item.href)) continue;
+    seenHrefs.add(item.href);
+    flatUnique.push(item);
   }
 
   const crestInitials = activeMunicipality
@@ -168,20 +252,42 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2 max-[900px]:flex-none max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-1.5 max-[900px]:overflow-visible max-[900px]:p-0">
-        {PRIMARY_NAV.map((item) => (
-          <NavLink key={item.href} {...item} collapsed={collapsed} />
-        ))}
+        <NavLink {...DASHBOARD_ITEM} collapsed={collapsed} />
 
-        {(canManageOrgs || canManageUsers) &&
-          (collapsed ? (
+        {collapsed ? (
+          // Icon rail: no room for section labels, so every item (deduplicated
+          // across sections) renders flat, with a single divider standing in
+          // for all the section breaks below.
+          <>
             <div className="my-2 border-t border-white/10 max-[900px]:my-0 max-[900px]:h-6 max-[900px]:w-px max-[900px]:border-t-0 max-[900px]:border-l" />
-          ) : (
-            <div className="mb-1 mt-4 px-3 text-[10px] font-bold uppercase tracking-wide text-white/40 max-[900px]:m-0 max-[900px]:hidden">
-              Administration
-            </div>
-          ))}
-        {canManageOrgs && ORG_ADMIN_NAV.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)}
-        {canManageUsers && USER_ADMIN_NAV.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)}
+            {flatUnique
+              .filter((item) => item.href !== DASHBOARD_ITEM.href)
+              .map((item) => (
+                <NavLink key={item.href} {...item} collapsed={collapsed} />
+              ))}
+          </>
+        ) : (
+          sections.map((section) => {
+            const empty = section.items.length === 0;
+            const open = !collapsedSections.includes(section.id);
+            return (
+              <div key={section.id} className="max-[900px]:contents">
+                <SectionHeader
+                  label={section.label}
+                  open={open}
+                  empty={empty}
+                  onToggle={() => toggleSection(section.id)}
+                />
+                {open &&
+                  (empty ? (
+                    <div className="px-3 py-1 text-xs italic text-white/30 max-[900px]:hidden">Coming soon</div>
+                  ) : (
+                    section.items.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)
+                  ))}
+              </div>
+            );
+          })
+        )}
       </nav>
 
       <div

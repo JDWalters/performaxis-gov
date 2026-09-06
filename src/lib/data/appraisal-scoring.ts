@@ -123,6 +123,23 @@ export function bandOf(
   return { label: term, tagClass: BAND_TAG_CLASS[tier] };
 }
 
+/**
+ * Scale-independent 6-key version of the same tiering (blue/met/okk/almost/
+ * missed for tiers 5-1, plus "pending" for an unscored employee) - the
+ * reference tool's bandOf().cls. The tier boundaries never depend on the
+ * org's rating-scale terminology (only the label text does, via bandOf()
+ * above), so this is safe to use purely for tallying/colouring - e.g. the
+ * EPAS dashboard's status-distribution bar - without needing a policy config
+ * in hand.
+ */
+export type EpasBandKey = "blue" | "met" | "okk" | "almost" | "missed" | "pending";
+const TIER_KEY: Record<number, EpasBandKey> = { 5: "blue", 4: "met", 3: "okk", 2: "almost", 1: "missed" };
+export function bandKey(score: number | null): EpasBandKey {
+  if (score == null) return "pending";
+  const tier = score >= 4.5 ? 5 : score >= 3.5 ? 4 : score >= 2.5 ? 3 : score >= 1.5 ? 2 : 1;
+  return TIER_KEY[tier];
+}
+
 /** Score expressed as a % of standard (3/5 = 100% of standard). */
 export function percentOfStandard(score: number | null): number | null {
   if (score == null) return null;
