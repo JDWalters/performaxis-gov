@@ -194,7 +194,10 @@ export function KpiTypeForm({
                   className={FIELD_CLASS}
                 >
                   <option value="stand-alone">Stand-alone (per quarter)</option>
-                  <option value="cumulative">Cumulative</option>
+                  <option value="cumulative">Cumulative — results add up (YTD)</option>
+                  <option value="carry-over">Carry-over — achieved stays achieved</option>
+                  <option value="annual-only">Annual-only (no quarterly breakdown)</option>
+                  <option value="milestone">Milestone (discrete steps)</option>
                 </select>
               </label>
             </div>
