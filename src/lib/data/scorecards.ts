@@ -174,14 +174,24 @@ export async function getScorecardDetail(
 
   // Cast: same pragmatic workaround as the upsert cast in scorecards/actions.ts -
   // the generic rpc() overload doesn't always resolve cleanly against the
-  // generated Functions map across postgrest-js versions.
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: boolean | null }>;
+  // generated Functions map across postgrest-js versions. IMPORTANT: each call
+  // must stay a single member-expression call - `(supabase.rpc as ...)(...)` -
+  // rather than being assigned to a `const rpc = ...` first. Storing it in a
+  // variable strips supabase.rpc's `this` binding to the client, so every call
+  // through that variable throws "Cannot read properties of undefined (reading
+  // 'rest')" at runtime (TS/eslint don't catch this - it only shows up as a
+  // 500 in production). This is exactly what broke every /scorecards/[id]
+  // route - see the same lesson already documented in users.ts/orgs.ts.
+  type RpcFn = (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>;
   const [{ data: canCaptureData }, { data: canManageSetupData }] = await Promise.all([
-    rpc("has_org_access", { target_org_id: header.org.id, required_permission: "capture_kpi_results" }),
-    rpc("has_org_access", { target_org_id: header.org.id, required_permission: "manage_scorecard_setup" }),
+    (supabase.rpc as unknown as RpcFn)("has_org_access", {
+      target_org_id: header.org.id,
+      required_permission: "capture_kpi_results",
+    }),
+    (supabase.rpc as unknown as RpcFn)("has_org_access", {
+      target_org_id: header.org.id,
+      required_permission: "manage_scorecard_setup",
+    }),
   ]);
 
   const kpiRows = (kpis ?? []) as unknown as ScorecardKpiRow[];

@@ -85,11 +85,12 @@ export async function getActiveFinancialYear(): Promise<ActiveFinancialYear> {
 export async function canManageFinancialYears(muniOrgId: string | null): Promise<boolean> {
   if (!muniOrgId) return false;
   const supabase = await createClient();
-  const rpc = supabase.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: boolean | null }>;
-  const { data } = await rpc("has_org_access", { target_org_id: muniOrgId, required_permission: "manage_org_setup" });
+  // Cast must stay a single member-expression call - see the `this`-binding
+  // note in scorecards.ts/users.ts/orgs.ts. Assigning `supabase.rpc` to a
+  // variable first strips its binding to the client and throws at runtime.
+  const { data } = await (
+    supabase.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<{ data: boolean | null }>
+  )("has_org_access", { target_org_id: muniOrgId, required_permission: "manage_org_setup" });
   return Boolean(data);
 }
 
