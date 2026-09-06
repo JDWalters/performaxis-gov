@@ -90,7 +90,7 @@ export default async function EpasDashboardPage({
                 caption={
                   dashboard.avgScore == null
                     ? "No assessments captured yet"
-                    : `${dashboard.avgBand?.label} · ${dashboard.avgPercentOfStandard}% of the fully effective standard`
+                    : `${dashboard.avgBand?.label} · ${Math.round(dashboard.avgPercentOfStandard ?? 0)}% of the fully effective standard`
                 }
                 dark
               />
