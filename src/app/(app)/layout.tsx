@@ -27,7 +27,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   ]);
   const canManageUsers = manageableScopes.length > 0;
   const canManageOrgs = orgManageScopes.length > 0;
-  const showFySwitcher = canPreviewNewFeatures(me.user.email);
+  const showFySwitcher = canPreviewNewFeatures(me.profile?.full_name);
   const canAddYear = showFySwitcher && (await canManageFinancialYears(activeFy.muniOrgId).catch(() => false));
 
   // The reference tool's sidebar identifies the municipality it's running

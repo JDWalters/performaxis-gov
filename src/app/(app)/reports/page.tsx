@@ -2,7 +2,7 @@ import Link from "next/link";
 import { getAppraisalsList } from "@/lib/data/appraisals";
 import { getActiveScope } from "@/lib/data/scope";
 import { clearScope } from "@/app/(app)/scope-actions";
-import { createClient } from "@/lib/supabase/server";
+import { getMyProfile } from "@/lib/data/access";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
 
 /**
@@ -15,11 +15,8 @@ import { canPreviewNewFeatures } from "@/lib/feature-preview";
 export default async function ReportsPage() {
   const scope = await getActiveScope();
   const appraisals = await getAppraisalsList(scope?.orgIds ?? null);
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const showScorecardExports = canPreviewNewFeatures(user?.email);
+  const me = await getMyProfile();
+  const showScorecardExports = canPreviewNewFeatures(me?.profile?.full_name);
 
   return (
     <div className="flex flex-col gap-6">

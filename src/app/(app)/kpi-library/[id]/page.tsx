@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDepartmentOrgs, getDistinctKpas, getKpiLibraryEntry } from "@/lib/data/kpi-library";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
-import { createClient } from "@/lib/supabase/server";
+import { getMyProfile } from "@/lib/data/access";
 import { KpiTypeForm } from "../KpiTypeForm";
 
 export default async function EditKpiLibraryPage({
@@ -11,15 +11,14 @@ export default async function EditKpiLibraryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await createClient();
-  const [entry, departments, kpas, { data: { user } }] = await Promise.all([
+  const [entry, departments, kpas, me] = await Promise.all([
     getKpiLibraryEntry(id),
     getDepartmentOrgs(),
     getDistinctKpas(),
-    supabase.auth.getUser(),
+    getMyProfile(),
   ]);
   if (!entry) notFound();
-  const showScorecardSetupFields = canPreviewNewFeatures(user?.email);
+  const showScorecardSetupFields = canPreviewNewFeatures(me?.profile?.full_name);
 
   return (
     <div className="flex flex-col gap-4">

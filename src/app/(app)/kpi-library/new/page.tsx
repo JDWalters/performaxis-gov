@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getDepartmentOrgs, getDistinctKpas } from "@/lib/data/kpi-library";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
-import { createClient } from "@/lib/supabase/server";
+import { getMyProfile } from "@/lib/data/access";
 import { KpiTypeForm } from "../KpiTypeForm";
 
 export default async function NewKpiLibraryPage({
@@ -9,14 +9,13 @@ export default async function NewKpiLibraryPage({
 }: {
   searchParams: Promise<{ org?: string }>;
 }) {
-  const supabase = await createClient();
-  const [{ org }, departments, kpas, { data: { user } }] = await Promise.all([
+  const [{ org }, departments, kpas, me] = await Promise.all([
     searchParams,
     getDepartmentOrgs(),
     getDistinctKpas(),
-    supabase.auth.getUser(),
+    getMyProfile(),
   ]);
-  const showScorecardSetupFields = canPreviewNewFeatures(user?.email);
+  const showScorecardSetupFields = canPreviewNewFeatures(me?.profile?.full_name);
 
   return (
     <div className="flex flex-col gap-4">

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getScorecardDetail } from "@/lib/data/scorecards";
+import { getMyProfile } from "@/lib/data/access";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import type { Period } from "@/lib/data/sdbip-status";
 import { KpiListWithSearch } from "./KpiListWithSearch";
@@ -41,11 +41,8 @@ export default async function ScorecardDetailPage({
   const detail = await getScorecardDetail(id, quarter);
   if (!detail) notFound();
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  const showOfflineCapture = canPreviewNewFeatures(user?.email);
+  const me = await getMyProfile();
+  const showOfflineCapture = canPreviewNewFeatures(me?.profile?.full_name);
 
   return (
     <div className="flex flex-col gap-6">

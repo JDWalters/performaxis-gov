@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { getScorecardDetail } from "@/lib/data/scorecards";
 import { getKpiLibraryList } from "@/lib/data/kpi-library";
 import { getMunicipalityOrgId, getCircular88Catalogue } from "@/lib/data/circular88";
+import { getMyProfile } from "@/lib/data/access";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import { ManageKpisClient } from "./ManageKpisClient";
 
@@ -18,11 +18,8 @@ export default async function ManageKpisPage({
   const { q } = await searchParams;
   const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!canPreviewNewFeatures(user?.email)) notFound();
+  const me = await getMyProfile();
+  if (!canPreviewNewFeatures(me?.profile?.full_name)) notFound();
 
   const detail = await getScorecardDetail(id, quarter);
   if (!detail) notFound();

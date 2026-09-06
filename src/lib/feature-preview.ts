@@ -6,15 +6,19 @@
  * redeploy to take effect, since env vars are read at server start, but
  * that's a one-click "Redeploy" in the Vercel dashboard, not a code edit).
  *
- * FEATURE_PREVIEW_EMAIL defaults to the account that's been used as admin
- * throughout this project. FEATURE_PREVIEW_ONLY defaults to "on" (true) -
- * set it to the literal string "false" in Vercel's env vars to make every
- * preview-gated feature visible to everyone.
+ * Matches on the signed-in user's display name (profiles.full_name - the
+ * "JD" shown in the header chip and the sidebar's account card), not their
+ * email - email matching broke as soon as the real login email diverged
+ * from this project's original placeholder admin address, so every gated
+ * feature silently stopped appearing. FEATURE_PREVIEW_NAME defaults to
+ * "JD"; FEATURE_PREVIEW_ONLY defaults to "on" (true) - set it to the
+ * literal string "false" in Vercel's env vars to make every preview-gated
+ * feature visible to everyone.
  */
-const PREVIEW_EMAIL = process.env.FEATURE_PREVIEW_EMAIL ?? "jacques@website.co.za";
+const PREVIEW_NAME = process.env.FEATURE_PREVIEW_NAME ?? "JD";
 const PREVIEW_ONLY = process.env.FEATURE_PREVIEW_ONLY !== "false";
 
-export function canPreviewNewFeatures(email: string | null | undefined): boolean {
+export function canPreviewNewFeatures(displayName: string | null | undefined): boolean {
   if (!PREVIEW_ONLY) return true;
-  return !!email && email.toLowerCase() === PREVIEW_EMAIL.toLowerCase();
+  return !!displayName && displayName.trim().toLowerCase() === PREVIEW_NAME.toLowerCase();
 }
