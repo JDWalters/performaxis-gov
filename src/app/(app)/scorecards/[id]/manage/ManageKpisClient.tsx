@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import { addLibraryKpisToScorecard, deleteScorecardKpis } from "../kpi-admin-actions";
 import { Circular88Section, type Circular88Indicator } from "./Circular88Section";
+import { KpiSetupEditor, type EditableKpi } from "./KpiSetupEditor";
 
-type CurrentKpi = { id: string; refCode: string | null; name: string; kpa: string | null; c88Code: string | null };
+type CurrentKpi = EditableKpi & { refCode: string | null; kpa: string | null; c88Code: string | null };
 type LibraryKpi = {
   id: string;
   name: string;
@@ -33,6 +34,7 @@ export function ManageKpisClient({
   const [libSearch, setLibSearch] = useState("");
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const deleteCount = Object.values(deleteChecked).filter(Boolean).length;
   const addCount = Object.values(addChecked).filter(Boolean).length;
@@ -107,27 +109,46 @@ export function ManageKpisClient({
                   <th className="px-3 py-2">Ref</th>
                   <th className="px-3 py-2">KPI</th>
                   <th className="px-3 py-2">KPA</th>
+                  <th className="px-3 py-2">Setup</th>
                 </tr>
               </thead>
               <tbody>
                 {currentKpis.map((k) => (
-                  <tr key={k.id} className="border-b border-line last:border-0">
-                    <td className="px-3 py-2 align-top">
-                      <input
-                        type="checkbox"
-                        checked={Boolean(deleteChecked[k.id])}
-                        onChange={(e) => setDeleteChecked((prev) => ({ ...prev, [k.id]: e.target.checked }))}
-                      />
-                    </td>
-                    <td className="px-3 py-2 align-top font-mono text-xs text-ink2">{k.refCode ?? "—"}</td>
-                    <td className="px-3 py-2 align-top text-ink">
-                      {k.c88Code && (
-                        <div className="text-[10px] font-bold uppercase tracking-wide text-blue">C88: {k.c88Code}</div>
-                      )}
-                      {k.name}
-                    </td>
-                    <td className="px-3 py-2 align-top text-ink2">{k.kpa ?? "—"}</td>
-                  </tr>
+                  <Fragment key={k.id}>
+                    <tr className="border-b border-line last:border-0">
+                      <td className="px-3 py-2 align-top">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(deleteChecked[k.id])}
+                          onChange={(e) => setDeleteChecked((prev) => ({ ...prev, [k.id]: e.target.checked }))}
+                        />
+                      </td>
+                      <td className="px-3 py-2 align-top font-mono text-xs text-ink2">{k.refCode ?? "—"}</td>
+                      <td className="px-3 py-2 align-top text-ink">
+                        {k.c88Code && (
+                          <div className="text-[10px] font-bold uppercase tracking-wide text-blue">C88: {k.c88Code}</div>
+                        )}
+                        {k.name}
+                      </td>
+                      <td className="px-3 py-2 align-top text-ink2">{k.kpa ?? "—"}</td>
+                      <td className="px-3 py-2 align-top">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId((prev) => (prev === k.id ? null : k.id))}
+                          className="text-[11px] font-bold text-blue hover:underline"
+                        >
+                          {expandedId === k.id ? "Hide" : "Edit setup"}
+                        </button>
+                      </td>
+                    </tr>
+                    {expandedId === k.id && (
+                      <tr className="border-b border-line last:border-0">
+                        <td colSpan={5} className="bg-paper px-3 py-3">
+                          <KpiSetupEditor scorecardId={scorecardId} kpi={k} onClose={() => setExpandedId(null)} />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

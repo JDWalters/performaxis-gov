@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getScorecardDetail } from "@/lib/data/scorecards";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
+import type { Period } from "@/lib/data/sdbip-status";
 import { KpiListWithSearch } from "./KpiListWithSearch";
 import { DownloadOfflineFormButton } from "./DownloadOfflineFormButton";
 
@@ -13,6 +14,13 @@ const QUARTER_WINDOW: Record<number, string> = {
   4: "Apr–Jun",
 };
 
+/** Parses the ?q= param into a Period - a plain quarter (capturable), or "mid"/"annual" (computed view-only checkpoints, see KpiListWithSearch). */
+function parsePeriod(q: string | undefined): Period {
+  if (q === "mid" || q === "annual") return q;
+  const n = Math.min(4, Math.max(1, Number(q) || 4));
+  return n as 1 | 2 | 3 | 4;
+}
+
 export default async function ScorecardDetailPage({
   params,
   searchParams,
@@ -22,7 +30,13 @@ export default async function ScorecardDetailPage({
 }) {
   const { id } = await params;
   const { q } = await searchParams;
-  const quarter = q ? Math.min(4, Math.max(1, Number(q) || 4)) : 4;
+  const period = parsePeriod(q);
+  const isQuarter = typeof period === "number";
+  // Mid-year/Annual aren't real capture periods with their own targets - they're
+  // computed snapshots as-of Q2/Q4 (see statusForPeriod() in sdbip-status.ts), so
+  // the underlying data fetch always anchors on a real quarter; KpiListWithSearch
+  // decides whether to show that quarter's capture form or a computed view.
+  const quarter = isQuarter ? period : period === "mid" ? 2 : 4;
 
   const detail = await getScorecardDetail(id, quarter);
   if (!detail) notFound();
@@ -44,7 +58,11 @@ export default async function ScorecardDetailPage({
         </div>
         {showOfflineCapture && (detail.canCapture || detail.canManageSetup) && (
           <div className="flex flex-wrap items-center gap-2">
-            {detail.canCapture && (
+            {/* Offline capture/import and the per-quarter report export are
+               tied to one real quarter's captured data - Mid-year/Annual are
+               computed snapshots, not their own capture period, so these
+               only make sense while a plain quarter tab is selected. */}
+            {isQuarter && detail.canCapture && (
               <>
                 <DownloadOfflineFormButton scorecardId={detail.scorecardId} orgName={detail.orgName} quarter={quarter} />
                 <Link
@@ -60,7 +78,7 @@ export default async function ScorecardDetailPage({
                 href={`/scorecards/${id}/manage?q=${quarter}`}
                 className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
               >
-                Manage KPIs
+                Scorecard Setup
               </Link>
             )}
             <a
@@ -69,12 +87,14 @@ export default async function ScorecardDetailPage({
             >
               Export register CSV
             </a>
-            <a
-              href={`/scorecards/${id}/export/report?q=${quarter}`}
-              className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
-            >
-              Export Q{quarter} report CSV
-            </a>
+            {isQuarter && (
+              <a
+                href={`/scorecards/${id}/export/report?q=${quarter}`}
+                className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
+              >
+                Export Q{quarter} report CSV
+              </a>
+            )}
           </div>
         )}
         <div className="flex gap-1">
@@ -84,9 +104,7 @@ export default async function ScorecardDetailPage({
               href={`/scorecards/${id}?q=${qq}`}
               prefetch={false}
               className={`relative rounded-md px-3 py-1.5 text-xs font-bold ${
-                qq === quarter
-                  ? "bg-ink text-white"
-                  : "border border-line bg-white text-ink2 hover:border-ink"
+                period === qq ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
               }`}
             >
               Q{qq}
@@ -98,13 +116,36 @@ export default async function ScorecardDetailPage({
               )}
             </Link>
           ))}
+          {(["mid", "annual"] as const).map((p) => (
+            <Link
+              key={p}
+              href={`/scorecards/${id}?q=${p}`}
+              prefetch={false}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold ${
+                period === p ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"
+              }`}
+            >
+              {p === "mid" ? "Mid-year" : "Annual"}
+            </Link>
+          ))}
         </div>
       </div>
 
       <p className="text-sm text-ink2">
-        Capture the evidence figures for Q{quarter} ({QUARTER_WINDOW[quarter]}) · {detail.orgName}. Where a
-        result does not meet the target, the <strong className="font-semibold text-ink">Performance Comment</strong> and{" "}
-        <strong className="font-semibold text-ink">Corrective Action</strong> are compulsory before saving.
+        {isQuarter ? (
+          <>
+            Capture the evidence figures for Q{quarter} ({QUARTER_WINDOW[quarter]}) · {detail.orgName}. Where a
+            result does not meet the target, the <strong className="font-semibold text-ink">Performance Comment</strong> and{" "}
+            <strong className="font-semibold text-ink">Corrective Action</strong> are compulsory before saving.
+          </>
+        ) : (
+          <>
+            {period === "mid" ? "Mid-year" : "Annual"} view for {detail.orgName} - each KPI&apos;s status computed
+            as of {period === "mid" ? "Q2" : "Q4"}, applying its accumulation rule (standard, cumulative, or
+            carry-over). This is a computed snapshot, not a separate capture period - results are still entered per
+            quarter.
+          </>
+        )}
       </p>
 
       {!detail.canCapture && (
@@ -120,6 +161,7 @@ export default async function ScorecardDetailPage({
           kpis={detail.kpis}
           canCapture={detail.canCapture}
           quarter={quarter}
+          period={period}
           scorecardId={detail.scorecardId}
         />
       )}

@@ -2,7 +2,16 @@
 
 import { useMemo, useState } from "react";
 import { friendlyActual, type CaptureKpi } from "@/lib/data/scorecards-shared";
-import { parseNum, statusFor, STATUS_META, type Status } from "@/lib/data/sdbip-status";
+import {
+  parseNum,
+  statusFor,
+  statusForPeriod,
+  effectiveValue,
+  accOf,
+  STATUS_META,
+  type Status,
+  type Period,
+} from "@/lib/data/sdbip-status";
 import { KpiCaptureCard } from "./KpiCaptureCard";
 
 /** True when a real (non-N/A, non-blank) target exists for this quarter. */
@@ -24,27 +33,45 @@ export function KpiListWithSearch({
   kpis,
   canCapture,
   quarter,
+  period,
   scorecardId,
 }: {
   kpis: CaptureKpi[];
   canCapture: boolean;
   quarter: number;
+  /** A plain quarter (1-4) shows that quarter's capture form; "mid"/"annual" show a read-only computed snapshot instead - see statusForPeriod() in sdbip-status.ts. */
+  period: Period;
   scorecardId: string;
 }) {
   const [q, setQ] = useState("");
   const [kpaFilter, setKpaFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<Status | null>(null);
+  const isViewOnly = period === "mid" || period === "annual";
+  const checkpointIdx = period === "mid" ? 1 : period === "annual" ? 3 : null;
 
-  // Each KPI's saved (last-persisted) status, computed once - reused for
-  // both the filter pill counts and the per-card header pill.
+  // Each KPI's status, computed once - reused for both the filter pill
+  // counts and the per-card header pill. For a plain quarter this is the
+  // saved single-quarter status; for Mid-year/Annual it's the accumulation-
+  // aware checkpoint status (statusForPeriod), matching the SDBIP dashboard's
+  // aggregate rollup so the two screens never disagree on a KPI's status.
   const enriched = useMemo(
     () =>
       kpis.map((kpi) => {
+        if (isViewOnly) {
+          const acc = accOf(kpi.acc);
+          const actuals = kpi.quarters.map((qq) => qq.actual);
+          const targets = kpi.quarters.map((qq) => qq.target);
+          const checkpointTarget = checkpointIdx !== null ? targets[checkpointIdx] : null;
+          const hasTarget = hasTargetSet(checkpointTarget);
+          const savedStatus: Status = hasTarget ? statusForPeriod(actuals, targets, kpi.lower, acc, period) : "pending";
+          const value = checkpointIdx !== null ? effectiveValue(actuals, checkpointIdx, acc) : null;
+          return { kpi, hasTarget, savedStatus, checkpointTarget, computedValue: value };
+        }
         const hasTarget = hasTargetSet(kpi.target);
         const savedStatus: Status = hasTarget ? statusFor(kpi.result?.actual, kpi.target, kpi.lower) : "pending";
-        return { kpi, hasTarget, savedStatus };
+        return { kpi, hasTarget, savedStatus, checkpointTarget: kpi.target, computedValue: null };
       }),
-    [kpis]
+    [kpis, isViewOnly, checkpointIdx, period]
   );
 
   const kpas = useMemo(() => {
@@ -142,7 +169,7 @@ export function KpiListWithSearch({
           {statusFilter ? ` (${STATUS_META[statusFilter].label})` : ""}.
         </p>
       ) : (
-        filtered.map(({ kpi, hasTarget, savedStatus }) => (
+        filtered.map(({ kpi, hasTarget, savedStatus, checkpointTarget, computedValue }) => (
           <div key={kpi.id} className="rounded-xl border border-line bg-white p-4">
             <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
               <div className="min-w-0">
@@ -160,7 +187,8 @@ export function KpiListWithSearch({
               </div>
               <div className="flex flex-none items-center gap-2 text-xs text-ink2 sm:text-right">
                 <span>
-                  Target Q{quarter}: <span className="font-mono font-bold text-ink">{kpi.target ?? "N/A"}</span>
+                  Target {isViewOnly ? (period === "mid" ? "Q2" : "Q4") : `Q${quarter}`}:{" "}
+                  <span className="font-mono font-bold text-ink">{checkpointTarget ?? "N/A"}</span>
                 </span>
                 <span className={`stag ${STATUS_META[savedStatus].tagClass} text-[10px]`}>
                   {STATUS_META[savedStatus].label}
@@ -168,7 +196,19 @@ export function KpiListWithSearch({
               </div>
             </div>
 
-            {!hasTarget ? (
+            {isViewOnly ? (
+              !hasTarget ? (
+                <div className="rounded-md bg-paper px-3 py-2 text-sm text-ink2">
+                  No target set as of {period === "mid" ? "Q2" : "Q4"} — not yet reportable for this view.
+                </div>
+              ) : (
+                <div className="text-sm text-ink">
+                  {computedValue === null
+                    ? "No result captured yet."
+                    : `Effective result: ${computedValue}${kpi.calc?.x100 ? "%" : kpi.calc?.unit ? ` ${kpi.calc.unit}` : ""}`}
+                </div>
+              )
+            ) : !hasTarget ? (
               <div className="rounded-md bg-paper px-3 py-2 text-sm text-ink2">
                 No target set for Q{quarter} — nothing to capture this quarter.
               </div>

@@ -217,6 +217,11 @@ export async function getScorecardDetail(
         poe: k.poe,
         libraryId: k.kpi_library_id,
         c88Code: k.kpi_library?.c88_code ?? null,
+        quarters: [1, 2, 3, 4].map((q) => ({
+          quarter: q,
+          target: (k.kpi_targets ?? []).find((t) => t.quarter === q)?.target_value ?? null,
+          actual: (k.kpi_results ?? []).find((r) => r.quarter === q)?.actual ?? null,
+        })),
         result: result
           ? {
               actual: result.actual,

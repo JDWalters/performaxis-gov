@@ -61,18 +61,33 @@ export default async function ManageKpisPage({
         <Link href={`/scorecards/${id}?q=${quarter}`} className="text-xs font-semibold text-ink2 hover:underline">
           ← Back to scorecard
         </Link>
-        <h1 className="mt-1 text-xl font-extrabold text-ink">Manage KPIs — {detail.orgName}</h1>
+        <h1 className="mt-1 text-xl font-extrabold text-ink">Scorecard Setup — {detail.orgName}</h1>
         <p className="mt-1 text-sm text-ink2">
-          Add KPI types from this department&apos;s library or the national Circular 88 catalogue onto the
-          scorecard, or remove KPIs that no longer belong. Deleting a KPI also removes all of its captured targets
-          and results - this can&apos;t be undone.
+          Add or remove KPIs, and edit each one&apos;s capture setup - answer type, results across quarters
+          (accumulation), and the method/type/wards/baseline/target/POE fields shown on the register. Deleting a KPI
+          also removes all of its captured targets and results - this can&apos;t be undone.
         </p>
       </div>
 
       <ManageKpisClient
         scorecardId={detail.scorecardId}
         departmentOrgId={detail.orgId}
-        currentKpis={detail.kpis.map((k) => ({ id: k.id, refCode: k.refCode, name: k.name, kpa: k.kpa, c88Code: k.c88Code }))}
+        currentKpis={detail.kpis.map((k) => ({
+          id: k.id,
+          refCode: k.refCode,
+          name: k.name,
+          kpa: k.kpa,
+          c88Code: k.c88Code,
+          calc: k.calc,
+          lower: k.lower,
+          acc: k.acc,
+          method: k.method,
+          kpiType: k.kpiType,
+          wards: k.wards,
+          baseline: k.baseline,
+          annualTarget: k.annualTarget,
+          poe: k.poe,
+        }))}
         availableLibrary={available}
         circular88Catalogue={catalogue}
       />

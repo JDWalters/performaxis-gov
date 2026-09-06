@@ -39,6 +39,14 @@ export type CaptureKpi = {
   libraryId: string | null;
   /** The Circular 88 code this KPI was created from, if any - drives the "C88: <code>" tag shown wherever the KPI appears. */
   c88Code: string | null;
+  /**
+   * All 4 quarters' target + captured actual (not just the currently-selected
+   * capture quarter's, which `target`/`result` above are) - lets the client
+   * compute Mid-year/Annual status view-only, purely from data already on
+   * hand, via the same statusForPeriod()/effectiveValue() used by the SDBIP
+   * dashboard's aggregate rollup (see sdbip-status.ts).
+   */
+  quarters: { quarter: number; target: string | null; actual: string | null }[];
   result: {
     actual: string | null;
     inputs: Record<string, unknown>;

@@ -72,3 +72,60 @@ export async function getActiveFinancialYear(): Promise<ActiveFinancialYear> {
 
   return { muniOrgId, years, selected };
 }
+
+/**
+ * Whether the signed-in user can create a new financial year for this
+ * municipality - gated on manage_org_setup (the financial_years table's own
+ * RLS insert policy), not manage_scorecard_setup, since a financial year is
+ * an org-level concern shared across every department. In practice every
+ * role that has manage_scorecard_setup also has manage_org_setup (Municipal
+ * Admin, Platform Admin), so whoever can create the year can also write the
+ * copied scorecards that "+Year" creates underneath it.
+ */
+export async function canManageFinancialYears(muniOrgId: string | null): Promise<boolean> {
+  if (!muniOrgId) return false;
+  const supabase = await createClient();
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: boolean | null }>;
+  const { data } = await rpc("has_org_access", { target_org_id: muniOrgId, required_permission: "manage_org_setup" });
+  return Boolean(data);
+}
+
+/**
+ * Suggests the next financial year's start_year/label by extending the
+ * latest existing year by one (e.g. latest "2026/27" -> suggests
+ * start_year 2027, label "2027/28"). Falls back to the current calendar
+ * year when the municipality has no financial years yet.
+ */
+export function suggestNextFinancialYear(years: FinancialYear[]): { startYear: number; label: string } {
+  const latest = years.length > 0 ? Math.max(...years.map((y) => y.startYear)) : new Date().getFullYear();
+  const startYear = years.length > 0 ? latest + 1 : latest;
+  const label = `${startYear}/${String((startYear + 1) % 100).padStart(2, "0")}`;
+  return { startYear, label };
+}
+
+export type RolloverPreviewRow = { orgId: string; orgName: string; kpiCount: number };
+
+/**
+ * Every non-empty department scorecard under one financial year, with its
+ * KPI count - shown on the "+Year" screen so the admin can see exactly what
+ * "+Year" is about to copy before they commit to it. A scorecard with zero
+ * KPIs is skipped here and by the rollover itself, matching the reference
+ * tool's "only non-empty scorecards get copied forward" behaviour.
+ */
+export async function getRolloverPreview(financialYearId: string): Promise<RolloverPreviewRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("scorecards")
+    .select("org:orgs(id, name), scorecard_kpis(id)")
+    .eq("financial_year_id", financialYearId);
+  if (error) throw error;
+
+  type Row = { org: { id: string; name: string } | null; scorecard_kpis: { id: string }[] };
+  return ((data ?? []) as unknown as Row[])
+    .filter((r) => r.org && (r.scorecard_kpis ?? []).length > 0)
+    .map((r) => ({ orgId: r.org!.id, orgName: r.org!.name, kpiCount: r.scorecard_kpis.length }))
+    .sort((a, b) => a.orgName.localeCompare(b.orgName));
+}

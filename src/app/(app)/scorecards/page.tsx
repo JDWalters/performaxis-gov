@@ -19,9 +19,9 @@ const PERIOD_OPTIONS: { key: string; label: string; period: Period }[] = [
 export default async function ScorecardsDashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ sc?: string; period?: string }>;
+  searchParams: Promise<{ sc?: string; period?: string; fyCreated?: string; fyKpis?: string }>;
 }) {
-  const { sc, period: periodKey } = await searchParams;
+  const { sc, period: periodKey, fyCreated, fyKpis } = await searchParams;
   const activeOption = PERIOD_OPTIONS.find((p) => p.key === periodKey) ?? PERIOD_OPTIONS[3];
 
   const activeFy = await getActiveFinancialYear();
@@ -39,6 +39,12 @@ export default async function ScorecardsDashboardPage({
 
   return (
     <div className="flex flex-col gap-6">
+      {fyCreated != null && (
+        <p className="rounded-md bg-met/10 px-3 py-2 text-sm font-medium text-met">
+          New financial year created - copied {fyCreated} department scorecard{fyCreated === "1" ? "" : "s"} (
+          {fyKpis ?? 0} KPIs) forward. You&apos;re now viewing {activeFy.selected?.label ?? "the new year"}.
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-extrabold text-ink">SDBIP Dashboard</h1>

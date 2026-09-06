@@ -159,3 +159,68 @@ export async function deleteScorecardKpis(scorecardId: string, scorecardKpiIds: 
 
   return { deleted: count ?? scorecardKpiIds.length };
 }
+
+/**
+ * Updates one KPI's own capture setup on this scorecard: its answer type
+ * (calc_config.calc), accumulation (calc_config.acc - "none" | "cum" |
+ * "carry", the reference tool's "Results across quarters" dropdown),
+ * lower-is-better flag, and the 6 scorecard-setup narrative fields. This is
+ * the first UI in the app that can write acc/lower at all - they used to be
+ * frozen at whatever the original CSV migration set, since kpi_library's own
+ * editor (KpiTypeForm) never exposed them either. Editing here only ever
+ * touches this one scorecard_kpis row, matching the "each placement is its
+ * own independent copy" model from kpi-admin-actions.ts's addLibraryKpisToScorecard.
+ */
+export async function updateScorecardKpiSetup(scorecardId: string, scorecardKpiId: string, formData: FormData) {
+  const calcType = String(formData.get("calcType") ?? "").trim();
+  const labels = String(formData.get("labels") ?? "")
+    .split(",")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const unit = String(formData.get("unit") ?? "").trim();
+  const denRaw = String(formData.get("den") ?? "").trim();
+  const x100 = formData.get("x100") === "on";
+  const formula = String(formData.get("formula") ?? "").trim();
+  const scaleRaw = String(formData.get("scale") ?? "").trim();
+  const lower = formData.get("lower") === "on";
+  const acc = String(formData.get("acc") ?? "none");
+
+  const calc: Record<string, unknown> = { type: calcType || undefined };
+  if (labels.length) calc.labels = labels;
+  if (calcType === "single" && unit) calc.unit = unit;
+  if (calcType === "ratio") {
+    if (denRaw) calc.den = Number(denRaw);
+    calc.x100 = x100;
+    if (!x100 && unit) calc.unit = unit;
+  }
+  if (calcType === "three" && formula) calc.formula = formula;
+  if (calcType === "rating") calc.scale = Number(scaleRaw) || 5;
+
+  const textOrNull = (key: string) => String(formData.get(key) ?? "").trim() || null;
+
+  const supabase = await createClient();
+  // Cast: same pragmatic workaround used throughout this data layer for
+  // supabase-js's generic update() overload resolution.
+  const { error } = await (
+    supabase.from("scorecard_kpis") as unknown as {
+      update: (row: Record<string, unknown>) => {
+        eq: (col: string, val: string) => { eq: (col: string, val: string) => Promise<{ error: { message: string } | null }> };
+      };
+    }
+  )
+    .update({
+      calc_config: { calc, lower, acc },
+      method: textOrNull("method"),
+      kpi_type: textOrNull("kpiType"),
+      wards: textOrNull("wards"),
+      baseline: textOrNull("baseline"),
+      annual_target: textOrNull("annualTarget"),
+      poe: textOrNull("poe"),
+    })
+    .eq("id", scorecardKpiId)
+    .eq("scorecard_id", scorecardId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/scorecards/${scorecardId}/manage`);
+  revalidatePath(`/scorecards/${scorecardId}`);
+}
