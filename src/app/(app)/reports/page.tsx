@@ -2,6 +2,8 @@ import Link from "next/link";
 import { getAppraisalsList } from "@/lib/data/appraisals";
 import { getActiveScope } from "@/lib/data/scope";
 import { clearScope } from "@/app/(app)/scope-actions";
+import { createClient } from "@/lib/supabase/server";
+import { canPreviewNewFeatures } from "@/lib/feature-preview";
 
 /**
  * The reference tool's pageReports() - print/export cards per employee cycle
@@ -13,6 +15,11 @@ import { clearScope } from "@/app/(app)/scope-actions";
 export default async function ReportsPage() {
   const scope = await getActiveScope();
   const appraisals = await getAppraisalsList(scope?.orgIds ?? null);
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const showScorecardExports = canPreviewNewFeatures(user?.email);
 
   return (
     <div className="flex flex-col gap-6">
@@ -71,6 +78,22 @@ export default async function ReportsPage() {
           Export CSV ↓
         </a>
       </div>
+
+      {showScorecardExports && (
+        <div className="rounded-xl border border-line bg-white p-4">
+          <h2 className="mb-1 text-sm font-extrabold text-ink">SDBIP scorecards</h2>
+          <p className="mb-3 text-xs text-ink2">
+            Every accessible scorecard&apos;s full-year register plus Q1-Q4 report CSVs, bundled as one ZIP - one
+            folder per department. Individual scorecard exports are available from each scorecard&apos;s page.
+          </p>
+          <a
+            href="/reports/scorecards-zip"
+            className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
+          >
+            Export ALL scorecards (ZIP) ↓
+          </a>
+        </div>
+      )}
 
       <div>
         <h2 className="mb-2 text-sm font-extrabold text-ink">Per-employee documents</h2>

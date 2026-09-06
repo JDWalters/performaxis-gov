@@ -15,8 +15,11 @@ export async function saveKpiResult(formData: FormData) {
   const scorecardKpiId = String(formData.get("scorecardKpiId") ?? "");
   const quarter = Number(formData.get("quarter"));
   const evidenceUrl = String(formData.get("evidenceUrl") ?? "").trim();
+  const evidenceDescription = String(formData.get("evidenceDescription") ?? "").trim();
   const comment = String(formData.get("comment") ?? "").trim();
   const correctiveAction = String(formData.get("correctiveAction") ?? "").trim();
+  const correctiveActionOwner = String(formData.get("correctiveActionOwner") ?? "").trim();
+  const correctiveActionDue = String(formData.get("correctiveActionDue") ?? "").trim();
 
   if (!scorecardKpiId || !quarter) {
     throw new Error("Missing scorecard KPI or quarter.");
@@ -58,8 +61,11 @@ export async function saveKpiResult(formData: FormData) {
         actual,
         inputs,
         evidence_url: evidenceUrl || null,
+        evidence_description: evidenceDescription || null,
         comment: comment || null,
         corrective_action: correctiveAction || null,
+        corrective_action_owner: correctiveActionOwner || null,
+        corrective_action_due: correctiveActionDue || null,
         submitted_by: user?.id ?? null,
         submitted_at: new Date().toISOString(),
       },

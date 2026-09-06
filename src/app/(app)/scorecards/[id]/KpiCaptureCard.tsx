@@ -107,8 +107,11 @@ export function KpiCaptureCard({
   const [c, setC] = useState(toStr(inputs.c));
   const [fallbackActual, setFallbackActual] = useState(kpi.result?.actual ?? "");
   const [evidenceUrl, setEvidenceUrl] = useState(kpi.result?.evidenceUrl ?? "");
+  const [evidenceDescription, setEvidenceDescription] = useState(kpi.result?.evidenceDescription ?? "");
   const [comment, setComment] = useState(kpi.result?.comment ?? "");
   const [correctiveAction, setCorrectiveAction] = useState(kpi.result?.correctiveAction ?? "");
+  const [correctiveActionOwner, setCorrectiveActionOwner] = useState(kpi.result?.correctiveActionOwner ?? "");
+  const [correctiveActionDue, setCorrectiveActionDue] = useState(kpi.result?.correctiveActionDue ?? "");
 
   const [status, setStatus] = useState<SaveStatus>("idle");
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -147,8 +150,11 @@ export function KpiCaptureCard({
       c,
       actual: fallbackActual,
       evidenceUrl,
+      evidenceDescription,
       comment,
       correctiveAction,
+      correctiveActionOwner,
+      correctiveActionDue,
       ...overrides,
     };
     for (const [k, v] of Object.entries(all)) fd.set(k, v);
@@ -207,6 +213,13 @@ export function KpiCaptureCard({
   const achieved = liveStatus === "met" || liveStatus === "blue";
   const commentMissing = notMet && !comment.trim();
   const correctiveMissing = notMet && !correctiveAction.trim();
+  // Owner/due date become required the moment a corrective action exists,
+  // not only when the target is missed - the same corrective action can
+  // still be open (needing an owner and a date) even after a later quarter
+  // recovers, so this checks the action text itself rather than notMet.
+  const needsOwnerDue = notMet || Boolean(correctiveAction.trim());
+  const ownerMissing = needsOwnerDue && !correctiveActionOwner.trim();
+  const dueMissing = needsOwnerDue && !correctiveActionDue.trim();
   const sectionTone = notMet ? SECTION_TONE.missed : achieved ? SECTION_TONE.achieved : SECTION_TONE.neutral;
 
   return (
@@ -382,7 +395,7 @@ export function KpiCaptureCard({
         )}
 
         <details
-          open={detailsOpen || commentMissing || correctiveMissing}
+          open={detailsOpen || commentMissing || correctiveMissing || ownerMissing || dueMissing}
           onToggle={(e) => setDetailsOpen(e.currentTarget.open)}
           className={`group rounded-lg ${sectionTone}`}
         >
@@ -405,6 +418,20 @@ export function KpiCaptureCard({
                   scheduleSave({ evidenceUrl: e.target.value });
                 }}
                 onBlur={() => saveOnBlurIfDirty({ evidenceUrl })}
+                className={FIELD_CLASS}
+              />
+            </label>
+            <label className={LABEL_CLASS}>
+              Evidence description
+              <textarea
+                value={evidenceDescription}
+                rows={2}
+                placeholder="Briefly describe what the evidence shows"
+                onChange={(e) => {
+                  setEvidenceDescription(e.target.value);
+                  scheduleSave({ evidenceDescription: e.target.value });
+                }}
+                onBlur={() => saveOnBlurIfDirty({ evidenceDescription })}
                 className={FIELD_CLASS}
               />
             </label>
@@ -440,6 +467,42 @@ export function KpiCaptureCard({
                 <span className="text-[11px] font-semibold text-missed">Required — target not met</span>
               )}
             </label>
+            {needsOwnerDue && (
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <label className={`${LABEL_CLASS} flex-1`}>
+                  Corrective action owner <span className="text-missed">*</span>
+                  <input
+                    type="text"
+                    value={correctiveActionOwner}
+                    onChange={(e) => {
+                      setCorrectiveActionOwner(e.target.value);
+                      scheduleSave({ correctiveActionOwner: e.target.value });
+                    }}
+                    onBlur={() => saveOnBlurIfDirty({ correctiveActionOwner })}
+                    className={ownerMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
+                  />
+                  {ownerMissing && (
+                    <span className="text-[11px] font-semibold text-missed">Required — corrective action open</span>
+                  )}
+                </label>
+                <label className={`${LABEL_CLASS} flex-1`}>
+                  Due date <span className="text-missed">*</span>
+                  <input
+                    type="date"
+                    value={correctiveActionDue}
+                    onChange={(e) => {
+                      setCorrectiveActionDue(e.target.value);
+                      scheduleSave({ correctiveActionDue: e.target.value });
+                    }}
+                    onBlur={() => saveOnBlurIfDirty({ correctiveActionDue })}
+                    className={dueMissing ? FIELD_CLASS_REQUIRED : FIELD_CLASS}
+                  />
+                  {dueMissing && (
+                    <span className="text-[11px] font-semibold text-missed">Required — corrective action open</span>
+                  )}
+                </label>
+              </div>
+            )}
           </div>
         </details>
       </div>

@@ -151,6 +151,9 @@ export function KpiListWithSearch({
                   {kpi.kpa && (
                     <span className="text-[11px] font-bold uppercase tracking-wide text-ink2">{kpi.kpa}</span>
                   )}
+                  {kpi.c88Code && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-blue">C88: {kpi.c88Code}</span>
+                  )}
                 </div>
                 <div className="mt-1 break-words text-sm font-semibold text-ink">{kpi.name}</div>
                 {kpi.unitOfMeasure && <div className="mt-0.5 text-xs text-ink2">{kpi.unitOfMeasure}</div>}

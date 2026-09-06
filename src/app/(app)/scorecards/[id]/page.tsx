@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
 import { getScorecardDetail } from "@/lib/data/scorecards";
+import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import { KpiListWithSearch } from "./KpiListWithSearch";
+import { DownloadOfflineFormButton } from "./DownloadOfflineFormButton";
 
 const QUARTER_WINDOW: Record<number, string> = {
   1: "Jul–Sep",
@@ -24,6 +27,12 @@ export default async function ScorecardDetailPage({
   const detail = await getScorecardDetail(id, quarter);
   if (!detail) notFound();
 
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const showOfflineCapture = canPreviewNewFeatures(user?.email);
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -33,6 +42,41 @@ export default async function ScorecardDetailPage({
           </Link>
           <h1 className="mt-1 text-xl font-extrabold text-ink">{detail.orgName}</h1>
         </div>
+        {showOfflineCapture && (detail.canCapture || detail.canManageSetup) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {detail.canCapture && (
+              <>
+                <DownloadOfflineFormButton scorecardId={detail.scorecardId} orgName={detail.orgName} quarter={quarter} />
+                <Link
+                  href={`/scorecards/${id}/import?q=${quarter}`}
+                  className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
+                >
+                  Import offline results
+                </Link>
+              </>
+            )}
+            {detail.canManageSetup && (
+              <Link
+                href={`/scorecards/${id}/manage?q=${quarter}`}
+                className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
+              >
+                Manage KPIs
+              </Link>
+            )}
+            <a
+              href={`/scorecards/${id}/export/register`}
+              className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
+            >
+              Export register CSV
+            </a>
+            <a
+              href={`/scorecards/${id}/export/report?q=${quarter}`}
+              className="rounded-md border border-line bg-white px-3 py-1.5 text-xs font-bold text-ink2 hover:border-ink"
+            >
+              Export Q{quarter} report CSV
+            </a>
+          </div>
+        )}
         <div className="flex gap-1">
           {[1, 2, 3, 4].map((qq) => (
             <Link

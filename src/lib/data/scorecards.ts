@@ -87,6 +87,7 @@ export type ScorecardDetail = {
   orgName: string;
   quarter: number;
   canCapture: boolean;
+  canManageSetup: boolean;
   kpis: CaptureKpi[];
   /** Quarters (1-4) with at least one legacy value that needs re-capturing - drives a dot on the quarter tabs. */
   quartersNeedingReview: number[];
@@ -104,15 +105,19 @@ type ScorecardKpiRow = {
   kpa: string | null;
   unit_of_measure: string | null;
   target_type: string;
-  kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null } | null;
+  kpi_library_id: string | null;
+  kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null; c88_code: string | null } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
     quarter: number;
     actual: string | null;
     inputs: Record<string, unknown> | null;
     evidence_url: string | null;
+    evidence_description: string | null;
     comment: string | null;
     corrective_action: string | null;
+    corrective_action_owner: string | null;
+    corrective_action_due: string | null;
   }[];
 };
 
@@ -141,7 +146,7 @@ export async function getScorecardDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("scorecard_kpis")
     .select(
-      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library:kpi_library_id(calc_config), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, comment, corrective_action)"
+      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, kpi_library:kpi_library_id(calc_config, c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due)"
     )
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
@@ -149,15 +154,14 @@ export async function getScorecardDetail(
   // Cast: same pragmatic workaround as the upsert cast in scorecards/actions.ts -
   // the generic rpc() overload doesn't always resolve cleanly against the
   // generated Functions map across postgrest-js versions.
-  const { data: canCaptureData } = await (
-    supabase.rpc as unknown as (
-      fn: string,
-      args: Record<string, unknown>
-    ) => Promise<{ data: boolean | null }>
-  )("has_org_access", {
-    target_org_id: header.org.id,
-    required_permission: "capture_kpi_results",
-  });
+  const rpc = supabase.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: boolean | null }>;
+  const [{ data: canCaptureData }, { data: canManageSetupData }] = await Promise.all([
+    rpc("has_org_access", { target_org_id: header.org.id, required_permission: "capture_kpi_results" }),
+    rpc("has_org_access", { target_org_id: header.org.id, required_permission: "manage_scorecard_setup" }),
+  ]);
 
   const kpiRows = (kpis ?? []) as unknown as ScorecardKpiRow[];
 
@@ -183,13 +187,18 @@ export async function getScorecardDetail(
         target: target?.target_value ?? null,
         lower: k.kpi_library?.calc_config?.lower ?? false,
         calc: k.kpi_library?.calc_config?.calc ?? null,
+        libraryId: k.kpi_library_id,
+        c88Code: k.kpi_library?.c88_code ?? null,
         result: result
           ? {
               actual: result.actual,
               inputs: result.inputs ?? {},
               evidenceUrl: result.evidence_url,
+              evidenceDescription: result.evidence_description,
               comment: result.comment,
               correctiveAction: result.corrective_action,
+              correctiveActionOwner: result.corrective_action_owner,
+              correctiveActionDue: result.corrective_action_due,
             }
           : null,
       };
@@ -202,7 +211,102 @@ export async function getScorecardDetail(
     orgName: header.org.name,
     quarter,
     canCapture: Boolean(canCaptureData),
+    canManageSetup: Boolean(canManageSetupData),
     kpis: rows,
     quartersNeedingReview,
   };
+}
+
+export type RegisterExportData = {
+  orgName: string;
+  kpis: {
+    refCode: string | null;
+    c88Code: string | null;
+    kpa: string | null;
+    name: string;
+    unitOfMeasure: string | null;
+    targetType: string;
+    lower: boolean;
+    calc: KpiCalc | null;
+    quarters: {
+      target: string | null;
+      actual: string | null;
+      comment: string | null;
+      correctiveAction: string | null;
+      correctiveActionOwner: string | null;
+      correctiveActionDue: string | null;
+    }[];
+  }[];
+};
+
+/**
+ * All 4 quarters' targets/results for every KPI on a scorecard, in one
+ * shot - used only for CSV register export, where getScorecardDetail's
+ * single-quarter shape isn't enough.
+ */
+export async function getScorecardRegisterData(scorecardId: string): Promise<RegisterExportData | null> {
+  const supabase = await createClient();
+
+  const { data: scorecard, error: scErr } = await supabase
+    .from("scorecards")
+    .select("id, org:orgs(id, name)")
+    .eq("id", scorecardId)
+    .maybeSingle();
+  if (scErr) throw scErr;
+  const header = scorecard as unknown as ScorecardHeaderRow | null;
+  if (!header || !header.org) return null;
+
+  const { data: kpis, error: kpiErr } = await supabase
+    .from("scorecard_kpis")
+    .select(
+      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library:kpi_library_id(calc_config, c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action, corrective_action_owner, corrective_action_due)"
+    )
+    .eq("scorecard_id", scorecardId);
+  if (kpiErr) throw kpiErr;
+
+  type Row = {
+    id: string;
+    ref_code: string | null;
+    name: string;
+    kpa: string | null;
+    unit_of_measure: string | null;
+    target_type: string;
+    kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null; c88_code: string | null } | null;
+    kpi_targets: { quarter: number; target_value: string | null }[];
+    kpi_results: {
+      quarter: number;
+      actual: string | null;
+      comment: string | null;
+      corrective_action: string | null;
+      corrective_action_owner: string | null;
+      corrective_action_due: string | null;
+    }[];
+  };
+
+  const rows = ((kpis ?? []) as unknown as Row[])
+    .map((k) => ({
+      refCode: k.ref_code,
+      c88Code: k.kpi_library?.c88_code ?? null,
+      kpa: k.kpa,
+      name: k.name,
+      unitOfMeasure: k.unit_of_measure,
+      targetType: k.target_type,
+      lower: k.kpi_library?.calc_config?.lower ?? false,
+      calc: k.kpi_library?.calc_config?.calc ?? null,
+      quarters: [1, 2, 3, 4].map((q) => {
+        const target = (k.kpi_targets ?? []).find((t) => t.quarter === q);
+        const result = (k.kpi_results ?? []).find((r) => r.quarter === q);
+        return {
+          target: target?.target_value ?? null,
+          actual: result?.actual ?? null,
+          comment: result?.comment ?? null,
+          correctiveAction: result?.corrective_action ?? null,
+          correctiveActionOwner: result?.corrective_action_owner ?? null,
+          correctiveActionDue: result?.corrective_action_due ?? null,
+        };
+      }),
+    }))
+    .sort((a, b) => naturalCompare(a.refCode ?? "", b.refCode ?? ""));
+
+  return { orgName: header.org.name, kpis: rows };
 }
