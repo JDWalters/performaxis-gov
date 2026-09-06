@@ -12,7 +12,7 @@ import {
   type Accumulation,
 } from "@/lib/data/sdbip-status";
 
-export type ScorecardOption = { id: string; label: string; orgId: string };
+export type ScorecardOption = { id: string; label: string; orgId: string; orgName?: string; orgCode?: string | null };
 
 export type AttentionKpi = {
   refCode: string | null;
@@ -98,11 +98,14 @@ export function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: 
  * to every scorecard regardless of year, matching this function's original,
  * pre-financial-year behaviour.
  */
-export async function getSdbipDashboard(
-  scorecardId: string | undefined,
-  period: Period,
-  financialYearId?: string | null
-): Promise<DashboardData> {
+/**
+ * The picker options for every department scorecard the signed-in user can
+ * see (plus the "Top Layer SDBIP" pseudo-option), scoped to one financial
+ * year - factored out of getSdbipDashboard() so a caller that only needs the
+ * options list (e.g. a department switcher on the scorecard detail page)
+ * doesn't have to pull the full KPI rollup just to build a <select>.
+ */
+export async function getScorecardOptions(financialYearId?: string | null): Promise<ScorecardOption[]> {
   const supabase = await createClient();
 
   let scorecardsQuery = supabase.from("scorecards").select("id, org:orgs(id, name, code)");
@@ -111,17 +114,32 @@ export async function getSdbipDashboard(
   if (scErr) throw scErr;
 
   const scorecards = (scorecardRows ?? []) as unknown as ScorecardRow[];
-  const scorecardIdsInYear = scorecards.filter((s) => s.org).map((s) => s.id);
-  const options: ScorecardOption[] = [
+  return [
     { id: "top", label: "Top Layer SDBIP", orgId: "" },
     ...scorecards
       .filter((s) => s.org)
-      .map((s) => ({ id: s.id, label: `${s.org!.name} — Departmental SDBIP`, orgId: s.org!.id, code: s.org!.code }))
+      .map((s) => ({
+        id: s.id,
+        label: `${s.org!.name} — Departmental SDBIP`,
+        orgId: s.org!.id,
+        orgName: s.org!.name,
+        orgCode: s.org!.code,
+      }))
       .sort(
-        (a, b) => departmentSortKey(a.code) - departmentSortKey(b.code) || a.label.localeCompare(b.label)
-      )
-      .map(({ id, label, orgId }) => ({ id, label, orgId })),
+        (a, b) => departmentSortKey(a.orgCode) - departmentSortKey(b.orgCode) || a.label.localeCompare(b.label)
+      ),
   ];
+}
+
+export async function getSdbipDashboard(
+  scorecardId: string | undefined,
+  period: Period,
+  financialYearId?: string | null
+): Promise<DashboardData> {
+  const supabase = await createClient();
+
+  const options = await getScorecardOptions(financialYearId);
+  const scorecardIdsInYear = options.filter((o) => o.id !== "top").map((o) => o.id);
 
   // A scorecard id from a different financial year (e.g. a stale ?sc= link
   // left over from before switching years) falls back to "top" instead of
@@ -152,7 +170,11 @@ export async function getSdbipDashboard(
     kpiRows = data;
   }
 
-  const orgByScorecard = new Map(scorecards.filter((s) => s.org).map((s) => [s.id, s.org!]));
+  const orgByScorecard = new Map(
+    options
+      .filter((o) => o.id !== "top")
+      .map((o) => [o.id, { id: o.orgId, name: o.orgName!, code: o.orgCode ?? null }])
+  );
   const rows = (kpiRows ?? []) as unknown as Row[];
 
   const tally = emptyTally();

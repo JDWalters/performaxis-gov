@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getScorecardDetail } from "@/lib/data/scorecards";
+import { getScorecardOptions } from "@/lib/data/sdbip-dashboard";
+import { getActiveFinancialYear } from "@/lib/data/financial-years";
 import { getMyProfile } from "@/lib/data/access";
 import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import type { Period } from "@/lib/data/sdbip-status";
 import { KpiListWithSearch } from "./KpiListWithSearch";
 import { DownloadOfflineFormButton } from "./DownloadOfflineFormButton";
+import { DepartmentPicker } from "./DepartmentPicker";
 
 const QUARTER_WINDOW: Record<number, string> = {
   1: "Jul–Sep",
@@ -44,6 +47,11 @@ export default async function ScorecardDetailPage({
   const me = await getMyProfile();
   const showOfflineCapture = canPreviewNewFeatures(me?.profile?.full_name);
 
+  const activeFy = await getActiveFinancialYear();
+  const departmentOptions = (await getScorecardOptions(activeFy.selected?.id ?? null)).filter(
+    (o) => o.id !== "top"
+  );
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -51,7 +59,12 @@ export default async function ScorecardDetailPage({
           <Link href="/scorecards" className="text-xs font-semibold text-ink2 hover:underline">
             ← All scorecards
           </Link>
-          <h1 className="mt-1 text-xl font-extrabold text-ink">{detail.orgName}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <h1 className="text-xl font-extrabold text-ink">{detail.orgName}</h1>
+            {departmentOptions.length > 1 && (
+              <DepartmentPicker options={departmentOptions} selectedId={id} periodParam={String(period)} />
+            )}
+          </div>
         </div>
         {showOfflineCapture && (detail.canCapture || detail.canManageSetup) && (
           <div className="flex flex-wrap items-center gap-2">
