@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getDepartmentOrgs, getDistinctKpas, getKpiLibraryEntry } from "@/lib/data/kpi-library";
+import { canPreviewNewFeatures } from "@/lib/feature-preview";
+import { createClient } from "@/lib/supabase/server";
 import { KpiTypeForm } from "../KpiTypeForm";
 
 export default async function EditKpiLibraryPage({
@@ -9,12 +11,15 @@ export default async function EditKpiLibraryPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const [entry, departments, kpas] = await Promise.all([
+  const supabase = await createClient();
+  const [entry, departments, kpas, { data: { user } }] = await Promise.all([
     getKpiLibraryEntry(id),
     getDepartmentOrgs(),
     getDistinctKpas(),
+    supabase.auth.getUser(),
   ]);
   if (!entry) notFound();
+  const showScorecardSetupFields = canPreviewNewFeatures(user?.email);
 
   return (
     <div className="flex flex-col gap-4">
@@ -24,7 +29,12 @@ export default async function EditKpiLibraryPage({
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">{entry.name}</h1>
       </div>
-      <KpiTypeForm initial={entry} departments={departments} kpas={kpas} />
+      <KpiTypeForm
+        initial={entry}
+        departments={departments}
+        kpas={kpas}
+        showScorecardSetupFields={showScorecardSetupFields}
+      />
     </div>
   );
 }

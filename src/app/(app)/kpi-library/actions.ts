@@ -66,6 +66,15 @@ export async function saveKpiLibraryEntry(formData: FormData) {
   const idpRef = str(formData, "idpRef");
   const unitOfMeasure = str(formData, "unitOfMeasure");
   const targetType = str(formData, "targetType") || "stand-alone";
+  // Scorecard-setup fields - all optional, and only ever sent by the form
+  // when the signed-in user can preview them (canPreviewNewFeatures), but
+  // read unconditionally here since an absent field just resolves to "".
+  const method = str(formData, "method");
+  const kpiType = str(formData, "kpiType");
+  const wards = str(formData, "wards");
+  const baseline = str(formData, "baseline");
+  const annualTarget = str(formData, "annualTarget");
+  const poe = str(formData, "poe");
 
   if (!orgId || !name) {
     throw new Error("Department and KPI name are required.");
@@ -83,6 +92,12 @@ export async function saveKpiLibraryEntry(formData: FormData) {
     unit_of_measure: unitOfMeasure || null,
     target_type: targetType,
     calc_config: { calc },
+    method: method || null,
+    kpi_type: kpiType || null,
+    wards: wards || null,
+    baseline: baseline || null,
+    annual_target: annualTarget || null,
+    poe: poe || null,
   };
 
   // Cast: same pragmatic workaround as the upsert cast in scorecards/actions.ts -

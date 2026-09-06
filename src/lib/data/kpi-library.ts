@@ -51,6 +51,15 @@ export type KpiLibraryItem = {
   unitOfMeasure: string | null;
   targetType: string;
   calc: KpiCalc | null;
+  // Scorecard-setup fields ported over from the reference tool's admin
+  // register table - narrative/classification fields, not structured
+  // answer-type config (that's still calc). All optional.
+  method: string | null;
+  kpiType: string | null;
+  wards: string | null;
+  baseline: string | null;
+  annualTarget: string | null;
+  poe: string | null;
 };
 
 type KpiLibraryRow = {
@@ -62,6 +71,12 @@ type KpiLibraryRow = {
   unit_of_measure: string | null;
   target_type: string;
   calc_config: { calc?: KpiCalc } | null;
+  method: string | null;
+  kpi_type: string | null;
+  wards: string | null;
+  baseline: string | null;
+  annual_target: string | null;
+  poe: string | null;
   org: { id: string; name: string } | null;
 };
 
@@ -71,7 +86,7 @@ export async function getKpiLibraryList(): Promise<KpiLibraryItem[]> {
   const { data, error } = await supabase
     .from("kpi_library")
     .select(
-      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, org:orgs(id, name)"
+      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, org:orgs(id, name)"
     );
   if (error) throw error;
 
@@ -89,6 +104,12 @@ export async function getKpiLibraryList(): Promise<KpiLibraryItem[]> {
       unitOfMeasure: r.unit_of_measure,
       targetType: r.target_type,
       calc: r.calc_config?.calc ?? null,
+      method: r.method,
+      kpiType: r.kpi_type,
+      wards: r.wards,
+      baseline: r.baseline,
+      annualTarget: r.annual_target,
+      poe: r.poe,
     }))
     .sort((a, b) => a.orgName.localeCompare(b.orgName) || a.name.localeCompare(b.name));
 }
@@ -98,7 +119,7 @@ export async function getKpiLibraryEntry(id: string): Promise<KpiLibraryItem | n
   const { data, error } = await supabase
     .from("kpi_library")
     .select(
-      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, org:orgs(id, name)"
+      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, org:orgs(id, name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -118,5 +139,11 @@ export async function getKpiLibraryEntry(id: string): Promise<KpiLibraryItem | n
     unitOfMeasure: row.unit_of_measure,
     targetType: row.target_type,
     calc: row.calc_config?.calc ?? null,
+    method: row.method,
+    kpiType: row.kpi_type,
+    wards: row.wards,
+    baseline: row.baseline,
+    annualTarget: row.annual_target,
+    poe: row.poe,
   };
 }
