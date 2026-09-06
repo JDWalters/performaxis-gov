@@ -5,7 +5,10 @@ import { getMyMemberships, getMyAccessibleOrgs, getMyProfile } from "@/lib/data/
 import { getManageableScopes } from "@/lib/data/users";
 import { getOrgManageScopes } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
+import { getActiveFinancialYear } from "@/lib/data/financial-years";
+import { canPreviewNewFeatures } from "@/lib/feature-preview";
 import { Sidebar, SIDEBAR_COLLAPSE_COOKIE } from "@/components/Sidebar";
+import { FinancialYearSwitcher } from "@/components/FinancialYearSwitcher";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const me = await getMyProfile();
@@ -14,14 +17,16 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // Both scope checks only decide whether to show one nav link each - a bug
   // in either should never be able to take down every page in the app, so
   // any failure here just hides the link instead of crashing the layout.
-  const [memberships, manageableScopes, orgManageScopes, accessibleOrgs] = await Promise.all([
+  const [memberships, manageableScopes, orgManageScopes, accessibleOrgs, activeFy] = await Promise.all([
     getMyMemberships(),
     getManageableScopes().catch(() => []),
     getOrgManageScopes().catch(() => []),
     getMyAccessibleOrgs().catch(() => []),
+    getActiveFinancialYear().catch(() => ({ muniOrgId: null, years: [], selected: null })),
   ]);
   const canManageUsers = manageableScopes.length > 0;
   const canManageOrgs = orgManageScopes.length > 0;
+  const showFySwitcher = canPreviewNewFeatures(me.user.email);
 
   // The reference tool's sidebar identifies the municipality it's running
   // for (crest/logo + name + "Management Performance Assessment"), not the
@@ -77,6 +82,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             </span>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
+            {showFySwitcher && <FinancialYearSwitcher years={activeFy.years} selectedId={activeFy.selected?.id ?? null} />}
             <span className="stag stag-gold">{me.profile?.full_name || me.user.email}</span>
             {memberships.map((m) => (
               <span key={m.membership_id} className="stag stag-blue">

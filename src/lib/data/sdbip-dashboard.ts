@@ -53,7 +53,7 @@ type Row = {
   name: string;
   kpa: string | null;
   scorecard_id: string;
-  kpi_library: { calc_config: { lower?: boolean; acc?: string } | null } | null;
+  calc_config: { lower?: boolean; acc?: string } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
     quarter: number;
@@ -89,19 +89,29 @@ export function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: 
  * Layer SDBIP") and period (a single quarter, "mid" = as-of-Q2, or "annual"
  * = as-of-Q4). Computed live from kpi_targets/kpi_results using the same
  * 5-tier statusFor() classification as the client's reference prototype.
+ *
+ * financialYearId scopes everything to one year's scorecards - each
+ * financial year has its own independent scorecard row per department (see
+ * scorecards.financial_year_id), so "top" must only aggregate the KPIs that
+ * belong to *this* year's scorecards, never every year's at once. Omitting
+ * it (or the signed-in user having no municipality-level org yet) falls back
+ * to every scorecard regardless of year, matching this function's original,
+ * pre-financial-year behaviour.
  */
 export async function getSdbipDashboard(
   scorecardId: string | undefined,
-  period: Period
+  period: Period,
+  financialYearId?: string | null
 ): Promise<DashboardData> {
   const supabase = await createClient();
 
-  const { data: scorecardRows, error: scErr } = await supabase
-    .from("scorecards")
-    .select("id, org:orgs(id, name, code)");
+  let scorecardsQuery = supabase.from("scorecards").select("id, org:orgs(id, name, code)");
+  if (financialYearId) scorecardsQuery = scorecardsQuery.eq("financial_year_id", financialYearId);
+  const { data: scorecardRows, error: scErr } = await scorecardsQuery;
   if (scErr) throw scErr;
 
   const scorecards = (scorecardRows ?? []) as unknown as ScorecardRow[];
+  const scorecardIdsInYear = scorecards.filter((s) => s.org).map((s) => s.id);
   const options: ScorecardOption[] = [
     { id: "top", label: "Top Layer SDBIP", orgId: "" },
     ...scorecards
@@ -113,18 +123,34 @@ export async function getSdbipDashboard(
       .map(({ id, label, orgId }) => ({ id, label, orgId })),
   ];
 
-  const selected = scorecardId && scorecardId !== "top" ? scorecardId : "top";
+  // A scorecard id from a different financial year (e.g. a stale ?sc= link
+  // left over from before switching years) falls back to "top" instead of
+  // silently rendering another year's single-department view under this
+  // year's label.
+  const selected =
+    scorecardId && scorecardId !== "top" && scorecardIdsInYear.includes(scorecardId) ? scorecardId : "top";
   const selectedOption = options.find((o) => o.id === selected) ?? options[0];
 
-  let query = supabase
-    .from("scorecard_kpis")
-    .select(
-      "id, ref_code, name, kpa, scorecard_id, kpi_library:kpi_library_id(calc_config), kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
-    );
-  if (selected !== "top") query = query.eq("scorecard_id", selected);
-
-  const { data: kpiRows, error: kpiErr } = await query;
-  if (kpiErr) throw kpiErr;
+  let kpiRows: unknown[] | null = [];
+  if (selected !== "top") {
+    const { data, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select(
+        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
+      )
+      .eq("scorecard_id", selected);
+    if (kpiErr) throw kpiErr;
+    kpiRows = data;
+  } else if (scorecardIdsInYear.length > 0) {
+    const { data, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select(
+        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
+      )
+      .in("scorecard_id", scorecardIdsInYear);
+    if (kpiErr) throw kpiErr;
+    kpiRows = data;
+  }
 
   const orgByScorecard = new Map(scorecards.filter((s) => s.org).map((s) => [s.id, s.org!]));
   const rows = (kpiRows ?? []) as unknown as Row[];
@@ -139,8 +165,8 @@ export async function getSdbipDashboard(
   const attention: AttentionKpi[] = [];
 
   for (const k of rows) {
-    const lower = k.kpi_library?.calc_config?.lower ?? false;
-    const acc: Accumulation = accOf(k.kpi_library?.calc_config?.acc);
+    const lower = k.calc_config?.lower ?? false;
+    const acc: Accumulation = accOf(k.calc_config?.acc);
     const targets = quarterArray(k.kpi_targets ?? [], (r) => r.target_value, null);
     const actuals = quarterArray(k.kpi_results ?? [], (r) => r.actual, null);
 

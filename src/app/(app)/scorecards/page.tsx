@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getSdbipDashboard } from "@/lib/data/sdbip-dashboard";
 import { getScorecardsList } from "@/lib/data/scorecards";
+import { getActiveFinancialYear } from "@/lib/data/financial-years";
 import type { Period } from "@/lib/data/sdbip-status";
 import { STATUS_META } from "@/lib/data/sdbip-status";
 import { DonutChart, BigStat, StatusBar, QuarterTrend } from "./DashboardCharts";
@@ -23,9 +24,12 @@ export default async function ScorecardsDashboardPage({
   const { sc, period: periodKey } = await searchParams;
   const activeOption = PERIOD_OPTIONS.find((p) => p.key === periodKey) ?? PERIOD_OPTIONS[3];
 
+  const activeFy = await getActiveFinancialYear();
+  const fyId = activeFy.selected?.id ?? null;
+
   const [dashboard, scorecardList] = await Promise.all([
-    getSdbipDashboard(sc, activeOption.period),
-    getScorecardsList(),
+    getSdbipDashboard(sc, activeOption.period, fyId),
+    getScorecardsList(fyId),
   ]);
 
   const needsReviewByOrg = new Map(scorecardList.map((s) => [s.orgId, s.needsReviewCount]));
@@ -38,7 +42,10 @@ export default async function ScorecardsDashboardPage({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-xl font-extrabold text-ink">SDBIP Dashboard</h1>
-          <p className="mt-1 text-sm text-ink2">Live service-delivery performance, rolled up from captured results.</p>
+          <p className="mt-1 text-sm text-ink2">
+            Live service-delivery performance, rolled up from captured results.
+            {activeFy.selected && <span className="ml-1 font-semibold text-ink">FY {activeFy.selected.label}.</span>}
+          </p>
         </div>
         {!isTop && (
           <Link

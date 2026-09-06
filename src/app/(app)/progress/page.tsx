@@ -1,4 +1,5 @@
 import { getPerformanceProgress } from "@/lib/data/performance-progress";
+import { getActiveFinancialYear } from "@/lib/data/financial-years";
 import { ProgressScorecardPicker } from "./ProgressScorecardPicker";
 import { ProgressExplorer } from "./ProgressExplorer";
 
@@ -8,7 +9,8 @@ export default async function PerformanceProgressPage({
   searchParams: Promise<{ sc?: string }>;
 }) {
   const { sc } = await searchParams;
-  const data = await getPerformanceProgress(sc);
+  const activeFy = await getActiveFinancialYear();
+  const data = await getPerformanceProgress(sc, activeFy.selected?.id ?? null);
 
   return (
     <div className="flex flex-col gap-4">

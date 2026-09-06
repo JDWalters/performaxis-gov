@@ -16,12 +16,19 @@ import { suggestNextRefCodes } from "@/lib/data/scorecards-shared";
 
 /**
  * Copies one or more kpi_library rows onto a scorecard as new scorecard_kpis
- * rows. Each row carries a permanent kpi_library_id link (so its calc
- * config, method, and answer type stay live-linked to the library
- * definition), and gets a ref code either from the caller (if provided) or
- * auto-suggested by extending the scorecard's existing ref-code pattern.
- * Quarterly targets are intentionally left unset here - they're a separate
- * "scorecard setup" step, not part of placing a KPI on the scorecard.
+ * rows. kpi_library is only ever a *starting template*: its calc_config
+ * (answer type + accumulation + lower-is-better) and its 6 scorecard-setup
+ * narrative fields (method, kpi_type, wards, baseline, annual_target, poe)
+ * are copied into the new scorecard_kpis row's own columns, then the two are
+ * independent from that point on - editing a KPI's capture setup or setup
+ * text on this scorecard never changes the library entry, another
+ * department's placement, or another year's copy, matching the reference
+ * tool's per-scorecard KPI objects. The kpi_library_id link itself is kept
+ * only for provenance/C88 tagging, not as a live data source. Ref code is
+ * either supplied by the caller or auto-suggested by extending the
+ * scorecard's existing ref-code pattern. Quarterly targets are intentionally
+ * left unset here - that's a separate step in Scorecard Setup, not part of
+ * placing a KPI on the scorecard.
  */
 export async function addLibraryKpisToScorecard(
   scorecardId: string,
@@ -43,7 +50,9 @@ export async function addLibraryKpisToScorecard(
   const libraryIds = items.map((i) => i.libraryId);
   const { data: libRows, error: libErr } = await supabase
     .from("kpi_library")
-    .select("id, org_id, name, kpa, idp_ref, unit_of_measure, target_type")
+    .select(
+      "id, org_id, name, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe"
+    )
     .in("id", libraryIds);
   if (libErr) throw new Error(libErr.message);
 
@@ -55,6 +64,13 @@ export async function addLibraryKpisToScorecard(
     idp_ref: string | null;
     unit_of_measure: string | null;
     target_type: string;
+    calc_config: Record<string, unknown> | null;
+    method: string | null;
+    kpi_type: string | null;
+    wards: string | null;
+    baseline: string | null;
+    annual_target: string | null;
+    poe: string | null;
   };
   const byId = new Map(((libRows ?? []) as unknown as LibRow[]).map((r) => [r.id, r]));
 
@@ -92,6 +108,13 @@ export async function addLibraryKpisToScorecard(
       idp_ref: lib.idp_ref,
       unit_of_measure: lib.unit_of_measure,
       target_type: lib.target_type,
+      calc_config: lib.calc_config ?? {},
+      method: lib.method,
+      kpi_type: lib.kpi_type,
+      wards: lib.wards,
+      baseline: lib.baseline,
+      annual_target: lib.annual_target,
+      poe: lib.poe,
       weight: 0,
     });
   }

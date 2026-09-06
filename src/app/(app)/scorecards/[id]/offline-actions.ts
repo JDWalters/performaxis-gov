@@ -284,14 +284,15 @@ export async function importOfflineResults(
 
   const { data: kpiRows, error: kpiErr } = await supabase
     .from("scorecard_kpis")
-    .select("id, kpi_library:kpi_library_id(calc_config)")
+    .select("id, calc_config")
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw new Error(kpiErr.message);
 
   const byId = new Map(
-    ((kpiRows ?? []) as unknown as { id: string; kpi_library: { calc_config: { calc?: KpiCalc } | null } | null }[]).map(
-      (k) => [k.id, k.kpi_library?.calc_config?.calc ?? null]
-    )
+    ((kpiRows ?? []) as unknown as { id: string; calc_config: { calc?: KpiCalc } | null }[]).map((k) => [
+      k.id,
+      k.calc_config?.calc ?? null,
+    ])
   );
 
   const errors: string[] = [];

@@ -32,14 +32,15 @@ export async function saveKpiResult(formData: FormData) {
 
   const { data: kpiRow, error: kpiErr } = await supabase
     .from("scorecard_kpis")
-    .select("kpi_library:kpi_library_id(calc_config)")
+    .select("calc_config")
     .eq("id", scorecardKpiId)
     .maybeSingle();
   if (kpiErr) throw kpiErr;
 
   const calc =
-    ((kpiRow as unknown as { kpi_library: { calc_config: { calc?: KpiCalc } | null } | null } | null)
-      ?.kpi_library?.calc_config?.calc as KpiCalc | undefined) ?? null;
+    ((kpiRow as unknown as { calc_config: { calc?: KpiCalc } | null } | null)?.calc_config?.calc as
+      | KpiCalc
+      | undefined) ?? null;
 
   const { actual, inputs } = computeCalcResult(calc, (key) => String(formData.get(key) ?? ""));
 

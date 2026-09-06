@@ -59,7 +59,7 @@ type Row = {
   name: string;
   kpa: string | null;
   scorecard_id: string;
-  kpi_library: { calc_config: { lower?: boolean } | null } | null;
+  calc_config: { lower?: boolean } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: { quarter: number; actual: string | null; comment: string | null; corrective_action: string | null }[];
 };
@@ -78,16 +78,24 @@ function pctOfTarget(actual: string | null, target: string | null): number | nul
  * KPI / By KPA / By department views) - built on the same statusFor()
  * classification as the SDBIP dashboard, just kept at per-KPI granularity
  * (with comment/corrective text) instead of pre-aggregated into tallies.
+ *
+ * financialYearId scopes to one year's scorecards, same reasoning as
+ * getSdbipDashboard() in sdbip-dashboard.ts - "top" must only aggregate this
+ * year's KPIs, not every year's at once.
  */
-export async function getPerformanceProgress(scorecardId: string | undefined): Promise<ProgressData> {
+export async function getPerformanceProgress(
+  scorecardId: string | undefined,
+  financialYearId?: string | null
+): Promise<ProgressData> {
   const supabase = await createClient();
 
-  const { data: scorecardRows, error: scErr } = await supabase
-    .from("scorecards")
-    .select("id, org:orgs(id, name, code)");
+  let scorecardsQuery = supabase.from("scorecards").select("id, org:orgs(id, name, code)");
+  if (financialYearId) scorecardsQuery = scorecardsQuery.eq("financial_year_id", financialYearId);
+  const { data: scorecardRows, error: scErr } = await scorecardsQuery;
   if (scErr) throw scErr;
 
   const scorecards = (scorecardRows ?? []) as unknown as ScorecardRow[];
+  const scorecardIdsInYear = scorecards.filter((s) => s.org).map((s) => s.id);
   const options: ScorecardOption[] = [
     { id: "top", label: "Top Layer SDBIP", orgId: "" },
     ...scorecards
@@ -97,24 +105,36 @@ export async function getPerformanceProgress(scorecardId: string | undefined): P
       .map(({ id, label, orgId }) => ({ id, label, orgId })),
   ];
 
-  const selected = scorecardId && scorecardId !== "top" ? scorecardId : "top";
+  const selected =
+    scorecardId && scorecardId !== "top" && scorecardIdsInYear.includes(scorecardId) ? scorecardId : "top";
   const selectedOption = options.find((o) => o.id === selected) ?? options[0];
 
-  let query = supabase
-    .from("scorecard_kpis")
-    .select(
-      "id, ref_code, name, kpa, scorecard_id, kpi_library:kpi_library_id(calc_config), kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
-    );
-  if (selected !== "top") query = query.eq("scorecard_id", selected);
-
-  const { data: kpiRows, error: kpiErr } = await query;
-  if (kpiErr) throw kpiErr;
+  let kpiRows: unknown[] | null = [];
+  if (selected !== "top") {
+    const { data, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select(
+        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
+      )
+      .eq("scorecard_id", selected);
+    if (kpiErr) throw kpiErr;
+    kpiRows = data;
+  } else if (scorecardIdsInYear.length > 0) {
+    const { data, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select(
+        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
+      )
+      .in("scorecard_id", scorecardIdsInYear);
+    if (kpiErr) throw kpiErr;
+    kpiRows = data;
+  }
 
   const orgByScorecard = new Map(scorecards.filter((s) => s.org).map((s) => [s.id, s.org!]));
   const rows = (kpiRows ?? []) as unknown as Row[];
 
   const kpis: ProgressKpi[] = rows.map((k) => {
-    const lower = k.kpi_library?.calc_config?.lower ?? false;
+    const lower = k.calc_config?.lower ?? false;
     const targets = quarterArray(k.kpi_targets ?? [], (r) => r.target_value, null);
     const actuals = quarterArray(k.kpi_results ?? [], (r) => r.actual, null);
     const org = orgByScorecard.get(k.scorecard_id);

@@ -25,6 +25,16 @@ export type CaptureKpi = {
   target: string | null;
   lower: boolean;
   calc: KpiCalc | null;
+  /** Raw accumulation code ("none" | "cum" | "carry") for this KPI's placement on this scorecard - independent per department/year. Use accOf() from sdbip-status.ts to normalise. */
+  acc: string | null;
+  // Scorecard-setup narrative fields, per placement (not shared via
+  // kpi_library) so "+Year" can set baseline independently per year.
+  method: string | null;
+  kpiType: string | null;
+  wards: string | null;
+  baseline: string | null;
+  annualTarget: string | null;
+  poe: string | null;
   /** The kpi_library row this scorecard row was copied from, if any - used to detect "already on this scorecard" when offering more library KPIs to add. */
   libraryId: string | null;
   /** The Circular 88 code this KPI was created from, if any - drives the "C88: <code>" tag shown wherever the KPI appears. */

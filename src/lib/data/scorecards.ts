@@ -44,19 +44,26 @@ type ScorecardListRow = {
   org: { id: string; name: string } | null;
   scorecard_kpis: {
     id: string;
-    kpi_library: { calc_config: { calc?: KpiCalc } | null } | null;
+    calc_config: { calc?: KpiCalc } | null;
     kpi_results: { actual: string | null }[];
   }[];
 };
 
-/** Every department scorecard the signed-in user can see (RLS-scoped via has_org_access). */
-export async function getScorecardsList(): Promise<ScorecardListItem[]> {
+/**
+ * Every department scorecard the signed-in user can see (RLS-scoped via
+ * has_org_access). financialYearId narrows to one year's scorecards - see
+ * the same reasoning in getSdbipDashboard() in sdbip-dashboard.ts. Omitting
+ * it returns every scorecard regardless of year (this function's original
+ * behaviour, still used wherever a caller hasn't been updated to pass a
+ * financial year yet).
+ */
+export async function getScorecardsList(financialYearId?: string | null): Promise<ScorecardListItem[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
+  let query = supabase
     .from("scorecards")
-    .select(
-      "id, org:orgs(id, name), scorecard_kpis(id, kpi_library:kpi_library_id(calc_config), kpi_results(actual))"
-    );
+    .select("id, org:orgs(id, name), scorecard_kpis(id, calc_config, kpi_results(actual))");
+  if (financialYearId) query = query.eq("financial_year_id", financialYearId);
+  const { data, error } = await query;
   if (error) throw error;
 
   const rows = (data ?? []) as unknown as ScorecardListRow[];
@@ -65,7 +72,7 @@ export async function getScorecardsList(): Promise<ScorecardListItem[]> {
     .filter((r) => r.org)
     .map((r) => {
       const kpis = r.scorecard_kpis ?? [];
-      const calcOf = (k: ScorecardListRow["scorecard_kpis"][number]) => k.kpi_library?.calc_config?.calc ?? null;
+      const calcOf = (k: ScorecardListRow["scorecard_kpis"][number]) => k.calc_config?.calc ?? null;
       const needsReviewCount = kpis.reduce(
         (n, k) => n + (k.kpi_results ?? []).filter((res) => needsReview(res.actual, calcOf(k))).length,
         0
@@ -106,7 +113,21 @@ type ScorecardKpiRow = {
   unit_of_measure: string | null;
   target_type: string;
   kpi_library_id: string | null;
-  kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null; c88_code: string | null } | null;
+  // The KPI's answer-type/lower-is-better/accumulation setup lives here, on
+  // this specific scorecard placement - not on kpi_library, which is only
+  // ever a starting template copied in when the KPI was added (see
+  // kpi-admin-actions.ts). Two placements of the "same" KPI on different
+  // departments or financial years each carry their own independent copy.
+  calc_config: { calc?: KpiCalc; lower?: boolean; acc?: string } | null;
+  // Scorecard-setup narrative fields, per placement - see CaptureKpi in
+  // scorecards-shared.ts for why these live here and not on kpi_library.
+  method: string | null;
+  kpi_type: string | null;
+  wards: string | null;
+  baseline: string | null;
+  annual_target: string | null;
+  poe: string | null;
+  kpi_library: { c88_code: string | null } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
     quarter: number;
@@ -146,7 +167,7 @@ export async function getScorecardDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("scorecard_kpis")
     .select(
-      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, kpi_library:kpi_library_id(calc_config, c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due)"
+      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due)"
     )
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
@@ -168,7 +189,7 @@ export async function getScorecardDetail(
   const quartersNeedingReview = [...new Set(
     kpiRows.flatMap((k) =>
       (k.kpi_results ?? [])
-        .filter((r) => needsReview(r.actual, k.kpi_library?.calc_config?.calc ?? null))
+        .filter((r) => needsReview(r.actual, k.calc_config?.calc ?? null))
         .map((r) => r.quarter)
     )
   )].sort((a, b) => a - b);
@@ -185,8 +206,15 @@ export async function getScorecardDetail(
         unitOfMeasure: k.unit_of_measure,
         targetType: k.target_type,
         target: target?.target_value ?? null,
-        lower: k.kpi_library?.calc_config?.lower ?? false,
-        calc: k.kpi_library?.calc_config?.calc ?? null,
+        lower: k.calc_config?.lower ?? false,
+        calc: k.calc_config?.calc ?? null,
+        acc: k.calc_config?.acc ?? null,
+        method: k.method,
+        kpiType: k.kpi_type,
+        wards: k.wards,
+        baseline: k.baseline,
+        annualTarget: k.annual_target,
+        poe: k.poe,
         libraryId: k.kpi_library_id,
         c88Code: k.kpi_library?.c88_code ?? null,
         result: result
@@ -228,6 +256,12 @@ export type RegisterExportData = {
     targetType: string;
     lower: boolean;
     calc: KpiCalc | null;
+    method: string | null;
+    kpiType: string | null;
+    wards: string | null;
+    baseline: string | null;
+    annualTarget: string | null;
+    poe: string | null;
     quarters: {
       target: string | null;
       actual: string | null;
@@ -259,7 +293,7 @@ export async function getScorecardRegisterData(scorecardId: string): Promise<Reg
   const { data: kpis, error: kpiErr } = await supabase
     .from("scorecard_kpis")
     .select(
-      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library:kpi_library_id(calc_config, c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action, corrective_action_owner, corrective_action_due)"
+      "id, ref_code, name, kpa, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action, corrective_action_owner, corrective_action_due)"
     )
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
@@ -271,7 +305,14 @@ export async function getScorecardRegisterData(scorecardId: string): Promise<Reg
     kpa: string | null;
     unit_of_measure: string | null;
     target_type: string;
-    kpi_library: { calc_config: { calc?: KpiCalc; lower?: boolean } | null; c88_code: string | null } | null;
+    calc_config: { calc?: KpiCalc; lower?: boolean } | null;
+    method: string | null;
+    kpi_type: string | null;
+    wards: string | null;
+    baseline: string | null;
+    annual_target: string | null;
+    poe: string | null;
+    kpi_library: { c88_code: string | null } | null;
     kpi_targets: { quarter: number; target_value: string | null }[];
     kpi_results: {
       quarter: number;
@@ -291,8 +332,14 @@ export async function getScorecardRegisterData(scorecardId: string): Promise<Reg
       name: k.name,
       unitOfMeasure: k.unit_of_measure,
       targetType: k.target_type,
-      lower: k.kpi_library?.calc_config?.lower ?? false,
-      calc: k.kpi_library?.calc_config?.calc ?? null,
+      lower: k.calc_config?.lower ?? false,
+      calc: k.calc_config?.calc ?? null,
+      method: k.method,
+      kpiType: k.kpi_type,
+      wards: k.wards,
+      baseline: k.baseline,
+      annualTarget: k.annual_target,
+      poe: k.poe,
       quarters: [1, 2, 3, 4].map((q) => {
         const target = (k.kpi_targets ?? []).find((t) => t.quarter === q);
         const result = (k.kpi_results ?? []).find((r) => r.quarter === q);
