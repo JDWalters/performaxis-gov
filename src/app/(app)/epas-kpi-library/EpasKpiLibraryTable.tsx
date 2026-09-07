@@ -1,11 +1,18 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { Fragment, useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import type { AppraisalKpiLibraryItem, LibraryEmployee } from "@/lib/data/appraisal-kpi-library";
 import { addLibraryEntriesToPlan, bulkDeleteAppraisalKpiLibraryEntries, deleteAppraisalKpiLibraryEntry } from "./actions";
+import { NATIONAL_KPAS } from "@/lib/data/kpa-shared";
 
 type SortMode = "kpa" | "person" | "ref";
+
+const KPA_NAME = new Map<string, string>(NATIONAL_KPAS.map((k) => [k.code, k.name]));
+function kpaLabel(code: string | null): string {
+  if (!code) return "No KPA set";
+  return KPA_NAME.get(code) ?? code;
+}
 
 /**
  * The EPAS KPI library's main list - search, sort (KPA / person allocated to
@@ -122,6 +129,18 @@ export function EpasKpiLibraryTable({
 
   const targetEmployeeName = employees.find((e) => e.id === targetEmployeeId)?.name ?? "—";
 
+  // Group-header rows, matching the reference's lastGroup logic in
+  // pageLibrary(): grouped by KPA name or by allocated employee depending on
+  // the active sort, and not grouped at all when sorting by reference. This
+  // is what actually makes a sort visible - without it, re-sorting by KPA
+  // just silently reorders same-looking rows with no on-screen cue that
+  // anything changed.
+  function groupKeyFor(k: AppraisalKpiLibraryItem): string | null {
+    if (sortMode === "person") return k.allocatedEmployeeName || "Not allocated";
+    if (sortMode === "kpa") return kpaLabel(k.kpa);
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
@@ -209,47 +228,64 @@ export function EpasKpiLibraryTable({
               </tr>
             </thead>
             <tbody>
-              {sorted.map((k) => (
-                <tr key={k.id} className="border-b border-line last:border-0">
-                  <td className="px-3 py-2">
-                    <input type="checkbox" checked={selected.has(k.id)} onChange={() => toggle(k.id)} />
-                  </td>
-                  <td className="px-3 py-2 font-mono text-xs text-ink2">
-                    {k.refCode || "—"}
-                    {k.c88Code && <div className="mt-0.5 text-[10px] text-ink2">C88: {k.c88Code}</div>}
-                  </td>
-                  <td className="px-3 py-2">
-                    <span className="stag stag-blue">{k.kpa || "—"}</span>
-                  </td>
-                  <td className="px-3 py-2 text-ink">{k.name}</td>
-                  <td className="px-3 py-2 text-ink2">{k.unitOfMeasure || "—"}</td>
-                  <td className="px-3 py-2 text-ink2">{k.annualTarget || "—"}</td>
-                  <td className="px-3 py-2 text-ink2">{k.allocatedEmployeeName || "—"}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => addToPlan([k.id])}
-                        className="text-xs font-semibold text-blue hover:underline disabled:opacity-40"
-                      >
-                        Add to plan
-                      </button>
-                      <Link href={`/epas-kpi-library/${k.id}`} prefetch={false} className="text-xs font-semibold text-ink2 hover:text-ink hover:underline">
-                        Edit
-                      </Link>
-                      <button
-                        type="button"
-                        disabled={isPending}
-                        onClick={() => deleteOne(k.id, k.name)}
-                        className="text-xs font-semibold text-missed hover:underline disabled:opacity-40"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                let lastGroup: string | null | undefined = undefined;
+                return sorted.map((k) => {
+                  const group = groupKeyFor(k);
+                  const showHeader = group !== null && group !== lastGroup;
+                  lastGroup = group;
+                  return (
+                    <Fragment key={k.id}>
+                      {showHeader && (
+                        <tr key={`group-${group}`} className="border-b border-line bg-paper">
+                          <td colSpan={8} className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-ink2">
+                            {group}
+                          </td>
+                        </tr>
+                      )}
+                      <tr key={k.id} className="border-b border-line last:border-0">
+                        <td className="px-3 py-2">
+                          <input type="checkbox" checked={selected.has(k.id)} onChange={() => toggle(k.id)} />
+                        </td>
+                        <td className="px-3 py-2 font-mono text-xs text-ink2">
+                          {k.refCode || "—"}
+                          {k.c88Code && <div className="mt-0.5 text-[10px] text-ink2">C88: {k.c88Code}</div>}
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className="stag stag-blue">{k.kpa || "—"}</span>
+                        </td>
+                        <td className="px-3 py-2 text-ink">{k.name}</td>
+                        <td className="px-3 py-2 text-ink2">{k.unitOfMeasure || "—"}</td>
+                        <td className="px-3 py-2 text-ink2">{k.annualTarget || "—"}</td>
+                        <td className="px-3 py-2 text-ink2">{k.allocatedEmployeeName || "—"}</td>
+                        <td className="px-3 py-2">
+                          <div className="flex flex-wrap justify-end gap-2">
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => addToPlan([k.id])}
+                              className="text-xs font-semibold text-blue hover:underline disabled:opacity-40"
+                            >
+                              Add to plan
+                            </button>
+                            <Link href={`/epas-kpi-library/${k.id}`} prefetch={false} className="text-xs font-semibold text-ink2 hover:text-ink hover:underline">
+                              Edit
+                            </Link>
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => deleteOne(k.id, k.name)}
+                              className="text-xs font-semibold text-missed hover:underline disabled:opacity-40"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    </Fragment>
+                  );
+                });
+              })()}
             </tbody>
           </table>
         </div>
