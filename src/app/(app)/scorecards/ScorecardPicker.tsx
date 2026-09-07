@@ -15,7 +15,7 @@ export function ScorecardPicker({
   const router = useRouter();
   return (
     <select
-      defaultValue={selectedId}
+      value={selectedId}
       onChange={(e) => router.push(`/scorecards?sc=${e.target.value}&period=${periodKey}`)}
       className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
     >

@@ -25,7 +25,7 @@ export function FinancialYearSwitcher({ years, selectedId }: { years: FinancialY
       <select
         id="fy-switcher"
         name="fyId"
-        defaultValue={selectedId ?? undefined}
+        value={selectedId ?? undefined}
         onChange={() => formRef.current?.requestSubmit()}
         className="rounded-md border border-line bg-white px-2 py-1 text-xs font-bold text-ink"
       >

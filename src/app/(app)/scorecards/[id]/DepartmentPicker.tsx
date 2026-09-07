@@ -22,7 +22,7 @@ export function DepartmentPicker({
   const router = useRouter();
   return (
     <select
-      defaultValue={selectedId}
+      value={selectedId}
       onChange={(e) => router.push(`/scorecards/${e.target.value}?q=${periodParam}`)}
       className="rounded-md border border-line bg-white px-3 py-1.5 text-sm font-semibold text-ink"
     >
