@@ -24,21 +24,29 @@ const DASHBOARD_ITEM: NavItem = { href: "/dashboard", icon: "◴", label: "Dashb
 // under both sections rather than picking one home for it.
 const REPORTS_ITEM: NavItem = { href: "/reports", icon: "␙", label: "Reports" };
 
+// KPI setup lives under each product's own section now (previously both
+// sat under SETUP) - PerformAxis is unifying three of the client's separate
+// legacy tools (SDBIP/EPAS/MANDATE) into one system, so each product's
+// admin screens belong with that product, not lumped into a shared catch-all.
 const SDBIP_NAV: NavItem[] = [
   { href: "/scorecards", icon: "▦", label: "SDBIP Scorecards" },
   { href: "/progress", icon: "↗", label: "Performance Progress" },
+  { href: "/kpi-library", icon: "≡", label: "KPI Type Generator" },
   REPORTS_ITEM,
 ];
-const EPAS_NAV: NavItem[] = [{ href: "/appraisals", icon: "✓", label: "EPAS Appraisals" }, REPORTS_ITEM];
+const EPAS_NAV: NavItem[] = [
+  { href: "/appraisals", icon: "✓", label: "EPAS Appraisals" },
+  { href: "/epas-kpi-library", icon: "☰", label: "KPI setup" },
+  REPORTS_ITEM,
+];
 // Placeholder for a future section (Council/IDP mandate tracking etc.) -
 // scaffolded now, empty until that module exists.
 const MANDATE_NAV: NavItem[] = [];
 
 // Setup order, not alphabetical: orgs must exist before employees can be
 // added to them, employees before EPAS policy/competencies mean anything,
-// and inviting users is naturally the last step. KPI Type Generator has no
-// access gate of its own (unlike the three below it), so it's always present.
-const SETUP_NAV_BASE: NavItem[] = [{ href: "/kpi-library", icon: "≡", label: "KPI Type Generator" }];
+// and inviting users is naturally the last step.
+const SETUP_NAV_BASE: NavItem[] = [];
 const ORG_ADMIN_NAV: NavItem[] = [
   { href: "/orgs", icon: "⌂", label: "Org Management" },
   { href: "/employees", icon: "☺", label: "Employees" },
