@@ -27,6 +27,14 @@ export function EpasKpiForm({
 }) {
   const [refCode, setRefCode] = useState(initial?.refCode ?? "");
   const [kpa, setKpa] = useState(initial?.kpa ?? "");
+  // The 5 national KPAs are the prescribed starting set, but this field is
+  // free text underneath (matching the SDBIP KPI Type Generator's own KPA
+  // field) - "+ Add a new KPA…" swaps the dropdown for a text input rather
+  // than requiring a separate "manage KPAs" screen anywhere. Defaults to
+  // "new" only when editing an entry whose KPA isn't one of the 5 codes.
+  const [kpaMode, setKpaMode] = useState<"select" | "new">(
+    initial?.kpa && !NATIONAL_KPAS.some((k) => k.code === initial.kpa) ? "new" : "select"
+  );
   const [c88Code, setC88Code] = useState(initial?.c88Code ?? "");
   const [name, setName] = useState(initial?.name ?? "");
   const [unitOfMeasure, setUnitOfMeasure] = useState(initial?.unitOfMeasure ?? "");
@@ -57,14 +65,52 @@ export function EpasKpiForm({
             </label>
             <label className={LABEL_CLASS}>
               KPA — required
-              <select name="kpa" value={kpa} onChange={(e) => setKpa(e.target.value)} className={FIELD_CLASS} required>
-                <option value="">— Select a KPA —</option>
-                {NATIONAL_KPAS.map((k) => (
-                  <option key={k.code} value={k.code}>
-                    {k.code} — {k.name}
-                  </option>
-                ))}
-              </select>
+              {kpaMode === "select" ? (
+                <select
+                  name="kpa"
+                  value={kpa}
+                  onChange={(e) => {
+                    if (e.target.value === "__new__") {
+                      setKpaMode("new");
+                      setKpa("");
+                    } else {
+                      setKpa(e.target.value);
+                    }
+                  }}
+                  className={FIELD_CLASS}
+                  required
+                >
+                  <option value="">— Select a KPA —</option>
+                  {NATIONAL_KPAS.map((k) => (
+                    <option key={k.code} value={k.code}>
+                      {k.code} — {k.name}
+                    </option>
+                  ))}
+                  <option value="__new__">+ Add a new KPA…</option>
+                </select>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    name="kpa"
+                    value={kpa}
+                    onChange={(e) => setKpa(e.target.value)}
+                    placeholder="New KPA name or code"
+                    className={FIELD_CLASS}
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKpaMode("select");
+                      setKpa("");
+                    }}
+                    className="flex-none text-xs font-semibold text-ink2 hover:text-ink hover:underline"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
             </label>
           </div>
           <label className={LABEL_CLASS}>

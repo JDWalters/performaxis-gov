@@ -259,25 +259,34 @@ export function EpasKpiLibraryTable({
                         <td className="px-3 py-2 text-ink2">{k.annualTarget || "—"}</td>
                         <td className="px-3 py-2 text-ink2">{k.allocatedEmployeeName || "—"}</td>
                         <td className="px-3 py-2">
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="flex items-center justify-end gap-1">
                             <button
                               type="button"
                               disabled={isPending}
                               onClick={() => addToPlan([k.id])}
-                              className="text-xs font-semibold text-blue hover:underline disabled:opacity-40"
+                              title={`Add to ${targetEmployeeName}'s plan`}
+                              className="whitespace-nowrap rounded-md border border-line px-2.5 py-1 text-xs font-semibold text-blue hover:border-blue hover:bg-blue-bg disabled:opacity-40"
                             >
                               Add to plan
                             </button>
-                            <Link href={`/epas-kpi-library/${k.id}`} prefetch={false} className="text-xs font-semibold text-ink2 hover:text-ink hover:underline">
-                              Edit
+                            <Link
+                              href={`/epas-kpi-library/${k.id}`}
+                              prefetch={false}
+                              title="Edit indicator"
+                              aria-label="Edit indicator"
+                              className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-sm text-ink2 hover:bg-paper hover:text-ink"
+                            >
+                              ✎
                             </Link>
                             <button
                               type="button"
                               disabled={isPending}
                               onClick={() => deleteOne(k.id, k.name)}
-                              className="text-xs font-semibold text-missed hover:underline disabled:opacity-40"
+                              title="Delete indicator"
+                              aria-label="Delete indicator"
+                              className="flex h-7 w-7 flex-none items-center justify-center rounded-md text-sm font-bold text-missed hover:bg-missed-bg disabled:opacity-40"
                             >
-                              Delete
+                              ✕
                             </button>
                           </div>
                         </td>
