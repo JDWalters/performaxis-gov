@@ -25,7 +25,12 @@ export function finalRating(
   mgr: number | null,
   panel: number | null
 ): number | null {
-  return panel ?? mgr ?? self ?? null;
+  // Self-ratings are informational only and never count toward the score
+  // (see file header) - deliberately NOT falling back to `self` here, even
+  // though it's passed in. Kept as a parameter (rather than dropped) so
+  // every call site still reads self/mgr/panel side by side, matching the
+  // reference tool's own function signature.
+  return panel ?? mgr ?? null;
 }
 
 export type WeightedItem = { rating: number | null; weight: number };

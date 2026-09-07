@@ -41,6 +41,28 @@ function formatNumber(n: number): string {
 }
 
 /**
+ * The fixed set of 3-variable formula shapes actually used by the Circular
+ * 88 indicator catalogue (confirmed against the live circular88_indicators
+ * table: (A-B)/C, (A-B)/A*100, (A-B)/B*100, (A-B)/C*100 - 30 of 84 rows use
+ * one of these). Matched case/whitespace-insensitively since the catalogue
+ * stores them uppercase ("(A-B)/C") while calc_config elsewhere in the app
+ * uses lowercase. Deliberately still a closed whitelist, not a general
+ * expression evaluator - the Circular 88 edit screen has no field that lets
+ * an admin type a new formula string, so this list only needs to cover what
+ * the catalogue can actually contain, and unrecognised text safely resolves
+ * to "not yet calculable" (null) rather than being evaluated.
+ */
+function evaluateThreeVarFormula(formula: string | undefined, a: number, b: number, c: number): number | null {
+  const key = (formula ?? "").replace(/\s+/g, "").toLowerCase();
+  if (c === 0 && (key === "(a-b)/c" || key === "(a-b)/c*100")) return null;
+  if (key === "(a-b)/c") return (a - b) / c;
+  if (key === "(a-b)/c*100") return ((a - b) / c) * 100;
+  if (key === "(a-b)/a*100") return a === 0 ? null : ((a - b) / a) * 100;
+  if (key === "(a-b)/b*100") return b === 0 ? null : ((a - b) / b) * 100;
+  return null;
+}
+
+/**
  * Computes the canonical stored `actual` + raw `inputs` from a capturer's
  * submitted fields, branching on calc.type. `get` reads one named field
  * (backed by FormData server-side or component state client-side).
@@ -86,10 +108,8 @@ export function computeCalcResult(calc: KpiCalc | null, get: (key: string) => st
     const a = Number(get("a").replace(",", "."));
     const b = Number(get("b").replace(",", "."));
     const c = Number(get("c").replace(",", "."));
-    if (![a, b, c].every(Number.isFinite) || c === 0) return { actual: null, inputs: {} };
-    // Only known formula shape in the migrated data today - not a general
-    // expression evaluator by design, to avoid running arbitrary formula text.
-    const result = calc?.formula === "(a-b)/c" ? (a - b) / c : null;
+    if (![a, b, c].every(Number.isFinite)) return { actual: null, inputs: {} };
+    const result = evaluateThreeVarFormula(calc?.formula, a, b, c);
     return { actual: result === null ? null : formatNumber(result), inputs: { a, b, c } };
   }
 
