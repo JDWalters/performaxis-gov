@@ -143,8 +143,12 @@ export async function updateAnnexureKpiWeight(formData: FormData) {
 
   const current = await fetchWeightRows(cycleId);
   const isUnlocking = raw === "";
+  // Round to 2 decimal places here (matching the appraisal_kpis.weight
+  // numeric(5,2) column) so what's saved always matches what's displayed -
+  // typed values like "9.5" or "9.09" are supported, not just whole numbers.
+  const typedWeight = Math.round((Number(raw) || 0) * 100) / 100;
   const updated = current.map((k) =>
-    k.id === kpiId ? { ...k, weight: isUnlocking ? k.weight : Number(raw) || 0, weightLocked: !isUnlocking } : k
+    k.id === kpiId ? { ...k, weight: isUnlocking ? k.weight : typedWeight, weightLocked: !isUnlocking } : k
   );
 
   await persistWeights(cycleId, balanceWeights(updated));

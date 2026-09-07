@@ -22,24 +22,44 @@ const CELL_CLASS =
 // Short achievement-level names for competency ratings (2-5) - the
 // Regulations don't name a "1" tier for competencies, unlike KPIs.
 const COMPETENCY_SCALE_TERMS: Record<number, string> = { 5: "Superior", 4: "Advanced", 3: "Competent", 2: "Basic" };
+const COMPETENCY_SCALE: { r: number; term: string }[] = [5, 4, 3, 2].map((r) => ({ r, term: COMPETENCY_SCALE_TERMS[r] }));
+
+// Same 5-tier colour coding used everywhere else in the app (dashboards,
+// status bars) - r5 is always the top/"blue" tier down to r1 "missed",
+// matching the reference tool's .ratesel.r1-r5 classes exactly, regardless
+// of whether it's a 1-5 KPI rating or a 2-5 competency rating.
+const RATING_COLOR_CLASS: Record<number, string> = {
+  5: "border-blue bg-blue-bg text-blue",
+  4: "border-met bg-met-bg text-met",
+  3: "border-okk bg-okk-bg text-okk",
+  2: "border-almost bg-almost-bg text-almost",
+  1: "border-missed bg-missed-bg text-missed",
+};
 
 function fmt2(n: number): string {
   return n.toFixed(2);
 }
 
-/** A 1-5 (or 2-5) rating dropdown. Selecting a value is itself the deliberate action - no onBlur dirty-tracking needed. */
+/**
+ * A 1-5 (or 2-5) rating dropdown. Selecting a value is itself the deliberate
+ * action - no onBlur dirty-tracking needed. Every option always shows its
+ * term ("5 — Outstanding performance"), never a bare digit, and the select
+ * itself is colour-coded to the chosen tier - both match the reference
+ * tool's rateSelect()/compSelect() exactly.
+ */
 function RatingSelect({
   value,
-  options,
+  scale,
   onSave,
   disabled,
 }: {
   value: number | null;
-  options: number[];
+  scale: { r: number; term: string }[];
   onSave: (v: string) => void;
   disabled: boolean;
 }) {
   const [local, setLocal] = useState(value != null ? String(value) : "");
+  const colorClass = local ? RATING_COLOR_CLASS[Number(local)] : "border-line bg-white text-ink";
   return (
     <select
       value={local}
@@ -48,12 +68,12 @@ function RatingSelect({
         setLocal(e.target.value);
         onSave(e.target.value);
       }}
-      className={`${CELL_CLASS} disabled:cursor-not-allowed disabled:border-transparent disabled:bg-paper disabled:text-ink2`}
+      className={`w-full rounded-md border px-2 py-1 text-sm font-bold outline-none focus:ring-2 focus:ring-gold/20 disabled:cursor-not-allowed ${colorClass}`}
     >
       <option value="">—</option>
-      {options.map((n) => (
-        <option key={n} value={n}>
-          {n}
+      {scale.map((s) => (
+        <option key={s.r} value={s.r}>
+          {s.r} — {s.term}
         </option>
       ))}
     </select>
@@ -298,12 +318,12 @@ export function AssessmentRatingsPanel({
                         </td>
                         <td className="p-2 text-center text-ink2">{applicable ? `${fmt2(k.effectiveWeightPct)}%` : "—"}</td>
                         <td className="min-w-[160px] p-2 text-ink2">{friendlyAppraisalActual(k) ?? "—"}</td>
-                        <td className="min-w-[90px] p-2">
+                        <td className="min-w-[220px] p-2">
                           {applicable ? (
                             <RatingSelect
                               key={`${k.id}:${view}:${r?.selfRating ?? ""}:${r?.mgrRating ?? ""}:${r?.panelRating ?? ""}`}
                               value={view === "self" ? r?.selfRating ?? null : view === "mgr" ? r?.mgrRating ?? null : r?.panelRating ?? null}
-                              options={[1, 2, 3, 4, 5]}
+                              scale={DEFAULT_RATING_SCALE}
                               disabled={!rowEditable}
                               onSave={(v) => saveRating(k.id, v)}
                             />
@@ -409,7 +429,7 @@ export function AssessmentRatingsPanel({
                         <RatingSelect
                           key={`${c.id}:${view}:${c.selfRating ?? ""}:${c.mgrRating ?? ""}:${c.panelRating ?? ""}`}
                           value={view === "self" ? c.selfRating : view === "mgr" ? c.mgrRating : c.panelRating}
-                          options={[2, 3, 4, 5]}
+                          scale={COMPETENCY_SCALE}
                           disabled={!editable}
                           onSave={(v) => saveCompRating(c.id, v)}
                         />

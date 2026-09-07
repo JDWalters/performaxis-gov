@@ -28,6 +28,7 @@ function EditableCell({
   placeholder,
   className,
   list,
+  inputMode,
 }: {
   // Read once on mount only - the parent keys this component on `value`
   // (see the `key={...}` on each <EditableCell> below) so it remounts and
@@ -39,6 +40,7 @@ function EditableCell({
   placeholder?: string;
   className?: string;
   list?: string;
+  inputMode?: "decimal" | "numeric";
 }) {
   const [local, setLocal] = useState(value);
   const dirtyRef = useRef(false);
@@ -48,6 +50,7 @@ function EditableCell({
       value={local}
       placeholder={placeholder}
       list={list}
+      inputMode={inputMode}
       onChange={(e) => {
         setLocal(e.target.value);
         dirtyRef.current = true;
@@ -144,10 +147,11 @@ function KpiRow({ cycleId, kpi }: { cycleId: string; kpi: AnnexureKpi }) {
       <td className="min-w-[90px] p-1">
         <EditableCell
           key={`${kpi.weight}:${kpi.weightLocked}`}
-          value={String(kpi.weight)}
+          value={Number(kpi.weight).toFixed(2)}
           onSave={saveWeight}
           placeholder="auto"
-          className={`${CELL_CLASS} ${kpi.weightLocked ? "border-gold" : "border-line"}`}
+          inputMode="decimal"
+          className={`${CELL_CLASS} text-center ${kpi.weightLocked ? "border-gold" : "border-line"}`}
         />
         <div className="mt-0.5 text-center text-[10px] text-ink2">{kpi.weightLocked ? "set by you" : "automatic"}</div>
       </td>
@@ -218,9 +222,9 @@ export function AnnexureEditor({ cycleId, kpis, totalWeight }: { cycleId: string
       </div>
 
       <p className="text-xs text-ink2">
-        Weightings are worked out automatically and always come to 100%. Type over any figure to fix that
-        indicator&apos;s weighting - the rest share what is left, equally. Clear the box to hand it back to the
-        automatic split.
+        Weightings are worked out automatically and always come to 100%. Type over any figure (up to 2 decimal
+        places, e.g. 9.09) to fix that indicator&apos;s weighting - the rest share what is left, equally. Clear the
+        box to hand it back to the automatic split.
       </p>
 
       {kpis.length === 0 ? (
