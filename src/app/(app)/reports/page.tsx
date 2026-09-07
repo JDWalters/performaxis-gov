@@ -78,12 +78,22 @@ export default async function ReportsPage() {
           Every accessible scorecard&apos;s full-year register plus Q1-Q4 report CSVs, bundled as one ZIP - one
           folder per department. Individual scorecard exports are available from each scorecard&apos;s page.
         </p>
-        <a
-          href="/reports/scorecards-zip"
-          className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
-        >
-          Export ALL scorecards (ZIP) ↓
-        </a>
+        <div className="flex flex-wrap gap-2">
+          <a
+            href="/reports/scorecards-zip"
+            className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
+          >
+            Export ALL scorecards (ZIP) ↓
+          </a>
+          <a
+            href="/scorecards/report?sc=top&period=annual"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
+          >
+            Print annual SDBIP report ↗
+          </a>
+        </div>
       </div>
 
       <div>
@@ -101,12 +111,20 @@ export default async function ReportsPage() {
                 </div>
                 <div className="mt-3 flex flex-wrap gap-1.5">
                   <a
-                    href={`/appraisals/${a.cycleId}/agreement`}
+                    href={`/appraisals/${a.cycleId}/agreement?part=agreement`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="rounded-md border border-line px-2 py-1 text-[11px] font-bold text-ink2 hover:border-gold hover:text-ink"
                   >
-                    Agreement ↗
+                    Agreement (portrait) ↗
+                  </a>
+                  <a
+                    href={`/appraisals/${a.cycleId}/agreement?part=annexures`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="rounded-md border border-line px-2 py-1 text-[11px] font-bold text-ink2 hover:border-gold hover:text-ink"
+                  >
+                    Annexure A (landscape) ↗
                   </a>
                   <a
                     href={`/appraisals/${a.cycleId}/assessment?q=4`}

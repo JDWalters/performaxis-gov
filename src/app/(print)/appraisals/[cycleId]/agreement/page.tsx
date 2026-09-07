@@ -28,9 +28,22 @@ function quarterWindow(startYear: number | null, q: number): string {
 // define these achievement levels by name, not by municipal discretion.
 const COMPETENCY_SCALE_TERMS: Record<number, string> = { 5: "Superior", 4: "Advanced", 3: "Competent", 2: "Basic" };
 
-const REPORT_CSS = `
+/**
+ * Page size varies by `part` - matching the reference tool's two separate
+ * print actions ("Print Agreement" vs "Print Plan"): the 13-clause legal
+ * text reads naturally on a normal A4 portrait page, while Annexure A's KPI
+ * table needs the extra width of landscape. A single combined document
+ * (part="full", the default - used for the in-app preview iframe and as a
+ * "print everything at once" fallback) stays landscape throughout, same as
+ * before, since forcing an orientation change mid-document via CSS's `page`
+ * property is less reliable across browsers/print-to-PDF than just offering
+ * the two focused documents the reference tool did.
+ */
+function reportCss(part: "full" | "agreement" | "annexures"): string {
+  const pageSize = part === "agreement" ? "A4 portrait" : "A4 landscape";
+  return `
 @media print {
-  @page { size: A4 landscape; margin: 11mm; }
+  @page { size: ${pageSize}; margin: 11mm; }
 }
 * { box-sizing: border-box; }
 body { margin: 0; }
@@ -103,6 +116,7 @@ table.agpt { width: 100%; border-collapse: collapse; margin-top: 8pt; font-size:
 .printbar { display: flex; justify-content: flex-end; padding: 10px 16px; }
 @media print { .printbar { display: none; } }
 `;
+}
 
 /** One numbered sub-clause, e.g. "1.1  The Employer has entered into…". */
 function Cl({ n, children }: { n: string; children: React.ReactNode }) {
@@ -135,11 +149,18 @@ export default async function AgreementPage({
   searchParams,
 }: {
   params: Promise<{ cycleId: string }>;
-  searchParams: Promise<{ embed?: string }>;
+  searchParams: Promise<{ embed?: string; part?: string }>;
 }) {
   const { cycleId } = await params;
-  const { embed } = await searchParams;
+  const { embed, part: partParam } = await searchParams;
   const isEmbed = embed === "1";
+  // "full" (default) is the combined document - used for the in-app live
+  // preview iframe, and as a "print everything at once" option. "agreement"
+  // and "annexures" are the reference tool's two separate print actions,
+  // each its own correctly-oriented single-purpose document.
+  const part: "full" | "agreement" | "annexures" = partParam === "agreement" || partParam === "annexures" ? partParam : "full";
+  const showAgreement = part !== "annexures";
+  const showAnnexures = part !== "agreement";
   const data = await getAgreementData(cycleId);
   if (!data) notFound();
 
@@ -164,7 +185,7 @@ export default async function AgreementPage({
 
   return (
     <div className="agdoc">
-      <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
+      <style dangerouslySetInnerHTML={{ __html: reportCss(part) }} />
       {!isEmbed && <AutoPrint />}
 
       {!isEmbed && (
@@ -191,6 +212,8 @@ export default async function AgreementPage({
                 </div>
               </div>
 
+              {showAgreement && (
+              <>
               {/* Repeats the title/municipality/FY that's already in the
                  masthead above - the reference tool's own repHead() +
                  partiesBlock() double up the same way, since partiesBlock
@@ -793,9 +816,13 @@ export default async function AgreementPage({
                   </div>
                 </div>
               </div>
+              </>
+              )}
 
-              <div className="pbreak" />
+              {showAgreement && showAnnexures && <div className="pbreak" />}
 
+              {showAnnexures && (
+              <>
               <div className="agtitle">Annexure A: Performance Plan</div>
               <table className="pt">
                 <thead>
@@ -869,6 +896,8 @@ export default async function AgreementPage({
                   </span>
                 ))}
               </div>
+              </>
+              )}
             </td>
           </tr>
         </tbody>

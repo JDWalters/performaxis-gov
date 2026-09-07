@@ -168,15 +168,28 @@ export function AgreementDetailsPanel({
               ↻ Refresh preview
             </button>
             <a
-              href={`/appraisals/${cycleId}/agreement`}
+              href={`/appraisals/${cycleId}/agreement?part=agreement`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
+            >
+              Print agreement (portrait) ↗
+            </a>
+            <a
+              href={`/appraisals/${cycleId}/agreement?part=annexures`}
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-md bg-ink px-3 py-1.5 text-xs font-bold text-white hover:bg-ink/90"
             >
-              Print / save the agreement ↗
+              Print Annexure A (landscape) ↗
             </a>
           </div>
         </div>
+        <p className="mb-2 text-[11px] text-ink2">
+          The preview below shows the full combined document. Printing splits it into two focused documents - the
+          signed agreement text (upright) and the Annexure A performance plan (wide table) - matching how these are
+          normally filed separately.
+        </p>
         <iframe
           key={previewKey}
           src={`/appraisals/${cycleId}/agreement?embed=1`}

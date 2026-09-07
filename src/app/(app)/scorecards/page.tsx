@@ -53,14 +53,24 @@ export default async function ScorecardsDashboardPage({
             {activeFy.selected && <span className="ml-1 font-semibold text-ink">FY {activeFy.selected.label}.</span>}
           </p>
         </div>
-        {!isTop && (
-          <Link
-            href={`/scorecards/${dashboard.selectedScorecardId}`}
-            className="rounded-md bg-ink px-4 py-2 text-xs font-bold text-white hover:bg-ink/90"
+        <div className="flex flex-wrap items-center gap-2">
+          <a
+            href={`/scorecards/report?sc=${dashboard.selectedScorecardId}&period=${activeOption.key}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-md border border-line px-4 py-2 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
           >
-            Capture this scorecard →
-          </Link>
-        )}
+            Print report ↗
+          </a>
+          {!isTop && (
+            <Link
+              href={`/scorecards/${dashboard.selectedScorecardId}`}
+              className="rounded-md bg-ink px-4 py-2 text-xs font-bold text-white hover:bg-ink/90"
+            >
+              Capture this scorecard →
+            </Link>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

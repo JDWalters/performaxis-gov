@@ -131,6 +131,128 @@ export async function getScorecardOptions(financialYearId?: string | null): Prom
   ];
 }
 
+// Same numbers-before-letters ref-code sort as scorecards.ts's naturalCompare
+// (not exported from there) - kept as its own tiny copy here rather than
+// threading an export through, since this is the only other place that needs
+// it (the print report's detailed KPI table, sorted "FMS2" before "FMS11").
+function naturalCompareRef(a: string, b: string): number {
+  const tokenize = (s: string) => s.match(/(\d+(?:\.\d+)?)|(\D+)/g) ?? [];
+  const ta = tokenize(a);
+  const tb = tokenize(b);
+  const len = Math.max(ta.length, tb.length);
+  for (let i = 0; i < len; i++) {
+    const xa = ta[i] ?? "";
+    const xb = tb[i] ?? "";
+    const na = Number(xa);
+    const nb = Number(xb);
+    const bothNumeric = xa !== "" && xb !== "" && !Number.isNaN(na) && !Number.isNaN(nb);
+    if (bothNumeric) {
+      if (na !== nb) return na - nb;
+    } else if (xa !== xb) {
+      return xa < xb ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+export type ReportKpi = {
+  scorecardId: string;
+  orgName: string;
+  orgCode: string | null;
+  refCode: string | null;
+  name: string;
+  kpa: string | null;
+  unit: string | null;
+  target: string | null;
+  actual: string | null;
+  status: Status;
+  correctiveNote: string | null;
+};
+
+type ReportRow = {
+  id: string;
+  ref_code: string | null;
+  name: string;
+  kpa: string | null;
+  unit_of_measure: string | null;
+  scorecard_id: string;
+  calc_config: { lower?: boolean; acc?: string } | null;
+  kpi_targets: { quarter: number; target_value: string | null }[];
+  kpi_results: { quarter: number; actual: string | null; corrective_action: string | null }[];
+};
+
+/**
+ * Every KPI's period-effective target/actual/status, flat (not aggregated) -
+ * feeds the print report's detailed KPI table. Same underlying rows and
+ * status logic as getSdbipDashboard() above (deliberately not reusing
+ * getScorecardDetail() here - that also runs two has_org_access RPCs and
+ * signs evidence-file URLs per KPI, both pointless for a read-only report
+ * that never lets you capture from it). "top" pulls every scorecard in the
+ * financial year, same fallback rule as getSdbipDashboard().
+ */
+export async function getSdbipReportKpis(
+  scorecardId: string | undefined,
+  period: Period,
+  financialYearId?: string | null
+): Promise<ReportKpi[]> {
+  const supabase = await createClient();
+
+  const options = await getScorecardOptions(financialYearId);
+  const scorecardIdsInYear = options.filter((o) => o.id !== "top").map((o) => o.id);
+  const selected =
+    scorecardId && scorecardId !== "top" && scorecardIdsInYear.includes(scorecardId) ? scorecardId : "top";
+  const targetIds = selected !== "top" ? [selected] : scorecardIdsInYear;
+
+  let kpiRows: unknown[] | null = [];
+  if (targetIds.length > 0) {
+    const { data, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select(
+        "id, ref_code, name, kpa, unit_of_measure, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, corrective_action)"
+      )
+      .in("scorecard_id", targetIds);
+    if (kpiErr) throw kpiErr;
+    kpiRows = data;
+  }
+
+  const orgByScorecard = new Map(
+    options.filter((o) => o.id !== "top").map((o) => [o.id, { name: o.orgName!, code: o.orgCode ?? null }])
+  );
+  const rows = (kpiRows ?? []) as unknown as ReportRow[];
+  const qIdx = period === "mid" ? 1 : period === "annual" ? 3 : period - 1;
+
+  return rows
+    .map((k) => {
+      const lower = k.calc_config?.lower ?? false;
+      const acc: Accumulation = accOf(k.calc_config?.acc);
+      const targets = quarterArray(k.kpi_targets ?? [], (r) => r.target_value, null);
+      const actuals = quarterArray(k.kpi_results ?? [], (r) => r.actual, null);
+      const status = statusForPeriod(actuals, targets, lower, acc, period);
+      const value = effectiveValue(actuals, qIdx, acc);
+      const org = orgByScorecard.get(k.scorecard_id);
+      const resultRow = (k.kpi_results ?? []).find((r) => r.quarter === qIdx + 1);
+      return {
+        scorecardId: k.scorecard_id,
+        orgName: org?.name ?? "—",
+        orgCode: org?.code ?? null,
+        refCode: k.ref_code,
+        name: k.name,
+        kpa: k.kpa,
+        unit: k.unit_of_measure,
+        target: targets[qIdx],
+        actual: value === null ? actuals[qIdx] : String(value),
+        status,
+        correctiveNote: resultRow?.corrective_action ?? null,
+      };
+    })
+    .sort(
+      (a, b) =>
+        departmentSortKey(a.orgCode) - departmentSortKey(b.orgCode) ||
+        a.orgName.localeCompare(b.orgName) ||
+        naturalCompareRef(a.refCode ?? "", b.refCode ?? "")
+    );
+}
+
 export async function getSdbipDashboard(
   scorecardId: string | undefined,
   period: Period,
