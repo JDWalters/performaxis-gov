@@ -2,6 +2,7 @@ import { getManageableScopes, getOrgMembers, getRoles, getAssignableOrgs } from 
 import { InviteUserForm } from "./InviteUserForm";
 import { PersonAccessCell } from "./PersonAccessCell";
 import { DeleteUserButton } from "./DeleteUserButton";
+import { ResetPasswordButton } from "./ResetPasswordButton";
 
 export default async function UsersPage() {
   const scopes = await getManageableScopes();
@@ -76,7 +77,10 @@ export default async function UsersPage() {
                     <PersonAccessCell userId={p.userId} memberships={p.memberships} orgs={orgs} roles={roles} />
                   </td>
                   <td className="px-4 py-2 align-top text-right">
-                    <DeleteUserButton userId={p.userId} name={p.fullName ?? p.email ?? "this person"} />
+                    <div className="flex flex-col items-end gap-1">
+                      <ResetPasswordButton userId={p.userId} name={p.fullName ?? p.email ?? "this person"} />
+                      <DeleteUserButton userId={p.userId} name={p.fullName ?? p.email ?? "this person"} />
+                    </div>
                   </td>
                 </tr>
               ))

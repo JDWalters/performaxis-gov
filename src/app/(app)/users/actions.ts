@@ -212,6 +212,53 @@ export async function updateUserAccess(formData: FormData) {
   revalidatePath("/users");
 }
 
+/**
+ * Sets a user's password directly (an admin-issued reset, not a "forgot
+ * password" email flow) - the gate JD asked for so a Municipal/Platform
+ * Admin can hand someone a working password without relying on Supabase's
+ * rate-limited invite emails. Same safety bar as deleteUser: requires
+ * manage_users on *every* org the target currently holds, not just one -
+ * setting someone's password is at least as sensitive as removing their
+ * access outright, so a caller who only manages one of their several org
+ * memberships shouldn't be able to take over the whole account. Returns
+ * nothing - the caller already has the plaintext password client-side (it
+ * was generated or typed there), so there's nothing to hand back.
+ */
+export async function resetUserPassword(formData: FormData): Promise<void> {
+  const userId = str(formData, "userId");
+  const newPassword = str(formData, "newPassword");
+  if (!userId) throw new Error("Missing user.");
+  if (newPassword.length < 8) throw new Error("Password must be at least 8 characters.");
+
+  const supabase = await createClient();
+  const {
+    data: { user: caller },
+  } = await supabase.auth.getUser();
+  if (!caller) throw new Error("Not signed in.");
+
+  const { data: rows, error: rowsErr } = await supabase.from("memberships").select("org_id").eq("user_id", userId);
+  if (rowsErr) fail(rowsErr);
+  const orgIds = [...new Set(((rows ?? []) as unknown as { org_id: string }[]).map((r) => r.org_id))];
+  if (orgIds.length === 0) throw new Error("This person has no org access - nothing to manage.");
+
+  for (const orgId of orgIds) {
+    const { data: allowed, error: accessErr } = await (
+      supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>
+      ) => Promise<{ data: boolean | null; error: { message: string } | null }>
+    )("has_org_access", { required_permission: "manage_users", target_org_id: orgId });
+    if (accessErr) fail(accessErr);
+    if (!allowed) {
+      throw new Error("You don't have permission to manage this person - they have access to an org you don't manage.");
+    }
+  }
+
+  const admin = createAdminClient();
+  const { error } = await admin.auth.admin.updateUserById(userId, { password: newPassword });
+  if (error) fail(error);
+}
+
 async function inviteNewUser(
   admin: ReturnType<typeof createAdminClient>,
   email: string,
