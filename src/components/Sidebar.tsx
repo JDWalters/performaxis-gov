@@ -39,9 +39,19 @@ const EPAS_NAV: NavItem[] = [
   { href: "/epas-kpi-library", icon: "☰", label: "KPI setup" },
   REPORTS_ITEM,
 ];
-// Placeholder for a future section (Council/IDP mandate tracking etc.) -
-// scaffolded now, empty until that module exists.
-const MANDATE_NAV: NavItem[] = [];
+// The delegation-of-powers register, folded in from the client's standalone
+// Mandate app - more screens (governance workspace, posts/bodies,
+// instruments, decision log, reports) land here as they're built.
+const MANDATE_NAV: NavItem[] = [
+  { href: "/mandate", icon: "◆", label: "Delegations" },
+  { href: "/mandate/authority", icon: "◆", label: "Who may do what" },
+  { href: "/mandate/instruments", icon: "◆", label: "Instruments" },
+  { href: "/mandate/decisions", icon: "◆", label: "Decision log" },
+  { href: "/mandate/reports", icon: "◆", label: "Reports" },
+  { href: "/mandate/governance", icon: "◆", label: "Governance" },
+  { href: "/mandate/admin/structure", icon: "◆", label: "Posts and bodies" },
+  { href: "/mandate/admin/library", icon: "◆", label: "By-law library" },
+];
 
 // Setup order, not alphabetical: orgs must exist before employees can be
 // added to them, employees before EPAS policy/competencies mean anything,
@@ -54,9 +64,8 @@ const ORG_ADMIN_NAV: NavItem[] = [
 ];
 const USER_ADMIN_NAV: NavItem[] = [{ href: "/users", icon: "☷", label: "Manage Users" }];
 
-// Sections collapsed by default (before any cookie override) - Mandate has
-// nothing in it yet, so it starts out of the way.
-export const DEFAULT_COLLAPSED_SECTIONS = ["mandate"];
+// Sections collapsed by default (before any cookie override).
+export const DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 
 // Defined at module scope (rather than inline in the toggle handler) so the
 // write is a plain function call from the component, not a bare
