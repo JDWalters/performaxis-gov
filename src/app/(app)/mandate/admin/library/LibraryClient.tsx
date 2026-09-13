@@ -9,6 +9,7 @@
  */
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import type { MandateBylawPack } from "@/lib/data/mandate-shared";
 import { adoptBylawPack, removeBylawPack } from "../actions";
 
@@ -67,6 +68,9 @@ export function LibraryClient({ orgId, packs, adopted }: { orgId: string; packs:
           <div className="eyebrow gold">Set up</div>
           <h1 className="serif">By-law library</h1>
         </div>
+        <Link href={`/mandate/admin/import?org=${orgId}&pack=1`} className="btn">
+          Create a pack from a CSV
+        </Link>
       </div>
       <p className="pnote">
         Pre-built delegation packs for common by-laws. Adding a pack copies its rows into this register as new

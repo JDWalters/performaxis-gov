@@ -117,6 +117,9 @@ export function GovernanceClient({
           currentUserId={currentUserId}
           canManage={canManage}
           onOpenRegister={() => router.push(`/mandate?org=${org.id}`)}
+          onOpenStructure={() => router.push(`/mandate/admin/structure?org=${org.id}`)}
+          onOpenLibrary={() => router.push(`/mandate/admin/library?org=${org.id}`)}
+          onOpenImport={() => router.push(`/mandate/admin/import?org=${org.id}`)}
         />
       )}
 
@@ -174,6 +177,9 @@ function Dashboard({
   currentUserId,
   canManage,
   onOpenRegister,
+  onOpenStructure,
+  onOpenLibrary,
+  onOpenImport,
 }: {
   entries: MandateEntry[];
   changes: MandateChangeRequest[];
@@ -182,6 +188,9 @@ function Dashboard({
   currentUserId: string | null;
   canManage: boolean;
   onOpenRegister: () => void;
+  onOpenStructure: () => void;
+  onOpenLibrary: () => void;
+  onOpenImport: () => void;
 }) {
   const actionCount = entries.filter((e) => alignment(e) === "action").length;
   const myDrafts = changes.filter((c) => c.status === "draft" && c.createdBy === currentUserId).length;
@@ -219,12 +228,21 @@ function Dashboard({
               Administrator — working on the register directly
             </h3>
             <p className="muted">
-              Setting a register up is not the same as amending one that is already in force. Posts/bodies setup, the
-              by-law library and the delegation importer are being built next.
+              Setting a register up is not the same as amending one that is already in force. Changes made here are
+              written to the register immediately, without an approval step, and are recorded in the audit trail.
             </p>
             <div className="btnrow">
               <button type="button" className="btn" onClick={onOpenRegister}>
                 Open the register
+              </button>
+              <button type="button" className="btn" onClick={onOpenStructure}>
+                Posts and bodies
+              </button>
+              <button type="button" className="btn" onClick={onOpenLibrary}>
+                By-law library
+              </button>
+              <button type="button" className="btn" onClick={onOpenImport}>
+                Import delegations
               </button>
             </div>
           </div>

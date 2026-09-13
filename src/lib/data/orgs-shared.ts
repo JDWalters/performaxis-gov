@@ -15,9 +15,16 @@ export const KIND_LABEL: Record<OrgKind, string> = {
   district: "District",
   municipality: "Municipality",
   department: "Department",
+  water_board: "Water Board",
 };
 
-/** Kinds a user is allowed to create through the UI - "national" is a fixed singleton seeded once, never user-created. */
+/**
+ * Kinds a user is allowed to create through the UI - "national" is a fixed
+ * singleton seeded once, never user-created. "water_board" is also excluded:
+ * it's a Mandate-specific statutory-body kind (currently just Sand-Vet
+ * Water Users Association), created directly in the DB rather than through
+ * this generic municipal-structure form - see the note in mandate.ts.
+ */
 export const CREATABLE_KINDS: OrgKind[] = ["provincial", "district", "municipality", "department"];
 
 export type OrgNode = {

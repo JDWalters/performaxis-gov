@@ -7,6 +7,7 @@ const KIND_TAG: Record<OrgKind, string> = {
   district: "stag-almost",
   municipality: "stag-met",
   department: "stag-okk",
+  water_board: "stag-blue",
 };
 
 function OrgRow({ node, depth }: { node: OrgNode; depth: number }) {

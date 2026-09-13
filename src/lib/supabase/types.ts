@@ -1283,6 +1283,7 @@ export type Database = {
         | "district"
         | "municipality"
         | "department"
+        | "water_board"
       scope_type: "node_and_descendants" | "node_only" | "employee_only"
     }
     CompositeTypes: {
@@ -1418,6 +1419,7 @@ export const Constants = {
         "district",
         "municipality",
         "department",
+        "water_board",
       ],
       scope_type: ["node_and_descendants", "node_only", "employee_only"],
     },

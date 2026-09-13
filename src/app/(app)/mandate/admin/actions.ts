@@ -434,3 +434,239 @@ export async function removeBylawPack(formData: FormData): Promise<void> {
   revalidatePath("/mandate/admin/library");
   revalidatePath("/mandate");
 }
+
+/* ==========================================================================
+   Bulk import - ported from admin.js's runImport()/runPack(). The file
+   parsing and column mapping happen client-side (ImportClient.tsx, mirroring
+   admin.js's own client-side CSV/XLSX reader); this action receives already
+   column-mapped rows and does the same three things the reference does:
+   append to the register, replace the whole register, or save as a by-law
+   pack in the library. Authority-name resolution for append/replace uses the
+   same resolveOne/resolveNames helpers as adoptBylawPack above, run against
+   *this* org's live posts and bodies - matching runImport()'s behaviour of
+   resolving immediately against the org that is being imported into. Rows
+   saved as a pack keep the raw semicolon-separated wording unresolved
+   (mirroring how the by-law library's seeded packs store it), because a pack
+   is not tied to one org and library.js's own adopt() only resolves those
+   names once a client actually adopts the pack.
+   ========================================================================== */
+
+export type ImportRow = {
+  ref: string;
+  legislation: string;
+  instrumentType: string;
+  provision: string;
+  description: string;
+  delegatingAuthority: string;
+  delegated: string;
+  delegatedBody: string;
+  delegate: string;
+  subDelegate: string;
+  furtherSubDelegate: string;
+  conditions: string;
+  reviewStatus: string;
+  reviewNote: string;
+  establishmentNote: string;
+  band: string;
+  sourceRef: string;
+};
+
+function statusFromDelegated(v: string): string {
+  const t = (v || "").trim().toLowerCase();
+  if (!t) return "";
+  if (/^not delegable|^may not be delegated|^non-delegable/.test(t)) return "not_delegable";
+  if (/^y/.test(t) || t === "delegated") return "delegated";
+  if (/^n/.test(t) || t === "reserved") return "reserved";
+  if (/^(—|–|-|n\/a|automatic)$/.test(t)) return "automatic";
+  return "";
+}
+
+function guessKind(leg: string): string {
+  const l = (leg || "").toLowerCase();
+  if (/\bact\b\s*\d+\s*of\s*\d{4}/.test(l)) return "Act";
+  if (l.indexOf("collective agreement") >= 0) return "Collective agreement";
+  if (l.indexOf("constitution") === 0) return "Constitution";
+  if (l.indexOf("by-law") >= 0 || l.indexOf("bylaw") >= 0) return "By-law";
+  if (l.indexOf("regulation") >= 0) return "Regulation";
+  if (l.indexOf("policy") >= 0) return "Policy";
+  if (l.indexOf("delegation") >= 0) return "Council delegation";
+  return "Instrument";
+}
+
+/** Bulk-load delegations into the register - append or full replace. Ported from admin.js's runImport(). */
+export async function importDelegations(formData: FormData): Promise<{ imported: number; unresolved: number; sourceName: string }> {
+  const orgId = str(formData, "orgId");
+  const mode = str(formData, "mode") === "replace" ? "replace" : "append";
+  const sourceName = str(formData, "sourceName") || "an imported file";
+  const rows = JSON.parse(str(formData, "rows") || "[]") as ImportRow[];
+  if (!orgId) throw new Error("Missing organisation.");
+  await requireAdmin(orgId);
+  if (!rows.length) return { imported: 0, unresolved: 0, sourceName };
+
+  const supabase = await createClient();
+  const [{ data: authorityRows, error: authError }, { data: org, error: orgError }] = await Promise.all([
+    supabase.from("mandate_authorities").select("id, name, short_label").eq("org_id", orgId),
+    supabase.from("orgs").select("metadata").eq("id", orgId).single(),
+  ]);
+  if (authError) fail(authError);
+  if (orgError) fail(orgError);
+
+  const authorities = ((authorityRows ?? []) as { id: string; name: string; short_label: string | null }[]).map((a) => ({
+    id: a.id,
+    name: a.name,
+    short: a.short_label,
+  }));
+  const orgMeta = (org as { metadata: Record<string, unknown> | null } | null)?.metadata ?? null;
+  const schedules = (orgMeta?.mandate as { schedules?: { code: string }[] } | undefined)?.schedules;
+  const defaultSchedule = schedules?.[0]?.code || "A";
+  const scheduleCodes = (schedules ?? []).map((s) => String(s.code).toUpperCase());
+
+  if (mode === "replace") {
+    const delTable = supabase.from("mandate_entries") as unknown as DeleteByEq;
+    const { error } = await delTable.delete().eq("org_id", orgId);
+    if (error) fail(error);
+  }
+
+  const { count: existing } = await supabase.from("mandate_entries").select("id", { count: "exact", head: true }).eq("org_id", orgId);
+  let n = existing ?? 0;
+  let unresolved = 0;
+  const newRows: Record<string, unknown>[] = [];
+
+  for (const r of rows) {
+    const desc = (r.description || "").trim();
+    const leg = (r.legislation || "").trim();
+    if (!desc || !leg) continue; // silently skipped, matching runImport()
+    n++;
+    let ref = (r.ref || "").replace(/\s+/g, " ").trim();
+    const ownMatch = ref.match(/^([A-Za-z])\s*[-.–]/);
+    const own = ownMatch ? ownMatch[1].toUpperCase() : "";
+    const mine = own && scheduleCodes.indexOf(own) >= 0 ? own : "";
+    if (!ref) ref = `${defaultSchedule}-${String(n).padStart(4, "0")}`;
+
+    const row: Record<string, unknown> = {
+      org_id: orgId,
+      ref,
+      schedule: mine || defaultSchedule,
+      legislation: leg,
+      band: r.band || leg,
+      instrument_type: r.instrumentType || guessKind(leg),
+      provision: r.provision || null,
+      description: desc,
+      conditions: r.conditions || null,
+      review_status: r.reviewStatus || null,
+      review_note: r.reviewNote || null,
+      establishment_note: r.establishmentNote || null,
+      source_ref: r.sourceRef || `Imported from ${sourceName}`,
+      status: "delegated",
+      reporting_category: null,
+      threshold_linked: false,
+      paja_linked: false,
+      instrument_confirm: false,
+    };
+
+    const chain: [string, string, string][] = [
+      ["delegatingAuthority", "delegating_authority", "delegating_note"],
+      ["delegatedBody", "delegated_body", "delegated_body_note"],
+      ["delegate", "delegate", "delegate_note"],
+      ["subDelegate", "sub_delegate", "sub_delegate_note"],
+      ["furtherSubDelegate", "further_sub_delegate", "further_sub_note"],
+    ];
+    for (const [srcKey, idsCol, noteCol] of chain) {
+      const raw = (r as unknown as Record<string, string>)[srcKey] || "";
+      const values = raw.split(/\s*;\s*/).filter(Boolean);
+      const got = resolveNames(values, authorities);
+      row[idsCol] = got.ids;
+      row[noteCol] = got.note || null;
+      if (got.note) unresolved++;
+    }
+    row.sub_delegate_none = (row.sub_delegate as string[]).length === 0 && !row.sub_delegate_note;
+    if (/reserved/i.test(r.reviewStatus || "")) row.status = "reserved";
+    const flag = statusFromDelegated(r.delegated || "");
+    if (flag) row.status = flag;
+
+    newRows.push(row);
+  }
+
+  if (newRows.length) {
+    const table = supabase.from("mandate_entries") as unknown as InsertOne;
+    const { error } = await table.insert(newRows as unknown as Record<string, unknown>);
+    if (error) fail(error);
+  }
+
+  const userId = await currentUserId();
+  await logEvent(
+    orgId,
+    userId,
+    "Delegations imported",
+    `${newRows.length} rows from ${sourceName}${mode === "replace" ? " (replaced the register)" : ""}${unresolved ? ` · ${unresolved} chain entries kept as wording` : ""}`
+  );
+
+  revalidatePath("/mandate");
+  revalidatePath("/mandate/authority");
+  revalidatePath("/mandate/overview");
+  return { imported: newRows.length, unresolved, sourceName };
+}
+
+/**
+ * Save imported rows as a new by-law pack in the library, instead of writing
+ * them into any register. Ported from admin.js's runPack(). The reference's
+ * pack record also carries a kind/description/source/appliesTo - this port's
+ * mandate_bylaw_packs table (set up in an earlier session, task #201) only
+ * has id/name/bylaw_title, so those extra fields have nowhere to go here;
+ * matching the existing getMandateBylawPacks()/LibraryClient.tsx, which
+ * likewise only ever reads name + bylawTitle and shows every pack to every
+ * org (no appliesTo-style filtering exists on this port's library screen).
+ */
+export async function importBylawPack(formData: FormData): Promise<{ packId: string; saved: number }> {
+  const orgId = str(formData, "orgId"); // used only for the permission check - packs are shared across orgs
+  const packName = str(formData, "packName");
+  const rows = JSON.parse(str(formData, "rows") || "[]") as ImportRow[];
+  if (!orgId) throw new Error("Missing organisation.");
+  await requireAdmin(orgId);
+  if (!packName.trim()) throw new Error("Name the by-law before saving it to the library.");
+
+  const supabase = await createClient();
+  const packTable = supabase.from("mandate_bylaw_packs") as unknown as InsertReturningId;
+  const { data: packData, error: packError } = await packTable
+    .insert({ name: packName.trim(), bylaw_title: packName.trim() })
+    .select("id")
+    .single();
+  if (packError) fail(packError);
+  const packId = (packData as { id: string }).id;
+
+  const entryRows: Record<string, unknown>[] = [];
+  for (const r of rows) {
+    const desc = (r.description || "").trim();
+    if (!desc) continue;
+    entryRows.push({
+      pack_id: packId,
+      provision: r.provision || null,
+      description: desc,
+      delegating_authority: (r.delegatingAuthority || "").split(/\s*;\s*/).filter(Boolean),
+      delegating_note: null,
+      status: /reserved/i.test(r.reviewStatus || "") ? "reserved" : "delegated",
+      delegated_body: (r.delegatedBody || "").split(/\s*;\s*/).filter(Boolean),
+      delegated_body_note: null,
+      delegate: (r.delegate || "").split(/\s*;\s*/).filter(Boolean),
+      delegate_note: null,
+      sub_delegate: (r.subDelegate || "").split(/\s*;\s*/).filter(Boolean),
+      sub_delegate_note: null,
+      sub_delegate_none: !(r.subDelegate || "").trim(),
+      further_sub_delegate: (r.furtherSubDelegate || "").split(/\s*;\s*/).filter(Boolean),
+      further_sub_note: null,
+      conditions: r.conditions || null,
+      reporting_category: null,
+    });
+  }
+  if (entryRows.length) {
+    const entryTable = supabase.from("mandate_bylaw_entries") as unknown as InsertOne;
+    const { error } = await entryTable.insert(entryRows as unknown as Record<string, unknown>);
+    if (error) fail(error);
+  }
+
+  const userId = await currentUserId();
+  await logEvent(orgId, userId, "Library pack created", `${packName.trim()} · ${entryRows.length} delegations`);
+
+  revalidatePath("/mandate/admin/library");
+  return { packId, saved: entryRows.length };
+}

@@ -60,11 +60,18 @@ const MANDATE_OPERATE_NAV: NavItem[] = [
 // addition), so it sits alongside the reference's own three Set up items
 // (Posts and bodies, Financial limits, Outstanding items) rather than
 // forcing a home in one of the reference's four groups.
+// "Import delegations" has no top-level slot in the reference app's own NAV
+// either - admin.js's importPage() is reachable only via library.js's
+// "Create a pack from a CSV" button, not a persistent nav link. This app
+// gives it a stable entry here (next to the other admin/setup screens, same
+// manage_mandate_setup gate as Posts and bodies / By-law library) since a
+// permanent sidebar can't rely on a button buried on another page.
 const MANDATE_SETUP_NAV: NavItem[] = [
   { href: "/mandate/admin/structure", icon: "⚬", label: "Posts and bodies" },
   { href: "/mandate/limits", icon: "¤", label: "Financial limits" },
   { href: "/mandate/outstanding", icon: "⚠", label: "Outstanding items" },
   { href: "/mandate/admin/library", icon: "▤", label: "By-law library" },
+  { href: "/mandate/admin/import", icon: "⇪", label: "Import delegations" },
 ];
 const MANDATE_MANAGE_NAV: NavItem[] = [
   { href: "/mandate/governance", icon: "⚑", label: "Governance workspace" },
