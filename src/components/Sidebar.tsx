@@ -42,12 +42,12 @@ const EPAS_NAV: NavItem[] = [
 // The delegation-of-powers register, folded in from the client's standalone
 // Mandate app. Grouping and icons are ported literally from the reference
 // app's own `NAV` array (assets/app.js: Register / Operate / Set up /
-// Manage, with the `i:` unicode glyph per row) rather than reinvented -
-// only routes that already exist in this app are linked; reference screens
-// with no equivalent here yet (Overview, Financial limits, Outstanding
-// items, Organisations, Settings) are deliberately left off rather than
-// pointing at a page that doesn't exist.
+// Manage, with the `i:` unicode glyph per row) rather than reinvented - all
+// nine reference screens now have a page here (Overview, Financial limits,
+// Outstanding items, Organisations and Settings were the last five, built
+// in a later session once the corresponding routes existed).
 const MANDATE_REGISTER_NAV: NavItem[] = [
+  { href: "/mandate/overview", icon: "■", label: "Overview" },
   { href: "/mandate", icon: "≡", label: "Delegations" },
   { href: "/mandate/authority", icon: "◆", label: "Who may do what" },
 ];
@@ -57,13 +57,20 @@ const MANDATE_OPERATE_NAV: NavItem[] = [
   { href: "/mandate/reports", icon: "☷", label: "Reports" },
 ];
 // "By-law library" has no reference-app equivalent (a performaxis-only
-// addition), so it sits alongside "Posts and bodies" in Set up rather than
+// addition), so it sits alongside the reference's own three Set up items
+// (Posts and bodies, Financial limits, Outstanding items) rather than
 // forcing a home in one of the reference's four groups.
 const MANDATE_SETUP_NAV: NavItem[] = [
   { href: "/mandate/admin/structure", icon: "⚬", label: "Posts and bodies" },
+  { href: "/mandate/limits", icon: "¤", label: "Financial limits" },
+  { href: "/mandate/outstanding", icon: "⚠", label: "Outstanding items" },
   { href: "/mandate/admin/library", icon: "▤", label: "By-law library" },
 ];
-const MANDATE_MANAGE_NAV: NavItem[] = [{ href: "/mandate/governance", icon: "⚑", label: "Governance workspace" }];
+const MANDATE_MANAGE_NAV: NavItem[] = [
+  { href: "/mandate/governance", icon: "⚑", label: "Governance workspace" },
+  { href: "/mandate/orgs", icon: "⊞", label: "Organisations" },
+  { href: "/mandate/settings", icon: "⚙", label: "Settings" },
+];
 
 // Setup order, not alphabetical: orgs must exist before employees can be
 // added to them, employees before EPAS policy/competencies mean anything,

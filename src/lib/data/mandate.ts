@@ -14,6 +14,8 @@ import type {
   MandateDecision,
   MandateBylawPack,
   MandateBylawPackEntry,
+  MandateThreshold,
+  MandateOutstandingItem,
 } from "@/lib/data/mandate-shared";
 
 export type {
@@ -24,6 +26,8 @@ export type {
   MandateDecision,
   MandateBylawPack,
   MandateBylawPackEntry,
+  MandateThreshold,
+  MandateOutstandingItem,
   MandateFlag,
   AuthorityOption,
   AuthorityMap,
@@ -48,6 +52,9 @@ export {
   authorityOptions,
   mandateMoney,
   ALIGN_LABEL,
+  thresholdIsBlank,
+  blockedEntryRefs,
+  openOutstandingItems,
 } from "@/lib/data/mandate-shared";
 
 type OrgRow = Pick<Tables<"orgs">, "id" | "name" | "code" | "kind" | "metadata">;
@@ -271,6 +278,41 @@ export async function getMandateInstruments(orgId: string): Promise<MandateInstr
   }));
 }
 
+type HoldsRow = { delegate: string[] | null; delegated_body: string[] | null };
+
+/**
+ * How many delegated powers each authority currently holds, for the
+ * "Holds" column on the Posts and bodies admin screen - ported from the
+ * reference app's structure() in views.js: holds = entries where
+ * delegatesOf(e) (delegateIds, falling back to delegatedBodyIds - see
+ * mandate-shared.ts's delegatesOf) includes the authority's id. Deliberately
+ * NOT a count across all five authority fields (delegating_authority,
+ * sub_delegate, further_sub_delegate are excluded) - the reference only
+ * counts who currently *holds* the power, not everyone named on the entry.
+ */
+export async function getMandateHoldsCounts(orgId: string): Promise<Map<string, number>> {
+  const supabase = await createClient();
+  const PAGE = 1000;
+  const counts = new Map<string, number>();
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("mandate_entries")
+      .select("delegate, delegated_body")
+      .eq("org_id", orgId)
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as unknown as HoldsRow[];
+    for (const row of page) {
+      const delegate = row.delegate ?? [];
+      const holders = delegate.length ? delegate : row.delegated_body ?? [];
+      for (const id of holders) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    if (page.length < PAGE) break;
+  }
+  return counts;
+}
+
 type DecisionRow = {
   id: string;
   org_id: string;
@@ -386,6 +428,85 @@ export async function getBylawAdoptedCounts(orgId: string): Promise<Map<string, 
     out.set(row.pack_id, (out.get(row.pack_id) ?? 0) + 1);
   }
   return out;
+}
+
+type ThresholdRow = {
+  id: string;
+  org_id: string;
+  item: string;
+  authority: string | null;
+  amount: number | null;
+  wording: string | null;
+  source: string | null;
+};
+
+/** Annexure B - the financial/decision limits register. Ported from the reference app's `limits` view (assets/views.js). */
+export async function getMandateThresholds(orgId: string): Promise<MandateThreshold[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("mandate_thresholds")
+    .select("id, org_id, item, authority, amount, wording, source")
+    .eq("org_id", orgId)
+    .order("item");
+  if (error) throw error;
+  return ((data ?? []) as unknown as ThresholdRow[]).map((t) => ({
+    id: t.id,
+    orgId: t.org_id,
+    item: t.item,
+    authorityId: t.authority,
+    amount: t.amount,
+    wording: t.wording,
+    source: t.source,
+  }));
+}
+
+type OutstandingRow = {
+  id: string;
+  org_id: string;
+  no: number | null;
+  item: string;
+  affects: string | null;
+  responsible: string | null;
+  status: string;
+  due: string | null;
+  closed_note: string | null;
+};
+
+/** Annexure F - open questions/gaps that block or qualify part of the register. Ported from the reference app's `outstanding` view (assets/views.js). */
+export async function getMandateOutstandingItems(orgId: string): Promise<MandateOutstandingItem[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("mandate_outstanding_items")
+    .select("id, org_id, no, item, affects, responsible, status, due, closed_note")
+    .eq("org_id", orgId);
+  if (error) throw error;
+  return ((data ?? []) as unknown as OutstandingRow[]).map((o) => ({
+    id: o.id,
+    orgId: o.org_id,
+    no: o.no,
+    item: o.item,
+    affects: o.affects,
+    responsibleId: o.responsible,
+    status: o.status,
+    due: o.due,
+    closedNote: o.closed_note,
+  }));
+}
+
+export type MandateOrgCounts = { entries: number; posts: number; openItems: number };
+
+/** Row counts for the Organisations screen - exact counts via head requests rather than fetching full tables (Kopanong alone has 1387 entries). Ported from the reference app's `orgs` view, which counts the same three columns per client. */
+export async function getMandateOrgCounts(orgId: string): Promise<MandateOrgCounts> {
+  const supabase = await createClient();
+  const [entries, posts, openItems] = await Promise.all([
+    supabase.from("mandate_entries").select("id", { count: "exact", head: true }).eq("org_id", orgId),
+    supabase.from("mandate_authorities").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("kind", "post"),
+    supabase.from("mandate_outstanding_items").select("id", { count: "exact", head: true }).eq("org_id", orgId).neq("status", "closed"),
+  ]);
+  if (entries.error) throw entries.error;
+  if (posts.error) throw posts.error;
+  if (openItems.error) throw openItems.error;
+  return { entries: entries.count ?? 0, posts: posts.count ?? 0, openItems: openItems.count ?? 0 };
 }
 
 /** has_org_access() for a Mandate permission - shared by the page (gating "+ Add a delegation") and any future server actions. */

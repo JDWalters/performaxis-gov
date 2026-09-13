@@ -1,4 +1,4 @@
-import { getMandateOrgs, getMandateAuthorities, hasMandatePermission } from "@/lib/data/mandate";
+import { getMandateOrgs, getMandateAuthorities, getMandateHoldsCounts, hasMandatePermission } from "@/lib/data/mandate";
 import { MandateOrgSwitcher } from "../../MandateOrgSwitcher";
 import { StructureClient } from "./StructureClient";
 import "../../mandate.css";
@@ -20,8 +20,9 @@ export default async function MandateStructurePage({ searchParams }: { searchPar
   }
 
   const selected = orgs.find((o) => o.id === orgParam) ?? orgs[0];
-  const [authorities, canManage] = await Promise.all([
+  const [authorities, holdsCounts, canManage] = await Promise.all([
     getMandateAuthorities(selected.id),
+    getMandateHoldsCounts(selected.id),
     hasMandatePermission(selected.id, "manage_mandate_setup"),
   ]);
 
@@ -41,7 +42,7 @@ export default async function MandateStructurePage({ searchParams }: { searchPar
       <div className="page" style={{ padding: "24px 26px 0" }}>
         <MandateOrgSwitcher orgs={orgs.map((o) => ({ id: o.id, name: o.name }))} currentOrgId={selected.id} basePath="/mandate/admin/structure" />
       </div>
-      <StructureClient orgId={selected.id} authorities={authorities} />
+      <StructureClient orgId={selected.id} authorities={authorities} holdsByAuthority={Object.fromEntries(holdsCounts)} />
     </div>
   );
 }

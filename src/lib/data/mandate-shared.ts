@@ -293,6 +293,48 @@ export type MandateBylawPackEntry = {
   reportingCategory: string | null;
 };
 
+export type MandateThreshold = {
+  id: string;
+  orgId: string;
+  item: string;
+  authorityId: string | null;
+  amount: number | null;
+  wording: string | null;
+  source: string | null;
+};
+
+/** A limit blocks the power it names until someone sets it - blank amount AND no textual wording. Ported from app.js's blankThresholds(). */
+export function thresholdIsBlank(t: MandateThreshold): boolean {
+  return t.amount == null && !t.wording;
+}
+
+/** Entries whose ref is named in a blank threshold's item text, e.g. "Interim accommodation ceiling (D-0468)" blocks D-0468. Ported from app.js's blockedEntries(). */
+export function blockedEntryRefs(thresholds: MandateThreshold[]): Map<string, MandateThreshold> {
+  const out = new Map<string, MandateThreshold>();
+  for (const t of thresholds) {
+    if (!thresholdIsBlank(t)) continue;
+    const m = /\(([A-I]-\d{2,4})\)/.exec(t.item);
+    if (m) out.set(m[1], t);
+  }
+  return out;
+}
+
+export type MandateOutstandingItem = {
+  id: string;
+  orgId: string;
+  no: number | null;
+  item: string;
+  affects: string | null;
+  responsibleId: string | null;
+  status: string; // 'open' | 'closed'
+  due: string | null;
+  closedNote: string | null;
+};
+
+export function openOutstandingItems(items: MandateOutstandingItem[]): MandateOutstandingItem[] {
+  return items.filter((o) => o.status !== "closed");
+}
+
 export type AuthorityOption = { v: string; l: string };
 
 /** "R 1,234.00" - ported from app.js's money(). */

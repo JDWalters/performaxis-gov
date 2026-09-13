@@ -31,7 +31,16 @@ function blank(kind: Kind): Draft {
   return { id: "", kind, name: "", short: "", department: "", incumbent: "", note: "", vacant: false };
 }
 
-export function StructureClient({ orgId, authorities }: { orgId: string; authorities: MandateAuthority[] }) {
+export function StructureClient({
+  orgId,
+  authorities,
+  holdsByAuthority,
+}: {
+  orgId: string;
+  authorities: MandateAuthority[];
+  /** entry count each authority currently holds - see getMandateHoldsCounts() */
+  holdsByAuthority: Record<string, number>;
+}) {
   const router = useRouter();
   const [q, setQ] = useState("");
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -147,6 +156,7 @@ export function StructureClient({ orgId, authorities }: { orgId: string; authori
                     <th>Name</th>
                     <th>{kind === "post" ? "Incumbent" : "Note"}</th>
                     {kind === "post" && <th>Department</th>}
+                    <th>Holds</th>
                     <th>Status</th>
                     <th className="go" />
                   </tr>
@@ -160,6 +170,9 @@ export function StructureClient({ orgId, authorities }: { orgId: string; authori
                       </td>
                       <td>{kind === "post" ? a.incumbent || "—" : a.note || "—"}</td>
                       {kind === "post" && <td>{a.department || "—"}</td>}
+                      <td>
+                        <span className="mono small">{holdsByAuthority[a.id] ?? 0}</span>
+                      </td>
                       <td>{a.vacant ? <span className="pill not_delegable">Vacant</span> : <span className="pill accepted">Filled</span>}</td>
                       <td className="go">
                         <button
