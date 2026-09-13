@@ -209,17 +209,32 @@ function toMandateEntry(r: EntryRow): MandateEntry {
   };
 }
 
+const ENTRY_COLUMNS =
+  "id, org_id, ref, schedule, band, provision, legislation, source_legislation, description, delegating_authority, delegating_note, status, delegated_body, delegated_body_note, delegate, delegate_note, sub_delegate, sub_delegate_note, sub_delegate_none, further_sub_delegate, further_sub_note, conditions, reporting_category, threshold_linked, paja_linked, review_status, review_note, establishment_note, source_ref, instrument_type, instrument_confirm";
+
 export async function getMandateEntries(orgId: string): Promise<MandateEntry[]> {
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("mandate_entries")
-    .select(
-      "id, org_id, ref, schedule, band, provision, legislation, source_legislation, description, delegating_authority, delegating_note, status, delegated_body, delegated_body_note, delegate, delegate_note, sub_delegate, sub_delegate_note, sub_delegate_none, further_sub_delegate, further_sub_note, conditions, reporting_category, threshold_linked, paja_linked, review_status, review_note, establishment_note, source_ref, instrument_type, instrument_confirm"
-    )
-    .eq("org_id", orgId)
-    .order("ref");
-  if (error) throw error;
-  return ((data ?? []) as unknown as EntryRow[]).map(toMandateEntry);
+  // PostgREST caps any single response at the project's max-rows setting
+  // (1000 by default) regardless of how many rows actually match - Kopanong
+  // alone has 1368 entries, so a single .select() here was silently
+  // truncating the register by ~370 rows. Page through in batches of 1000
+  // via .range() until a page comes back short, rather than relying on the
+  // project's db-level config (which this codebase doesn't otherwise touch).
+  const PAGE = 1000;
+  const rows: EntryRow[] = [];
+  for (let from = 0; ; from += PAGE) {
+    const { data, error } = await supabase
+      .from("mandate_entries")
+      .select(ENTRY_COLUMNS)
+      .eq("org_id", orgId)
+      .order("ref")
+      .range(from, from + PAGE - 1);
+    if (error) throw error;
+    const page = (data ?? []) as unknown as EntryRow[];
+    rows.push(...page);
+    if (page.length < PAGE) break;
+  }
+  return rows.map(toMandateEntry);
 }
 
 type InstrumentRow = {
