@@ -12,18 +12,22 @@ type LibraryKpi = {
   kpa: string | null;
   unitOfMeasure: string | null;
   targetType: string;
+  deptOrgId: string;
+  deptName: string;
   alreadyOnScorecard: boolean;
 };
 
 export function ManageKpisClient({
   scorecardId,
   departmentOrgId,
+  isTopLayer,
   currentKpis,
   availableLibrary,
   circular88Catalogue,
 }: {
   scorecardId: string;
   departmentOrgId: string;
+  isTopLayer: boolean;
   currentKpis: CurrentKpi[];
   availableLibrary: LibraryKpi[];
   circular88Catalogue: Circular88Indicator[];
@@ -42,8 +46,10 @@ export function ManageKpisClient({
   const filteredLibrary = useMemo(() => {
     const term = libSearch.trim().toLowerCase();
     if (!term) return availableLibrary;
-    return availableLibrary.filter((k) => [k.name, k.kpa].some((f) => f?.toLowerCase().includes(term)));
-  }, [availableLibrary, libSearch]);
+    return availableLibrary.filter((k) =>
+      [k.name, k.kpa, isTopLayer ? k.deptName : null].some((f) => f?.toLowerCase().includes(term))
+    );
+  }, [availableLibrary, libSearch, isTopLayer]);
 
   function handleDelete() {
     const ids = Object.entries(deleteChecked)
@@ -70,9 +76,18 @@ export function ManageKpisClient({
   }
 
   function handleAdd() {
+    const byId = new Map(availableLibrary.map((k) => [k.id, k]));
     const items = Object.entries(addChecked)
       .filter(([, v]) => v)
-      .map(([libraryId]) => ({ libraryId, refCode: refCodes[libraryId]?.trim() || undefined }));
+      .map(([libraryId]) => ({
+        libraryId,
+        refCode: refCodes[libraryId]?.trim() || undefined,
+        // On Top Layer, each added KPI is tagged with the department its
+        // source library entry belongs to - that tag is independent,
+        // per-KPI data on this scorecard from that point on, not a live
+        // link back to the library or that department's own scorecard.
+        deptOrgId: isTopLayer ? byId.get(libraryId)?.deptOrgId : undefined,
+      }));
     if (items.length === 0) return;
     setMessage(null);
     startTransition(async () => {
@@ -165,7 +180,11 @@ export function ManageKpisClient({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-bold text-ink">Add from this department&apos;s library ({availableLibrary.length})</h2>
+        <h2 className="text-sm font-bold text-ink">
+          {isTopLayer
+            ? `Add KPIs from library, any department (${availableLibrary.length})`
+            : `Add from this department's library (${availableLibrary.length})`}
+        </h2>
         <input
           type="search"
           value={libSearch}
@@ -182,6 +201,7 @@ export function ManageKpisClient({
                 <tr className="border-b border-line bg-paper text-left text-[11px] font-bold uppercase text-ink2">
                   <th className="px-3 py-2">Add</th>
                   <th className="px-3 py-2">KPI</th>
+                  {isTopLayer && <th className="px-3 py-2">Dept</th>}
                   <th className="px-3 py-2">KPA</th>
                   <th className="px-3 py-2">Ref code</th>
                 </tr>
@@ -203,6 +223,13 @@ export function ManageKpisClient({
                         <div className="text-[11px] font-semibold text-ink2">Already on this scorecard</div>
                       )}
                     </td>
+                    {isTopLayer && (
+                      <td className="px-3 py-2 align-top text-ink2">
+                        <span className="rounded bg-ink px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-white">
+                          {k.deptName}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-3 py-2 align-top text-ink2">{k.kpa ?? "—"}</td>
                     <td className="px-3 py-2 align-top">
                       <input

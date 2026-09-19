@@ -28,7 +28,7 @@ export function DepartmentPicker({
     >
       {options.map((o) => (
         <option key={o.id} value={o.id}>
-          {o.orgName ?? o.label}
+          {o.isTopLayer ? o.label : (o.orgName ?? o.label)}
         </option>
       ))}
     </select>

@@ -31,6 +31,10 @@ type OutgoingKpi = {
   kpa: string | null;
   idp_ref: string | null;
   weight: number;
+  // Only ever set on Top Layer SDBIP KPIs (see scorecard_kpis.dept_org_id) -
+  // carried forward like every other field so a rolled-over Top Layer KPI
+  // keeps its department tag instead of silently losing it.
+  dept_org_id: string | null;
   unit_of_measure: string | null;
   target_type: string;
   calc_config: Record<string, unknown> | null;
@@ -112,7 +116,7 @@ export async function createNewFinancialYear(formData: FormData) {
     const { data: kpiRowsRaw, error: kpiErr } = await supabase
       .from("scorecard_kpis")
       .select(
-        "id, kpi_library_id, ref_code, name, kpa, idp_ref, weight, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_targets(quarter, target_value), kpi_results(quarter, actual)"
+        "id, kpi_library_id, ref_code, name, kpa, idp_ref, weight, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, dept_org_id, kpi_targets(quarter, target_value), kpi_results(quarter, actual)"
       )
       .eq("scorecard_id", oldScorecard.id);
     if (kpiErr) throw new Error(kpiErr.message);
@@ -146,6 +150,7 @@ export async function createNewFinancialYear(formData: FormData) {
         baseline,
         annual_target: k.annual_target,
         poe: k.poe,
+        dept_org_id: k.dept_org_id,
       });
       kpisCopied++;
 

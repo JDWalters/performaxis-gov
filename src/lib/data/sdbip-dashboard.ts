@@ -12,7 +12,15 @@ import {
   type Accumulation,
 } from "@/lib/data/sdbip-status";
 
-export type ScorecardOption = { id: string; label: string; orgId: string; orgName?: string; orgCode?: string | null };
+export type ScorecardOption = {
+  id: string;
+  label: string;
+  orgId: string;
+  orgName?: string;
+  orgCode?: string | null;
+  /** True when this option is the Top Layer SDBIP - a real scorecard scoped to the municipality-level org itself (orgs.kind = 'municipality'), not a computed rollup. */
+  isTopLayer?: boolean;
+};
 
 export type AttentionKpi = {
   refCode: string | null;
@@ -29,6 +37,8 @@ export type DashboardData = {
   scorecards: ScorecardOption[];
   selectedScorecardId: string;
   selectedLabel: string;
+  /** True when the selected scorecard is the Top Layer SDBIP - drives the department-breakdown view and Dept column, same as the old `selectedScorecardId === "top"` check, but now backed by a real scorecard rather than a synthesized id. */
+  isTopLayer: boolean;
   period: Period;
   kpiCount: number;
   tally: StatusTally;
@@ -53,6 +63,8 @@ type Row = {
   name: string;
   kpa: string | null;
   scorecard_id: string;
+  dept_org_id: string | null;
+  dept: { id: string; name: string; code: string | null } | null;
   calc_config: { lower?: boolean; acc?: string } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
@@ -63,7 +75,7 @@ type Row = {
   }[];
 };
 
-type ScorecardRow = { id: string; org: { id: string; name: string; code: string | null } | null };
+type ScorecardRow = { id: string; org: { id: string; name: string; code: string | null; kind: string } | null };
 
 // Standard SA municipal SDBIP reporting order: MM's office, then Finance,
 // Corporate, Technical, Community - not alphabetical. Falls back to
@@ -84,51 +96,47 @@ export function quarterArray<R extends { quarter: number }, T>(rows: R[], pick: 
 }
 
 /**
- * The SDBIP performance dashboard's full rollup for a chosen scorecard
- * ("top" = every department combined, matching the reference app's "Top
- * Layer SDBIP") and period (a single quarter, "mid" = as-of-Q2, or "annual"
- * = as-of-Q4). Computed live from kpi_targets/kpi_results using the same
- * 5-tier statusFor() classification as the client's reference prototype.
- *
- * financialYearId scopes everything to one year's scorecards - each
- * financial year has its own independent scorecard row per department (see
- * scorecards.financial_year_id), so "top" must only aggregate the KPIs that
- * belong to *this* year's scorecards, never every year's at once. Omitting
- * it (or the signed-in user having no municipality-level org yet) falls back
- * to every scorecard regardless of year, matching this function's original,
- * pre-financial-year behaviour.
- */
-/**
- * The picker options for every department scorecard the signed-in user can
- * see (plus the "Top Layer SDBIP" pseudo-option), scoped to one financial
- * year - factored out of getSdbipDashboard() so a caller that only needs the
- * options list (e.g. a department switcher on the scorecard detail page)
- * doesn't have to pull the full KPI rollup just to build a <select>.
+ * The picker options for every scorecard the signed-in user can see in one
+ * financial year: the real Top Layer SDBIP (scorecards.org_id = the
+ * municipality-level org, orgs.kind = 'municipality') plus each department's
+ * own scorecard. Both kinds are ordinary rows in the same `scorecards` table
+ * now - Top Layer used to be a synthesized `{ id: "top" }` pseudo-option that
+ * live-aggregated every department's KPIs; the client's own reference tool
+ * confirmed Top Layer is instead a real, independently-captured register
+ * (its own KPI codes like OMM1/FMS1, its own quarterly figures), so this
+ * just reads it like any other scorecard and tags it via isTopLayer for
+ * callers that still need to special-case its presentation (department
+ * breakdown view, Dept column, etc).
  */
 export async function getScorecardOptions(financialYearId?: string | null): Promise<ScorecardOption[]> {
   const supabase = await createClient();
 
-  let scorecardsQuery = supabase.from("scorecards").select("id, org:orgs(id, name, code)");
+  let scorecardsQuery = supabase.from("scorecards").select("id, org:orgs(id, name, code, kind)");
   if (financialYearId) scorecardsQuery = scorecardsQuery.eq("financial_year_id", financialYearId);
   const { data: scorecardRows, error: scErr } = await scorecardsQuery;
   if (scErr) throw scErr;
 
   const scorecards = (scorecardRows ?? []) as unknown as ScorecardRow[];
-  return [
-    { id: "top", label: "Top Layer SDBIP", orgId: "" },
-    ...scorecards
-      .filter((s) => s.org)
-      .map((s) => ({
+  return scorecards
+    .filter((s) => s.org)
+    .map((s) => {
+      const isTopLayer = s.org!.kind === "municipality";
+      return {
         id: s.id,
-        label: `${s.org!.name} — Departmental SDBIP`,
+        label: isTopLayer ? "Top Layer SDBIP" : `${s.org!.name} — Departmental SDBIP`,
         orgId: s.org!.id,
         orgName: s.org!.name,
         orgCode: s.org!.code,
-      }))
-      .sort(
-        (a, b) => departmentSortKey(a.orgCode) - departmentSortKey(b.orgCode) || a.label.localeCompare(b.label)
-      ),
-  ];
+        isTopLayer,
+      };
+    })
+    .sort((a, b) =>
+      a.isTopLayer !== b.isTopLayer
+        ? a.isTopLayer
+          ? -1
+          : 1
+        : departmentSortKey(a.orgCode) - departmentSortKey(b.orgCode) || a.label.localeCompare(b.label)
+    );
 }
 
 // Same numbers-before-letters ref-code sort as scorecards.ts's naturalCompare
@@ -176,6 +184,8 @@ type ReportRow = {
   kpa: string | null;
   unit_of_measure: string | null;
   scorecard_id: string;
+  dept_org_id: string | null;
+  dept: { id: string; name: string; code: string | null } | null;
   calc_config: { lower?: boolean; acc?: string } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: { quarter: number; actual: string | null; corrective_action: string | null }[];
@@ -187,8 +197,9 @@ type ReportRow = {
  * status logic as getSdbipDashboard() above (deliberately not reusing
  * getScorecardDetail() here - that also runs two has_org_access RPCs and
  * signs evidence-file URLs per KPI, both pointless for a read-only report
- * that never lets you capture from it). "top" pulls every scorecard in the
- * financial year, same fallback rule as getSdbipDashboard().
+ * that never lets you capture from it). A scorecardId that doesn't resolve
+ * to one of this financial year's options falls back to the Top Layer
+ * scorecard, same as getSdbipDashboard() below.
  */
 export async function getSdbipReportKpis(
   scorecardId: string | undefined,
@@ -198,26 +209,22 @@ export async function getSdbipReportKpis(
   const supabase = await createClient();
 
   const options = await getScorecardOptions(financialYearId);
-  const scorecardIdsInYear = options.filter((o) => o.id !== "top").map((o) => o.id);
-  const selected =
-    scorecardId && scorecardId !== "top" && scorecardIdsInYear.includes(scorecardId) ? scorecardId : "top";
-  const targetIds = selected !== "top" ? [selected] : scorecardIdsInYear;
+  const topOption = options.find((o) => o.isTopLayer);
+  const selectedOption = options.find((o) => o.id === scorecardId) ?? topOption ?? options[0];
+  const isTop = Boolean(selectedOption?.isTopLayer);
 
   let kpiRows: unknown[] | null = [];
-  if (targetIds.length > 0) {
+  if (selectedOption) {
     const { data, error: kpiErr } = await supabase
       .from("scorecard_kpis")
       .select(
-        "id, ref_code, name, kpa, unit_of_measure, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, corrective_action)"
+        "id, ref_code, name, kpa, unit_of_measure, scorecard_id, dept_org_id, dept:orgs!scorecard_kpis_dept_org_id_fkey(id, name, code), calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, corrective_action)"
       )
-      .in("scorecard_id", targetIds);
+      .eq("scorecard_id", selectedOption.id);
     if (kpiErr) throw kpiErr;
     kpiRows = data;
   }
 
-  const orgByScorecard = new Map(
-    options.filter((o) => o.id !== "top").map((o) => [o.id, { name: o.orgName!, code: o.orgCode ?? null }])
-  );
   const rows = (kpiRows ?? []) as unknown as ReportRow[];
   const qIdx = period === "mid" ? 1 : period === "annual" ? 3 : period - 1;
 
@@ -229,12 +236,17 @@ export async function getSdbipReportKpis(
       const actuals = quarterArray(k.kpi_results ?? [], (r) => r.actual, null);
       const status = statusForPeriod(actuals, targets, lower, acc, period);
       const value = effectiveValue(actuals, qIdx, acc);
-      const org = orgByScorecard.get(k.scorecard_id);
+      // On the Top Layer scorecard, "org" for display purposes is the KPI's
+      // own department tag (dept_org_id) - independent data, not a join back
+      // to a department scorecard. On an ordinary department scorecard it's
+      // just that scorecard's own org.
+      const orgName = isTop ? (k.dept?.name ?? "—") : (selectedOption?.orgName ?? "—");
+      const orgCode = isTop ? (k.dept?.code ?? null) : (selectedOption?.orgCode ?? null);
       const resultRow = (k.kpi_results ?? []).find((r) => r.quarter === qIdx + 1);
       return {
         scorecardId: k.scorecard_id,
-        orgName: org?.name ?? "—",
-        orgCode: org?.code ?? null,
+        orgName,
+        orgCode,
         refCode: k.ref_code,
         name: k.name,
         kpa: k.kpa,
@@ -261,42 +273,28 @@ export async function getSdbipDashboard(
   const supabase = await createClient();
 
   const options = await getScorecardOptions(financialYearId);
-  const scorecardIdsInYear = options.filter((o) => o.id !== "top").map((o) => o.id);
+  const topOption = options.find((o) => o.isTopLayer);
 
   // A scorecard id from a different financial year (e.g. a stale ?sc= link
-  // left over from before switching years) falls back to "top" instead of
-  // silently rendering another year's single-department view under this
-  // year's label.
-  const selected =
-    scorecardId && scorecardId !== "top" && scorecardIdsInYear.includes(scorecardId) ? scorecardId : "top";
-  const selectedOption = options.find((o) => o.id === selected) ?? options[0];
+  // left over from before switching years), or no id at all, falls back to
+  // the Top Layer scorecard instead of silently rendering another year's
+  // single-department view under this year's label.
+  const selectedOption = options.find((o) => o.id === scorecardId) ?? topOption ?? options[0];
+  const selected = selectedOption?.id ?? "";
+  const isTop = Boolean(selectedOption?.isTopLayer);
 
   let kpiRows: unknown[] | null = [];
-  if (selected !== "top") {
+  if (selected) {
     const { data, error: kpiErr } = await supabase
       .from("scorecard_kpis")
       .select(
-        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
+        "id, ref_code, name, kpa, scorecard_id, dept_org_id, dept:orgs!scorecard_kpis_dept_org_id_fkey(id, name, code), calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
       )
       .eq("scorecard_id", selected);
     if (kpiErr) throw kpiErr;
     kpiRows = data;
-  } else if (scorecardIdsInYear.length > 0) {
-    const { data, error: kpiErr } = await supabase
-      .from("scorecard_kpis")
-      .select(
-        "id, ref_code, name, kpa, scorecard_id, calc_config, kpi_targets(quarter, target_value), kpi_results(quarter, actual, comment, corrective_action)"
-      )
-      .in("scorecard_id", scorecardIdsInYear);
-    if (kpiErr) throw kpiErr;
-    kpiRows = data;
   }
 
-  const orgByScorecard = new Map(
-    options
-      .filter((o) => o.id !== "top")
-      .map((o) => [o.id, { id: o.orgId, name: o.orgName!, code: o.orgCode ?? null }])
-  );
   const rows = (kpiRows ?? []) as unknown as Row[];
 
   const tally = emptyTally();
@@ -317,7 +315,16 @@ export async function getSdbipDashboard(
     const status = statusForPeriod(actuals, targets, lower, acc, period);
     tally[status]++;
 
-    const org = orgByScorecard.get(k.scorecard_id);
+    // The "by department" breakdown groups by the KPI's own department tag
+    // when viewing the Top Layer scorecard (dept_org_id, independent of any
+    // department scorecard), or by the scorecard's single org otherwise.
+    const org = isTop
+      ? k.dept
+        ? { id: k.dept.id, name: k.dept.name, code: k.dept.code }
+        : null
+      : selectedOption
+        ? { id: selectedOption.orgId, name: selectedOption.orgName ?? "—", code: selectedOption.orgCode ?? null }
+        : null;
     if (org) {
       if (!deptMap.has(org.id)) {
         deptMap.set(org.id, {
@@ -366,7 +373,8 @@ export async function getSdbipDashboard(
   return {
     scorecards: options,
     selectedScorecardId: selected,
-    selectedLabel: selectedOption.label,
+    selectedLabel: selectedOption?.label ?? "Top Layer SDBIP",
+    isTopLayer: isTop,
     period,
     kpiCount: rows.length,
     tally,

@@ -101,7 +101,7 @@ export default async function SdbipReportPage({
     showTable ? getSdbipReportKpis(sc, period, fyId) : Promise.resolve([]),
   ]);
 
-  const isTop = dashboard.selectedScorecardId === "top";
+  const isTop = dashboard.isTopLayer;
   const generated = new Date().toLocaleDateString("en-ZA", { year: "numeric", month: "long", day: "numeric" });
 
   return (

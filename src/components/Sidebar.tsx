@@ -1,51 +1,65 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { signOut } from "@/app/(app)/actions";
 
 export const SIDEBAR_COLLAPSE_COOKIE = "px_sidebar_collapsed";
 export const SIDEBAR_SECTIONS_COOKIE = "px_sidebar_sections";
+// Remembers which product section the sidebar was last scoped to, so a route
+// that can't be resolved to a section from its own path alone (currently
+// just /reports, shared by SDBIP and EPAS) still renders a sensible scoped
+// nav instead of falling back to the neutral hub state. Written client-side
+// whenever the path DOES resolve to a section (see the effect below), read
+// back server-side on the next load exactly like the other sidebar cookies.
+export const SIDEBAR_ACTIVE_SECTION_COOKIE = "px_active_section";
 
 type NavItem = { href: string; icon: string; label: string };
 type NavSection = { id: string; label: string; items: NavItem[] };
+export type SectionId = "sdbip" | "epas" | "mandate";
 
 /** Icons mirror the reference tool's .navico glyphs where a direct equivalent
  * exists (Dashboard/Progress/Reports/library/setup all match literally); the
- * two items with no single-tenant reference equivalent (this app merges two
+ * items with no single-tenant reference equivalent (this app merges three
  * products plus adds multi-tenant admin screens) get a same-weight Unicode
  * dingbat in the same style rather than an emoji, to keep the sidebar
  * visually flat. */
-const DASHBOARD_ITEM: NavItem = { href: "/dashboard", icon: "◴", label: "Dashboard" };
+const SYSTEM_HUB_ITEM: NavItem = { href: "/dashboard", icon: "⌖", label: "System Hub" };
 
-// Reports covers both products (org-wide summary + CSV export are EPAS data,
-// the scorecards ZIP export is SDBIP data), so it's deliberately listed
-// under both sections rather than picking one home for it.
+// Reports covers both SDBIP and EPAS data (the scorecards ZIP export is
+// SDBIP, the org-wide summary + CSV export are EPAS), so it's deliberately
+// listed in both sections' nav rather than picking one home for it - see
+// SIDEBAR_ACTIVE_SECTION_COOKIE above for how the sidebar decides which
+// section's chrome to show while sitting on that shared route.
 const REPORTS_ITEM: NavItem = { href: "/reports", icon: "␙", label: "Reports" };
 
-// KPI setup lives under each product's own section now (previously both
-// sat under SETUP) - PerformAxis is unifying three of the client's separate
-// legacy tools (SDBIP/EPAS/MANDATE) into one system, so each product's
-// admin screens belong with that product, not lumped into a shared catch-all.
+// Order follows the client's own stated list verbatim: Dashboard first (it's
+// the section's landing view), then the day-to-day capture/progress/reports
+// flow, then the two setup screens last within the main list (Organisation
+// Setup is a *separate*, pinned-bottom item - see getPinnedBottomItems -
+// so it isn't duplicated up here).
 const SDBIP_NAV: NavItem[] = [
-  { href: "/scorecards", icon: "▦", label: "SDBIP Scorecards" },
+  { href: "/scorecards", icon: "◴", label: "Dashboard" },
+  { href: "/scorecards/capture", icon: "▦", label: "Capture Scorecards" },
   { href: "/progress", icon: "↗", label: "Performance Progress" },
-  { href: "/kpi-library", icon: "≡", label: "KPI Type Generator" },
   REPORTS_ITEM,
+  { href: "/scorecards/setup", icon: "⚒", label: "Setup Scorecards" },
+  { href: "/kpi-library", icon: "≡", label: "KPI Library" },
 ];
 const EPAS_NAV: NavItem[] = [
-  { href: "/appraisals", icon: "✓", label: "EPAS Appraisals" },
-  { href: "/epas-kpi-library", icon: "☰", label: "KPI setup" },
+  { href: "/appraisals", icon: "◴", label: "Dashboard" },
+  { href: "/epas-kpi-library", icon: "☰", label: "KPI Library" },
   REPORTS_ITEM,
 ];
 // The delegation-of-powers register, folded in from the client's standalone
 // Mandate app. Grouping and icons are ported literally from the reference
 // app's own `NAV` array (assets/app.js: Register / Operate / Set up /
-// Manage, with the `i:` unicode glyph per row) rather than reinvented - all
-// nine reference screens now have a page here (Overview, Financial limits,
-// Outstanding items, Organisations and Settings were the last five, built
-// in a later session once the corresponding routes existed).
+// Manage, with the `i:` unicode glyph per row) rather than reinvented. This
+// four-group shape is already well organised and Mandate-specific, so it's
+// kept as-is as Mandate's own in-section sub-groups rather than flattened or
+// folded into the cross-section pinned-bottom area.
 const MANDATE_REGISTER_NAV: NavItem[] = [
   { href: "/mandate/overview", icon: "■", label: "Overview" },
   { href: "/mandate", icon: "≡", label: "Delegations" },
@@ -56,16 +70,6 @@ const MANDATE_OPERATE_NAV: NavItem[] = [
   { href: "/mandate/decisions", icon: "✓", label: "Decision log" },
   { href: "/mandate/reports", icon: "☷", label: "Reports" },
 ];
-// "By-law library" has no reference-app equivalent (a performaxis-only
-// addition), so it sits alongside the reference's own three Set up items
-// (Posts and bodies, Financial limits, Outstanding items) rather than
-// forcing a home in one of the reference's four groups.
-// "Import delegations" has no top-level slot in the reference app's own NAV
-// either - admin.js's importPage() is reachable only via library.js's
-// "Create a pack from a CSV" button, not a persistent nav link. This app
-// gives it a stable entry here (next to the other admin/setup screens, same
-// manage_mandate_setup gate as Posts and bodies / By-law library) since a
-// permanent sidebar can't rely on a button buried on another page.
 const MANDATE_SETUP_NAV: NavItem[] = [
   { href: "/mandate/admin/structure", icon: "⚬", label: "Posts and bodies" },
   { href: "/mandate/limits", icon: "¤", label: "Financial limits" },
@@ -78,19 +82,65 @@ const MANDATE_MANAGE_NAV: NavItem[] = [
   { href: "/mandate/orgs", icon: "⊞", label: "Organisations" },
   { href: "/mandate/settings", icon: "⚙", label: "Settings" },
 ];
+const MANDATE_GROUPS: NavSection[] = [
+  { id: "mandate-register", label: "Mandate — Register", items: MANDATE_REGISTER_NAV },
+  { id: "mandate-operate", label: "Mandate — Operate", items: MANDATE_OPERATE_NAV },
+  { id: "mandate-setup", label: "Mandate — Set up", items: MANDATE_SETUP_NAV },
+  { id: "mandate-manage", label: "Mandate — Manage", items: MANDATE_MANAGE_NAV },
+];
 
-// Setup order, not alphabetical: orgs must exist before employees can be
-// added to them, employees before EPAS policy/competencies mean anything,
-// and inviting users is naturally the last step.
-const SETUP_NAV_BASE: NavItem[] = [];
-const ORG_ADMIN_NAV: NavItem[] = [
+// Global/cross-cutting admin screens - not owned by any one product. These
+// render in EVERY section's pinned-bottom area (per the client: "there might
+// be feature specific setups needed and global settings"), merged with
+// whatever setup screens are specific to the active section (EPAS Setup for
+// EPAS; SDBIP has none of its own here since Setup Scorecards/KPI Library
+// are already explicit mid-list items; Mandate's own admin screens stay in
+// its "Set up" group above rather than duplicating here, since they're not
+// global). Order matches the reference setup flow: orgs must exist before
+// employees can be added to them, before product-specific policy config
+// means anything, before inviting users is the natural last step.
+const ORG_GLOBAL_NAV: NavItem[] = [
   { href: "/orgs", icon: "⌂", label: "Org Management" },
   { href: "/employees", icon: "☺", label: "Employees" },
-  { href: "/epas-setup", icon: "⚙", label: "EPAS Setup" },
 ];
-const USER_ADMIN_NAV: NavItem[] = [{ href: "/users", icon: "☷", label: "Manage Users" }];
+const EPAS_SETUP_EXTRA: NavItem = { href: "/epas-setup", icon: "⚙", label: "EPAS Setup" };
+const USER_GLOBAL_NAV: NavItem[] = [{ href: "/users", icon: "☷", label: "Manage Users" }];
 
-// Sections collapsed by default (before any cookie override).
+function getPinnedBottomItems(
+  section: SectionId | null,
+  canManageOrgs: boolean,
+  canManageUsers: boolean
+): NavItem[] {
+  const items: NavItem[] = [];
+  if (canManageOrgs) {
+    items.push(...ORG_GLOBAL_NAV);
+    if (section === "epas") items.push(EPAS_SETUP_EXTRA);
+  }
+  if (canManageUsers) items.push(...USER_GLOBAL_NAV);
+  return items;
+}
+
+// Path prefixes that resolve unambiguously to one product section. Checked
+// against the live pathname on every render (see usePathname below) - this
+// is the primary, most-robust signal. /reports is deliberately absent: it's
+// shared by SDBIP and EPAS, so it can't be resolved from its path alone and
+// falls through to SIDEBAR_ACTIVE_SECTION_COOKIE instead.
+const SECTION_PREFIXES: { id: SectionId; prefixes: string[] }[] = [
+  { id: "sdbip", prefixes: ["/scorecards", "/progress", "/kpi-library"] },
+  { id: "epas", prefixes: ["/appraisals", "/epas-kpi-library", "/epas-setup"] },
+  { id: "mandate", prefixes: ["/mandate"] },
+];
+
+function detectSection(pathname: string): SectionId | null {
+  for (const { id, prefixes } of SECTION_PREFIXES) {
+    if (prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return id;
+  }
+  return null;
+}
+
+// Sections collapsed by default (before any cookie override) - only
+// Mandate's own sub-groups use this now (SDBIP/EPAS are flat, scoped lists
+// with no headers to collapse).
 export const DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 
 // Defined at module scope (rather than inline in the toggle handler) so the
@@ -98,6 +148,10 @@ export const DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 // `document.cookie = ...` statement inside it.
 function writeSectionsCookie(ids: string[]) {
   document.cookie = `${SIDEBAR_SECTIONS_COOKIE}=${encodeURIComponent(JSON.stringify(ids))}; path=/; max-age=${60 * 60 * 24 * 365}`;
+}
+
+function writeActiveSectionCookie(id: SectionId) {
+  document.cookie = `${SIDEBAR_ACTIVE_SECTION_COOKIE}=${id}; path=/; max-age=${60 * 60 * 24 * 365}`;
 }
 
 /** Chevron + label header that toggles a section's items open/closed - hidden entirely in the icon-only rail (nothing to collapse when there are no labels to hide). */
@@ -161,6 +215,7 @@ export function Sidebar({
   canManageOrgs,
   initialCollapsed,
   initialCollapsedSections,
+  initialActiveSection,
 }: {
   activeMunicipality: { name: string; logoUrl: string | null } | null;
   userName: string;
@@ -169,9 +224,39 @@ export function Sidebar({
   canManageOrgs: boolean;
   initialCollapsed: boolean;
   initialCollapsedSections: string[];
+  initialActiveSection: SectionId | null;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [collapsedSections, setCollapsedSections] = useState<string[]>(initialCollapsedSections);
+  const pathname = usePathname();
+
+  // The path resolves the section directly whenever it can (SDBIP/EPAS/
+  // Mandate routes all say unambiguously which product they belong to,
+  // available synchronously from usePathname with no extra render needed).
+  // Only a route the path can't resolve (currently just /reports, and the
+  // hub itself) falls back to whatever section was last active, from the
+  // cookie the server read at request time.
+  const detected = detectSection(pathname);
+  // The hub itself always renders the neutral state, even if a section was
+  // active before - landing back on /dashboard is a deliberate "let me pick
+  // again" action, so it shouldn't silently keep showing the last section's
+  // nav. Every other unresolved route (currently just /reports) still falls
+  // back to the last active section via the cookie, since those routes are
+  // reached FROM inside a scoped section, not from the hub.
+  const isHub = pathname === "/dashboard";
+  const activeSection: SectionId | null = isHub ? null : (detected ?? initialActiveSection);
+
+  if (
+    typeof window !== "undefined" &&
+    detected &&
+    document.cookie.indexOf(`${SIDEBAR_ACTIVE_SECTION_COOKIE}=${detected}`) === -1
+  ) {
+    // Cheap idempotent write on render rather than a useEffect: this only
+    // ever writes when the cookie is already out of date, so it can't loop,
+    // and it means the very first click into a section persists immediately
+    // instead of waiting a tick for an effect to flush.
+    writeActiveSectionCookie(detected);
+  }
 
   function toggle() {
     const next = !collapsed;
@@ -191,29 +276,28 @@ export function Sidebar({
     writeSectionsCookie(nextIds);
   }
 
-  const setupItems: NavItem[] = [
-    ...SETUP_NAV_BASE,
-    ...(canManageOrgs ? ORG_ADMIN_NAV : []),
-    ...(canManageUsers ? USER_ADMIN_NAV : []),
-  ];
-  const sections: NavSection[] = [
-    { id: "sdbip", label: "SDBIP", items: SDBIP_NAV },
-    { id: "epas", label: "EPAS", items: EPAS_NAV },
-    // Mandate splits into the reference app's own four groups (Register /
-    // Operate / Set up / Manage) rather than one flat "MANDATE" bucket -
-    // each is independently collapsible like every other section.
-    { id: "mandate-register", label: "Mandate — Register", items: MANDATE_REGISTER_NAV },
-    { id: "mandate-operate", label: "Mandate — Operate", items: MANDATE_OPERATE_NAV },
-    { id: "mandate-setup", label: "Mandate — Set up", items: MANDATE_SETUP_NAV },
-    { id: "mandate-manage", label: "Mandate — Manage", items: MANDATE_MANAGE_NAV },
-    { id: "setup", label: "SETUP", items: setupItems },
-  ];
+  const pinnedBottomItems = getPinnedBottomItems(activeSection, canManageOrgs, canManageUsers);
+
+  // The main, section-scoped body: SDBIP/EPAS are flat lists (short and
+  // specific per the brief, no headers needed since there's only one
+  // section on screen at a time now); Mandate keeps its own four
+  // independently-collapsible sub-groups, ported unchanged from before this
+  // restructure.
+  let mainSections: NavSection[] = [];
+  if (activeSection === "sdbip") mainSections = [{ id: "sdbip", label: "SDBIP", items: SDBIP_NAV }];
+  else if (activeSection === "epas") mainSections = [{ id: "epas", label: "EPAS", items: EPAS_NAV }];
+  else if (activeSection === "mandate") mainSections = MANDATE_GROUPS;
+
+  const topItems: NavItem[] = activeSection ? [SYSTEM_HUB_ITEM] : [];
+  const bottomSection: NavSection | null =
+    pinnedBottomItems.length > 0 ? { id: "setup", label: "Organisation Setup", items: pinnedBottomItems } : null;
+
   // The icon-only rail has no room for section headers, so it falls back to
-  // one flat, deduplicated list (Reports would otherwise show up twice,
-  // once from SDBIP and once from EPAS).
+  // one flat, deduplicated list (Reports would otherwise show up twice if a
+  // future section list ever repeats it).
   const flatUnique: NavItem[] = [];
   const seenHrefs = new Set<string>();
-  for (const item of [DASHBOARD_ITEM, ...sections.flatMap((s) => s.items)]) {
+  for (const item of [...topItems, ...mainSections.flatMap((s) => s.items), ...pinnedBottomItems]) {
     if (seenHrefs.has(item.href)) continue;
     seenHrefs.add(item.href);
     flatUnique.push(item);
@@ -301,41 +385,70 @@ export function Sidebar({
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden p-2 max-[900px]:flex-none max-[900px]:flex-row max-[900px]:flex-wrap max-[900px]:items-center max-[900px]:gap-1.5 max-[900px]:overflow-visible max-[900px]:p-0">
-        <NavLink {...DASHBOARD_ITEM} collapsed={collapsed} />
-
         {collapsed ? (
-          // Icon rail: no room for section labels, so every item (deduplicated
-          // across sections) renders flat, with a single divider standing in
-          // for all the section breaks below.
+          // Icon rail: no room for section labels, so every currently-scoped
+          // item (deduplicated) renders flat, with a single divider standing
+          // in for the section break between the main list and setup.
           <>
-            <div className="my-2 border-t border-white/10 max-[900px]:my-0 max-[900px]:h-6 max-[900px]:w-px max-[900px]:border-t-0 max-[900px]:border-l" />
-            {flatUnique
-              .filter((item) => item.href !== DASHBOARD_ITEM.href)
-              .map((item) => (
-                <NavLink key={item.href} {...item} collapsed={collapsed} />
-              ))}
+            {flatUnique.map((item) => (
+              <div key={item.href} className="max-[900px]:contents">
+                {bottomSection && item.href === bottomSection.items[0]?.href && (
+                  <div className="my-2 border-t border-white/10 max-[900px]:my-0 max-[900px]:h-6 max-[900px]:w-px max-[900px]:border-t-0 max-[900px]:border-l" />
+                )}
+                <NavLink {...item} collapsed={collapsed} />
+              </div>
+            ))}
+            {flatUnique.length === 0 && (
+              <div className="px-2 py-1 text-center text-xs text-white/30">—</div>
+            )}
           </>
         ) : (
-          sections.map((section) => {
-            const empty = section.items.length === 0;
-            const open = !collapsedSections.includes(section.id);
-            return (
-              <div key={section.id} className="max-[900px]:contents">
+          <>
+            {!activeSection && mainSections.length === 0 && (
+              <p className="px-3 py-2 text-xs text-white/40">
+                Pick a section from the System Hub to see its navigation here.
+              </p>
+            )}
+            {topItems.map((item) => (
+              <NavLink key={item.href} {...item} collapsed={collapsed} />
+            ))}
+            {topItems.length > 0 && (
+              <div className="my-1 border-t border-white/10 max-[900px]:my-0 max-[900px]:h-6 max-[900px]:w-px max-[900px]:border-t-0 max-[900px]:border-l" />
+            )}
+
+            {mainSections.length === 1 && mainSections[0].id !== "mandate-register"
+              ? // SDBIP/EPAS: flat, unheadered list - short and specific, no
+                // section chrome needed for a sidebar that's already scoped
+                // to one product.
+                mainSections[0].items.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)
+              : mainSections.map((section) => {
+                  const open = !collapsedSections.includes(section.id);
+                  return (
+                    <div key={section.id} className="max-[900px]:contents">
+                      <SectionHeader
+                        label={section.label}
+                        open={open}
+                        empty={section.items.length === 0}
+                        onToggle={() => toggleSection(section.id)}
+                      />
+                      {open && section.items.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)}
+                    </div>
+                  );
+                })}
+
+            {bottomSection && (
+              <div className="mt-auto max-[900px]:contents">
                 <SectionHeader
-                  label={section.label}
-                  open={open}
-                  empty={empty}
-                  onToggle={() => toggleSection(section.id)}
+                  label={bottomSection.label}
+                  open={!collapsedSections.includes(bottomSection.id)}
+                  empty={false}
+                  onToggle={() => toggleSection(bottomSection.id)}
                 />
-                {open &&
-                  (empty ? (
-                    <div className="px-3 py-1 text-xs italic text-white/30 max-[900px]:hidden">Coming soon</div>
-                  ) : (
-                    section.items.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)
-                  ))}
+                {!collapsedSections.includes(bottomSection.id) &&
+                  bottomSection.items.map((item) => <NavLink key={item.href} {...item} collapsed={collapsed} />)}
               </div>
-            );
-          })
+            )}
+          </>
         )}
       </nav>
 

@@ -43,9 +43,11 @@ export default async function ScorecardDetailPage({
   if (!detail) notFound();
 
   const activeFy = await getActiveFinancialYear();
-  const departmentOptions = (await getScorecardOptions(activeFy.selected?.id ?? null)).filter(
-    (o) => o.id !== "top"
-  );
+  // Every real scorecard in this financial year, Top Layer included - it's
+  // an ordinary capturable scorecard now (see sdbip-dashboard.ts), so it
+  // belongs in the same switcher as the department scorecards rather than
+  // being filtered out.
+  const departmentOptions = await getScorecardOptions(activeFy.selected?.id ?? null);
 
   return (
     <div className="flex flex-col gap-6">

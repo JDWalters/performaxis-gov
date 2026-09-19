@@ -32,15 +32,21 @@ export default async function ManageKpisPage({
     );
   }
 
+  // Top Layer SDBIP isn't tied to one department's library - it needs KPIs
+  // from every department (each carrying that department as its own
+  // dept_org_id tag once added, see kpi-admin-actions.ts), so the picker
+  // shows the full cross-department library instead of one org's slice.
   const allLibrary = await getKpiLibraryList();
   const available = allLibrary
-    .filter((k) => k.orgId === detail.orgId)
+    .filter((k) => detail.isTopLayer || k.orgId === detail.orgId)
     .map((k) => ({
       id: k.id,
       name: k.name,
       kpa: k.kpa,
       unitOfMeasure: k.unitOfMeasure,
       targetType: k.targetType,
+      deptOrgId: k.orgId,
+      deptName: k.orgName,
       alreadyOnScorecard: detail.kpis.some((existing) => existing.libraryId === k.id),
     }));
 
@@ -64,6 +70,7 @@ export default async function ManageKpisPage({
       <ManageKpisClient
         scorecardId={detail.scorecardId}
         departmentOrgId={detail.orgId}
+        isTopLayer={detail.isTopLayer}
         currentKpis={detail.kpis.map((k) => ({
           id: k.id,
           refCode: k.refCode,

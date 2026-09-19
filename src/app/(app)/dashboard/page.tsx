@@ -90,14 +90,18 @@ export default async function DashboardPage() {
       </div>
 
       <div>
-        <h2 className="mb-3 text-sm font-extrabold uppercase tracking-wide text-ink2">Sections</h2>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <h2 className="mb-1 text-sm font-extrabold uppercase tracking-wide text-ink2">Sections</h2>
+        <p className="mb-3 text-xs text-ink2">
+          Pick a section below — the sidebar then scopes to just that section&apos;s navigation until you come back
+          here.
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/scorecards"
             className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
           >
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-sm font-extrabold text-ink">SDBIP Dashboard</h3>
+              <h3 className="text-sm font-extrabold text-ink">SDBIP</h3>
               <span className={`stag ${completionBadge(sdbipCompletion)}`}>{sdbipCompletion}%</span>
             </div>
             <p className="mt-1 text-xs text-ink2">Service delivery scorecards — quarterly reporting.</p>
@@ -108,11 +112,22 @@ export default async function DashboardPage() {
           </Link>
 
           <Link
+            href="/mandate/overview"
+            className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-ink">Mandate</h3>
+            </div>
+            <p className="mt-1 text-xs text-ink2">Delegation of powers register and governance workspace.</p>
+            <div className="mt-3 text-xs text-ink2">Register · Operate · Set up · Manage</div>
+          </Link>
+
+          <Link
             href="/appraisals"
             className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
           >
             <div className="flex items-start justify-between gap-2">
-              <h3 className="text-sm font-extrabold text-ink">EPAS Dashboard</h3>
+              <h3 className="text-sm font-extrabold text-ink">EPAS</h3>
               <span className={`stag ${completionBadge(appraisalCompletion)}`}>{appraisalCompletion}%</span>
             </div>
             <p className="mt-1 text-xs text-ink2">Performance agreements — manager ratings captured.</p>
@@ -121,6 +136,17 @@ export default async function DashboardPage() {
               {appraisalOverview.employees.length} employees
             </div>
           </Link>
+
+          <div
+            aria-disabled="true"
+            title="A future product will land here"
+            className="cursor-not-allowed rounded-xl border border-dashed border-line bg-paper p-5 opacity-50"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-sm font-extrabold text-ink2">Coming soon</h3>
+            </div>
+            <p className="mt-1 text-xs text-ink2">A future PerformAxis product will take this slot.</p>
+          </div>
         </div>
       </div>
 

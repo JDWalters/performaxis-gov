@@ -12,6 +12,17 @@ export { friendlyActual } from "@/lib/data/scorecards-shared";
  * compares the letter and number segments separately so numbers compare
  * numerically.
  */
+// Any non-UUID segment routed into a `scorecards/[id]` page (a stale bookmark
+// or link to a URL like `/scorecards/capture` that predates this app's move
+// to `/scorecards/{uuid}`-shaped detail routes, or simply a typo) previously
+// reached the `scorecards.id` eq-filter as a raw string, which Postgres/
+// PostgREST rejects with "invalid input syntax for type uuid" - an error the
+// callers below never expected (they only null-check "not found"), so it
+// surfaced as an uncaught 500 / hard Server Component crash instead of a
+// clean notFound(). Guarding here means every caller's existing
+// `if (!detail) notFound()` handles this case for free.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 function naturalCompare(a: string, b: string): number {
   const tokenize = (s: string) => s.match(/(\d+(?:\.\d+)?)|(\D+)/g) ?? [];
   const ta = tokenize(a);
@@ -93,6 +104,8 @@ export type ScorecardDetail = {
   scorecardId: string;
   orgId: string;
   orgName: string;
+  /** True when this scorecard is the Top Layer SDBIP (org.kind = 'municipality') rather than an ordinary department scorecard - drives the "add from library" flow's department-picker behaviour on the Scorecard Setup screen. */
+  isTopLayer: boolean;
   quarter: number;
   canCapture: boolean;
   canManageSetup: boolean;
@@ -103,7 +116,7 @@ export type ScorecardDetail = {
 
 type ScorecardHeaderRow = {
   id: string;
-  org: { id: string; name: string } | null;
+  org: { id: string; name: string; kind: string } | null;
 };
 
 type ScorecardKpiRow = {
@@ -162,11 +175,12 @@ export async function getScorecardDetail(
   scorecardId: string,
   quarter: number
 ): Promise<ScorecardDetail | null> {
+  if (!UUID_RE.test(scorecardId)) return null;
   const supabase = await createClient();
 
   const { data: scorecard, error: scErr } = await supabase
     .from("scorecards")
-    .select("id, org:orgs(id, name)")
+    .select("id, org:orgs(id, name, kind)")
     .eq("id", scorecardId)
     .maybeSingle();
   if (scErr) throw scErr;
@@ -279,6 +293,7 @@ export async function getScorecardDetail(
     scorecardId: header.id,
     orgId: header.org.id,
     orgName: header.org.name,
+    isTopLayer: header.org.kind === "municipality",
     quarter,
     canCapture: Boolean(canCaptureData),
     canManageSetup: Boolean(canManageSetupData),
@@ -321,6 +336,7 @@ export type RegisterExportData = {
  * single-quarter shape isn't enough.
  */
 export async function getScorecardRegisterData(scorecardId: string): Promise<RegisterExportData | null> {
+  if (!UUID_RE.test(scorecardId)) return null;
   const supabase = await createClient();
 
   const { data: scorecard, error: scErr } = await supabase

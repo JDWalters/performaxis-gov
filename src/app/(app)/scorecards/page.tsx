@@ -34,7 +34,12 @@ export default async function ScorecardsDashboardPage({
 
   const needsReviewByOrg = new Map(scorecardList.map((s) => [s.orgId, s.needsReviewCount]));
   const currentQuarter = typeof activeOption.period === "number" ? activeOption.period : null;
-  const isTop = dashboard.selectedScorecardId === "top";
+  // Top Layer SDBIP is a real, independently-captured scorecard now (not a
+  // synthesized rollup) - see sdbip-dashboard.ts - so it's just another
+  // scorecard for capture purposes. isTop still drives the "by department"
+  // breakdown view below, since that's genuinely specific to Top Layer's own
+  // department-tagged KPI register.
+  const isTop = dashboard.isTopLayer;
   const selectedScorecard = scorecardList.find((s) => s.scorecardId === dashboard.selectedScorecardId);
 
   return (
@@ -62,14 +67,16 @@ export default async function ScorecardsDashboardPage({
           >
             Print report ↗
           </a>
-          {!isTop && (
-            <Link
-              href={`/scorecards/${dashboard.selectedScorecardId}`}
-              className="rounded-md bg-ink px-4 py-2 text-xs font-bold text-white hover:bg-ink/90"
-            >
-              Capture this scorecard →
-            </Link>
-          )}
+          {/* Top Layer SDBIP is a real scorecard now too (see isTopLayer
+             comment above), so it gets the same capture link as any
+             department scorecard - actual write access is still gated by
+             canCapture/canManageSetup on the capture page itself. */}
+          <Link
+            href={`/scorecards/${dashboard.selectedScorecardId}`}
+            className="rounded-md bg-ink px-4 py-2 text-xs font-bold text-white hover:bg-ink/90"
+          >
+            Capture this scorecard →
+          </Link>
         </div>
       </div>
 

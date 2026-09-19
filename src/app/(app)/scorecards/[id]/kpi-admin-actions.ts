@@ -29,10 +29,17 @@ import { suggestNextRefCodes } from "@/lib/data/scorecards-shared";
  * scorecard's existing ref-code pattern. Quarterly targets are intentionally
  * left unset here - that's a separate step in Scorecard Setup, not part of
  * placing a KPI on the scorecard.
+ *
+ * Top Layer SDBIP (scorecard's org.kind = 'municipality') isn't one
+ * department's scorecard, so it accepts a library KPI from any department -
+ * the added row is tagged with that department via dept_org_id (defaulting
+ * to the library KPI's own owning department, overridable by the caller),
+ * independent of any department scorecard's own copy of "the same" KPI. An
+ * ordinary department scorecard keeps the original org-match requirement.
  */
 export async function addLibraryKpisToScorecard(
   scorecardId: string,
-  items: { libraryId: string; refCode?: string }[]
+  items: { libraryId: string; refCode?: string; deptOrgId?: string }[]
 ): Promise<{ added: number; skipped: string[] }> {
   if (!scorecardId || items.length === 0) return { added: 0, skipped: [] };
 
@@ -40,12 +47,13 @@ export async function addLibraryKpisToScorecard(
 
   const { data: scorecardRaw, error: scErr } = await supabase
     .from("scorecards")
-    .select("id, org_id")
+    .select("id, org_id, org:orgs(kind)")
     .eq("id", scorecardId)
     .maybeSingle();
   if (scErr) throw new Error(scErr.message);
-  const scorecard = scorecardRaw as unknown as { id: string; org_id: string } | null;
+  const scorecard = scorecardRaw as unknown as { id: string; org_id: string; org: { kind: string } | null } | null;
   if (!scorecard) throw new Error("Scorecard not found.");
+  const isTopLayer = scorecard.org?.kind === "municipality";
 
   const libraryIds = items.map((i) => i.libraryId);
   const { data: libRows, error: libErr } = await supabase
@@ -94,7 +102,10 @@ export async function addLibraryKpisToScorecard(
       skipped.push(item.libraryId);
       continue;
     }
-    if (lib.org_id !== scorecard.org_id) {
+    // Top Layer accepts any department's library KPI (tagged via
+    // dept_org_id below); an ordinary department scorecard only accepts its
+    // own department's library KPIs, same as before.
+    if (!isTopLayer && lib.org_id !== scorecard.org_id) {
       skipped.push(lib.name);
       continue;
     }
@@ -116,6 +127,7 @@ export async function addLibraryKpisToScorecard(
       annual_target: lib.annual_target,
       poe: lib.poe,
       weight: 0,
+      dept_org_id: isTopLayer ? (item.deptOrgId ?? lib.org_id) : null,
     });
   }
 
