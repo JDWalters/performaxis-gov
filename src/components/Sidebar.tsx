@@ -288,7 +288,13 @@ export function Sidebar({
   else if (activeSection === "epas") mainSections = [{ id: "epas", label: "EPAS", items: EPAS_NAV }];
   else if (activeSection === "mandate") mainSections = MANDATE_GROUPS;
 
-  const topItems: NavItem[] = activeSection ? [SYSTEM_HUB_ITEM] : [];
+  // The link back to the hub should be available everywhere except the hub
+  // itself - including on global/cross-cutting routes (e.g. /orgs) that
+  // don't belong to any product section and have no active-section cookie
+  // to fall back on. Without this, a route detectSection() can't resolve
+  // and that has no prior section cookie renders a dead end: no nav, no way
+  // back except the browser's own Back button.
+  const topItems: NavItem[] = isHub ? [] : [SYSTEM_HUB_ITEM];
   const bottomSection: NavSection | null =
     pinnedBottomItems.length > 0 ? { id: "setup", label: "Organisation Setup", items: pinnedBottomItems } : null;
 

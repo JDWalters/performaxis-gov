@@ -107,6 +107,18 @@ export function suggestNextFinancialYear(years: FinancialYear[]): { startYear: n
   return { startYear, label };
 }
 
+/** The financial-year label for one scorecard (e.g. "2026/27") - used by the Danger Zone reset panel's confirmation copy so it's unambiguous which year is about to be wiped. */
+export async function getScorecardFinancialYearLabel(scorecardId: string): Promise<string | null> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("scorecards")
+    .select("financial_year:financial_years(label)")
+    .eq("id", scorecardId)
+    .maybeSingle();
+  const row = data as unknown as { financial_year: { label: string } | null } | null;
+  return row?.financial_year?.label ?? null;
+}
+
 export type RolloverPreviewRow = { orgId: string; orgName: string; kpiCount: number };
 
 /**

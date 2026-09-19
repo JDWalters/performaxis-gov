@@ -1,9 +1,10 @@
 import Link from "next/link";
-import { getOrgManageScopes, getFlatOrgs } from "@/lib/data/orgs";
+import { getOrgManageScopes, getFlatOrgs, getDepartmentsWithStats } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
 import { getCompetencies } from "@/lib/data/competencies";
 import { PolicyForm } from "./PolicyForm";
 import { CompetencyEditor } from "./CompetencyEditor";
+import { DepartmentsTable } from "./DepartmentsTable";
 
 export default async function EpasSetupPage({
   searchParams,
@@ -45,9 +46,10 @@ export default async function EpasSetupPage({
   const activeOrgId = municipalities.find((m) => m.id === org)?.id ?? municipalities[0].id;
   const activeOrgName = municipalities.find((m) => m.id === activeOrgId)?.name ?? "";
 
-  const [policy, competencies] = await Promise.all([
+  const [policy, competencies, departments] = await Promise.all([
     getPolicyConfig(activeOrgId),
     getCompetencies(activeOrgId),
+    getDepartmentsWithStats(activeOrgId, null),
   ]);
 
   return (
@@ -79,6 +81,7 @@ export default async function EpasSetupPage({
       <div className="text-xs font-bold uppercase tracking-wide text-ink2">{activeOrgName}</div>
 
       <PolicyForm orgId={activeOrgId} policy={policy} />
+      <DepartmentsTable municipalityOrgId={activeOrgId} departments={departments} />
       <CompetencyEditor orgId={activeOrgId} competencies={competencies} />
     </div>
   );

@@ -888,6 +888,7 @@ export type Database = {
         Row: {
           code: string | null
           created_at: string
+          director_manager_name: string | null
           id: string
           is_active: boolean
           kind: Database["public"]["Enums"]["org_kind"]
@@ -899,6 +900,7 @@ export type Database = {
         Insert: {
           code?: string | null
           created_at?: string
+          director_manager_name?: string | null
           id?: string
           is_active?: boolean
           kind: Database["public"]["Enums"]["org_kind"]
@@ -910,6 +912,7 @@ export type Database = {
         Update: {
           code?: string | null
           created_at?: string
+          director_manager_name?: string | null
           id?: string
           is_active?: boolean
           kind?: Database["public"]["Enums"]["org_kind"]

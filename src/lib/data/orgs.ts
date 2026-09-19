@@ -96,3 +96,74 @@ export async function getValidParentOrgs(kind: OrgKind, isMetro: boolean): Promi
   const parentKind = parentKindFor(kind, isMetro);
   return orgs.filter((o) => o.kind === parentKind);
 }
+
+export type DepartmentRow = {
+  id: string;
+  code: string | null;
+  name: string;
+  directorManagerName: string | null;
+  isActive: boolean;
+  /** Live count of this department's Top Layer-tagged KPIs (scorecard_kpis.dept_org_id) on the Top Layer SDBIP for the given financial year - null when there's no Top Layer scorecard for that year yet. */
+  kpiTopLayerCount: number | null;
+};
+
+/**
+ * Departments table for the SDBIP-facing Organisation setup screen (matches
+ * the reference tool's Departments panel: Code, Department name,
+ * Director/Manager, KPIs(TL) count). "KPIs(TL)" is a live count of
+ * scorecard_kpis rows tagged with this department's org id (dept_org_id) on
+ * the *Top Layer* scorecard for the given financial year only - not the
+ * department's own scorecard's KPI count, which is a different number shown
+ * elsewhere (Scorecard Setup). Mirrors the Top Layer lookup in
+ * getScorecardOptions() (sdbip-dashboard.ts): the Top Layer SDBIP is just the
+ * scorecards row whose org.kind = 'municipality'.
+ */
+export async function getDepartmentsWithStats(
+  municipalityOrgId: string,
+  financialYearId: string | null
+): Promise<DepartmentRow[]> {
+  const supabase = await createClient();
+
+  const { data: deptRows, error: deptErr } = await supabase
+    .from("orgs")
+    .select("id, code, name, director_manager_name, is_active")
+    .eq("parent_id", municipalityOrgId)
+    .eq("kind", "department")
+    .order("name");
+  if (deptErr) throw deptErr;
+  type DeptRaw = { id: string; code: string | null; name: string; director_manager_name: string | null; is_active: boolean };
+  const departments = (deptRows ?? []) as unknown as DeptRaw[];
+
+  let topLayerScorecardId: string | null = null;
+  if (financialYearId) {
+    const { data: topRow } = await supabase
+      .from("scorecards")
+      .select("id")
+      .eq("org_id", municipalityOrgId)
+      .eq("financial_year_id", financialYearId)
+      .maybeSingle();
+    topLayerScorecardId = (topRow as unknown as { id: string } | null)?.id ?? null;
+  }
+
+  const counts = new Map<string, number>();
+  if (topLayerScorecardId) {
+    const { data: kpiRows, error: kpiErr } = await supabase
+      .from("scorecard_kpis")
+      .select("dept_org_id")
+      .eq("scorecard_id", topLayerScorecardId);
+    if (kpiErr) throw kpiErr;
+    for (const row of (kpiRows ?? []) as unknown as { dept_org_id: string | null }[]) {
+      if (!row.dept_org_id) continue;
+      counts.set(row.dept_org_id, (counts.get(row.dept_org_id) ?? 0) + 1);
+    }
+  }
+
+  return departments.map((d) => ({
+    id: d.id,
+    code: d.code,
+    name: d.name,
+    directorManagerName: d.director_manager_name,
+    isActive: d.is_active,
+    kpiTopLayerCount: topLayerScorecardId ? counts.get(d.id) ?? 0 : null,
+  }));
+}

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { getScorecardDetail } from "@/lib/data/scorecards";
 import { getKpiLibraryList } from "@/lib/data/kpi-library";
 import { getMunicipalityOrgId, getCircular88Catalogue } from "@/lib/data/circular88";
+import { getScorecardFinancialYearLabel } from "@/lib/data/financial-years";
 import { ManageKpisClient } from "./ManageKpisClient";
+import { DangerZone } from "./DangerZone";
 
 export default async function ManageKpisPage({
   params,
@@ -51,7 +53,10 @@ export default async function ManageKpisPage({
     }));
 
   const municipalityOrgId = await getMunicipalityOrgId(detail.orgId);
-  const catalogue = await getCircular88Catalogue(municipalityOrgId);
+  const [catalogue, fyLabel] = await Promise.all([
+    getCircular88Catalogue(municipalityOrgId),
+    getScorecardFinancialYearLabel(id),
+  ]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -90,6 +95,8 @@ export default async function ManageKpisPage({
         availableLibrary={available}
         circular88Catalogue={catalogue}
       />
+
+      <DangerZone scorecardId={detail.scorecardId} orgName={detail.orgName} financialYearLabel={fyLabel} />
     </div>
   );
 }

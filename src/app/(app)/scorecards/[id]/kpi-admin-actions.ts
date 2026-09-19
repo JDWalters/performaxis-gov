@@ -173,6 +173,44 @@ export async function deleteScorecardKpis(scorecardId: string, scorecardKpiIds: 
 }
 
 /**
+ * Danger Zone: wipes one scorecard's entire KPI register and every captured
+ * result back to empty, for one financial year only - matches the reference
+ * tool's "Reset this scorecard" ("Resets the current scorecard for <FY> back
+ * to empty, for all users") exactly, since each `scorecards` row already
+ * belongs to exactly one `financial_year_id` here, so "this scorecard" and
+ * "this scorecard for this FY" are the same row - there's no risk of
+ * spilling into another department or another year the way a looser
+ * "delete all KPIs matching org+FY" query might.
+ *
+ * Deletes every scorecard_kpis row for this scorecard; kpi_targets,
+ * kpi_results, and kpi_evidence_files all cascade (ON DELETE CASCADE onto
+ * scorecard_kpis - confirmed via pg_constraint), so this is genuinely
+ * "the register and captured results, wiped" in one statement, matching the
+ * reference's `S.reg = { kpis: [] }; S.cap = emptyCapture()` semantics. RLS
+ * (manage_scorecard_setup) is the real gate; the caller (DangerZone.tsx) is
+ * additionally required to have clicked "Download backup" first and to
+ * type-confirm the org name before this is ever called - this function
+ * itself does not re-check either of those UI-level safeguards, so it must
+ * never be exposed anywhere except behind that confirmation flow.
+ */
+export async function resetScorecardToEmpty(scorecardId: string): Promise<{ deleted: number }> {
+  if (!scorecardId) throw new Error("Missing scorecard.");
+
+  const supabase = await createClient();
+  const { error, count } = await supabase
+    .from("scorecard_kpis")
+    .delete({ count: "exact" })
+    .eq("scorecard_id", scorecardId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/scorecards/${scorecardId}`);
+  revalidatePath(`/scorecards/${scorecardId}/manage`);
+  revalidatePath("/scorecards");
+
+  return { deleted: count ?? 0 };
+}
+
+/**
  * Updates one KPI's own capture setup on this scorecard: its answer type
  * (calc_config.calc), accumulation (calc_config.acc - "none" | "cum" |
  * "carry", the reference tool's "Results across quarters" dropdown),
