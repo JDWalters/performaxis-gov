@@ -75,5 +75,5 @@ export async function saveAgreementTemplateField(formData: FormData) {
   }
 
   if (cycleId) revalidatePath(`/appraisals/${cycleId}`);
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }

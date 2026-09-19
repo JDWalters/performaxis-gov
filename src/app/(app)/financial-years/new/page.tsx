@@ -34,7 +34,7 @@ export default async function NewFinancialYearPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <Link href="/scorecards" className="text-xs font-semibold text-ink2 hover:underline">
+        <Link href="/scorecards/dashboard" className="text-xs font-semibold text-ink2 hover:underline">
           ← SDBIP Dashboard
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">Create a new financial year</h1>

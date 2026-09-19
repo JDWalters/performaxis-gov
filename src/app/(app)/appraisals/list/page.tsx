@@ -5,9 +5,10 @@ import { clearScope } from "@/app/(app)/scope-actions";
 
 /**
  * The full browsable list of appraisal cycles - split out from /appraisals
- * (now the EPAS Dashboard, see appraisals/page.tsx) so the dashboard's own
- * employee picker doesn't have to double as a search/browse UI too. Content
- * here is otherwise unchanged from the old /appraisals page.
+ * (now the EPAS Dashboard at /appraisals/dashboard, see
+ * appraisals/dashboard/page.tsx) so the dashboard's own employee picker
+ * doesn't have to double as a search/browse UI too. Content here is
+ * otherwise unchanged from the old /appraisals page.
  */
 export default async function AppraisalsListPage() {
   const scope = await getActiveScope();
@@ -16,7 +17,7 @@ export default async function AppraisalsListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link href="/appraisals" className="text-xs font-semibold text-ink2 hover:underline">
+        <Link href="/appraisals/dashboard" className="text-xs font-semibold text-ink2 hover:underline">
           ← EPAS Dashboard
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">All appraisal cycles</h1>

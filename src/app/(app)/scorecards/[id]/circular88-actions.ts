@@ -121,7 +121,7 @@ export async function saveCircular88Override(
   });
   if (error) throw new Error(error.message);
 
-  revalidatePath("/scorecards");
+  revalidatePath("/scorecards/dashboard");
 }
 
 /** Deletes a municipality's override, resetting that indicator back to its standard Circular 88 definition. */
@@ -137,5 +137,5 @@ export async function restoreCircular88(departmentOrgId: string, code: string): 
     .eq("code", code);
   if (error) throw new Error(error.message);
 
-  revalidatePath("/scorecards");
+  revalidatePath("/scorecards/dashboard");
 }

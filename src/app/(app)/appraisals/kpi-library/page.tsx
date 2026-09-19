@@ -55,7 +55,7 @@ export default async function EpasKpiLibraryPage({
           </p>
         </div>
         <Link
-          href={`/epas-kpi-library/new?org=${activeOrgId}`}
+          href={`/appraisals/kpi-library/new?org=${activeOrgId}`}
           className="rounded-md bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink/90"
         >
           + Create a KPI
@@ -67,7 +67,7 @@ export default async function EpasKpiLibraryPage({
           {municipalities.map((m) => (
             <Link
               key={m.id}
-              href={`/epas-kpi-library?org=${m.id}`}
+              href={`/appraisals/kpi-library?org=${m.id}`}
               className={`stag ${m.id === activeOrgId ? "stag-blue" : "stag-pending"}`}
             >
               {m.name}

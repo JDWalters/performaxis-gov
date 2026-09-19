@@ -138,7 +138,7 @@ export async function updateDepartmentDirector(formData: FormData) {
 
 /**
  * Toggles a department's is_active flag - used as the Departments table's
- * "remove" action on both `/orgs` and `/epas-setup`. Deliberately a
+ * "remove" action on both `/orgs` and `/appraisals/setup`. Deliberately a
  * deactivate, not a hard delete: a department org can be the parent of real
  * scorecards, employees, and KPI history (none of `scorecard_kpis`,
  * `employees`, or `kpi_library` cascade-delete when an org disappears), so a
@@ -164,14 +164,14 @@ export async function setOrgActive(formData: FormData) {
   if (error) throw error;
 
   revalidatePath("/orgs");
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }
 
 /**
  * Updates just the Municipal Manager name + municipality logo on the one
  * policy_templates row for a municipality, leaving every other config key
  * (Mayor identity, weighting, bonus bands, sign defaults) untouched. This is
- * a narrower sibling of epas-setup/actions.ts's savePolicyConfig - that
+ * a narrower sibling of appraisals/setup/actions.ts's savePolicyConfig - that
  * action's form always submits every policy field, so calling it directly
  * from a form that only shows MM name + logo would silently blank out the
  * Mayor/weighting/bonus-band fields set on EPAS Setup. Surfaces the same two
@@ -220,5 +220,5 @@ export async function updateMunicipalityIdentity(formData: FormData) {
   }
 
   revalidatePath("/orgs");
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }

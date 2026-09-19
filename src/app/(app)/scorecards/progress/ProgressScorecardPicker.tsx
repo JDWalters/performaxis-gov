@@ -16,7 +16,7 @@ export function ProgressScorecardPicker({
       <span className="text-xs font-bold uppercase tracking-wide text-ink2">Scorecard</span>
       <select
         value={selectedId}
-        onChange={(e) => router.push(`/progress?sc=${e.target.value}`)}
+        onChange={(e) => router.push(`/scorecards/progress?sc=${e.target.value}`)}
         className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
       >
         {options.map((o) => (

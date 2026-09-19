@@ -18,7 +18,7 @@ export function FinancialYearSwitcher({ years, selectedId }: { years: FinancialY
 
   return (
     <form ref={formRef} action={setFinancialYear} className="flex items-center gap-1.5">
-      <input type="hidden" name="returnTo" value="/scorecards" />
+      <input type="hidden" name="returnTo" value="/scorecards/dashboard" />
       <label htmlFor="fy-switcher" className="text-[10px] font-bold uppercase tracking-wide text-ink2">
         FY
       </label>

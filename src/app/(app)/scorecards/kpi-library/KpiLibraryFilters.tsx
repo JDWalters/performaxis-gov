@@ -191,7 +191,7 @@ export function KpiLibraryFilters({ kpis }: { kpis: KpiLibraryItem[] }) {
                         </td>
                         <td className="px-4 py-2 text-right">
                           <Link
-                            href={`/kpi-library/${k.id}`}
+                            href={`/scorecards/kpi-library/${k.id}`}
                             prefetch={false}
                             className="text-xs font-semibold text-ink2 hover:text-ink hover:underline"
                           >

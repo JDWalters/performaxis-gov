@@ -82,7 +82,7 @@ export async function savePolicyConfig(formData: FormData) {
     if (error) throw error;
   }
 
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }
 
 export async function saveCompetency(formData: FormData) {
@@ -112,7 +112,7 @@ export async function saveCompetency(formData: FormData) {
     if (error) throw error;
   }
 
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }
 
 export async function deleteCompetency(formData: FormData) {
@@ -121,7 +121,7 @@ export async function deleteCompetency(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.from("competencies").delete().eq("id", id);
   if (error) throw error;
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }
 
 /**
@@ -209,5 +209,5 @@ export async function resetCompetencies(formData: FormData) {
     }
   }
 
-  revalidatePath("/epas-setup");
+  revalidatePath("/appraisals/setup");
 }

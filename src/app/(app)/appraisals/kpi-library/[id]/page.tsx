@@ -13,7 +13,7 @@ export default async function EditEpasKpiLibraryPage({ params }: { params: Promi
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link href="/epas-kpi-library" className="text-xs font-semibold text-ink2 hover:underline">
+        <Link href="/appraisals/kpi-library" className="text-xs font-semibold text-ink2 hover:underline">
           ← EPAS KPI library
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">Edit indicator</h1>

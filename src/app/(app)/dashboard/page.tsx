@@ -97,7 +97,7 @@ export default async function DashboardPage() {
         </p>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
-            href="/scorecards"
+            href="/scorecards/dashboard"
             className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
           >
             <div className="flex items-start justify-between gap-2">
@@ -123,7 +123,7 @@ export default async function DashboardPage() {
           </Link>
 
           <Link
-            href="/appraisals"
+            href="/appraisals/dashboard"
             className="rounded-xl border border-line bg-white p-5 transition hover:border-gold"
           >
             <div className="flex items-start justify-between gap-2">

@@ -205,7 +205,7 @@ export async function resetScorecardToEmpty(scorecardId: string): Promise<{ dele
 
   revalidatePath(`/scorecards/${scorecardId}`);
   revalidatePath(`/scorecards/${scorecardId}/manage`);
-  revalidatePath("/scorecards");
+  revalidatePath("/scorecards/dashboard");
 
   return { deleted: count ?? 0 };
 }

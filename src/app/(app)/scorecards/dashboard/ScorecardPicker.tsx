@@ -16,7 +16,7 @@ export function ScorecardPicker({
   return (
     <select
       value={selectedId}
-      onChange={(e) => router.push(`/scorecards?sc=${e.target.value}&period=${periodKey}`)}
+      onChange={(e) => router.push(`/scorecards/dashboard?sc=${e.target.value}&period=${periodKey}`)}
       className="rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-ink"
     >
       {options.map((o) => (

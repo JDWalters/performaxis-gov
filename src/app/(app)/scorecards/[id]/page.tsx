@@ -53,7 +53,7 @@ export default async function ScorecardDetailPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href="/scorecards" className="text-xs font-semibold text-ink2 hover:underline">
+          <Link href="/scorecards/dashboard" className="text-xs font-semibold text-ink2 hover:underline">
             ← All scorecards
           </Link>
           <div className="mt-1 flex flex-wrap items-center gap-2">

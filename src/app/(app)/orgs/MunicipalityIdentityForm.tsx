@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { updateMunicipalityIdentity } from "./actions";
-import { LogoUploadField } from "@/app/(app)/epas-setup/LogoUploadField";
+import { LogoUploadField } from "@/app/(app)/appraisals/setup/LogoUploadField";
 
 const FIELD_CLASS =
   "rounded-md border border-line px-3 py-1.5 text-sm text-ink outline-none focus:border-gold focus:ring-2 focus:ring-gold/20";

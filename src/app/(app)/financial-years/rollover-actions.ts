@@ -164,8 +164,8 @@ export async function createNewFinancialYear(formData: FormData) {
     }
   }
 
-  revalidatePath("/scorecards");
-  revalidatePath("/progress");
+  revalidatePath("/scorecards/dashboard");
+  revalidatePath("/scorecards/progress");
   revalidatePath("/financial-years/new");
 
   // Switch the creating admin onto the new year immediately - this only
@@ -174,5 +174,5 @@ export async function createNewFinancialYear(formData: FormData) {
   const store = await cookies();
   store.set(FY_COOKIE, newFy.id, { path: "/", maxAge: 60 * 60 * 24 * 365 });
 
-  redirect(`/scorecards?fyCreated=${scorecardsCopied}&fyKpis=${kpisCopied}`);
+  redirect(`/scorecards/dashboard?fyCreated=${scorecardsCopied}&fyKpis=${kpisCopied}`);
 }

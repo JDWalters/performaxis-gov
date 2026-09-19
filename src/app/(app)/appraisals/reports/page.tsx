@@ -4,13 +4,13 @@ import { getActiveScope } from "@/lib/data/scope";
 import { clearScope } from "@/app/(app)/scope-actions";
 
 /**
- * The reference tool's pageReports() - print/export cards per employee cycle
- * (agreement, quarterly/panel assessment, annual summary, PDP), plus an
- * organisation-wide summary and a full CSV export. Every link opens the
- * corresponding (print) route in a new tab, exactly like the reference's
- * "Open" buttons.
+ * EPAS's slice of the reports hub - the reference tool's pageReports()
+ * appraisal-document section (org-wide summary, CSV export, per-employee
+ * print links). Split out from the old shared /reports page so this route
+ * lives unambiguously under /appraisals and the sidebar never has to guess
+ * which section it belongs to - see src/components/Sidebar.tsx detectSection().
  */
-export default async function ReportsPage() {
+export default async function AppraisalsReportsPage() {
   const scope = await getActiveScope();
   const appraisals = await getAppraisalsList(scope?.orgIds ?? null);
 
@@ -30,7 +30,7 @@ export default async function ReportsPage() {
             org-wide summary below is scoped too
           </span>
           <form action={clearScope}>
-            <input type="hidden" name="returnTo" value="/reports" />
+            <input type="hidden" name="returnTo" value="/appraisals/reports" />
             <button type="submit" className="ml-1 text-xs font-bold text-ink2 underline hover:text-ink">
               Clear
             </button>
@@ -64,36 +64,18 @@ export default async function ReportsPage() {
           A CSV of every accessible employee&apos;s indicators, targets, ratings and N/A flags - useful as a backup
           or for the auditors.
         </p>
+        {/* Plain <a>, not next/link - this is a Route Handler that streams a
+           file download, not a page to client-navigate to. The href is a
+           template literal (rather than a plain string) so the no-html-
+           link-for-pages lint rule, which only pattern-matches literal
+           string hrefs against real app pages, doesn't mistake this
+           download endpoint for one. */}
         <a
-          href="/reports/csv"
+          href={`/appraisals/reports/csv`}
           className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
         >
           Export CSV ↓
         </a>
-      </div>
-
-      <div className="rounded-xl border border-line bg-white p-4">
-        <h2 className="mb-1 text-sm font-extrabold text-ink">SDBIP scorecards</h2>
-        <p className="mb-3 text-xs text-ink2">
-          Every accessible scorecard&apos;s full-year register plus Q1-Q4 report CSVs, bundled as one ZIP - one
-          folder per department. Individual scorecard exports are available from each scorecard&apos;s page.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <a
-            href="/reports/scorecards-zip"
-            className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
-          >
-            Export ALL scorecards (ZIP) ↓
-          </a>
-          <a
-            href="/scorecards/report?sc=top&period=annual"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-block rounded-md border border-line px-3 py-1.5 text-xs font-bold text-ink2 hover:border-gold hover:text-ink"
-          >
-            Print annual SDBIP report ↗
-          </a>
-        </div>
       </div>
 
       <div>

@@ -11,9 +11,7 @@ import {
   Sidebar,
   SIDEBAR_COLLAPSE_COOKIE,
   SIDEBAR_SECTIONS_COOKIE,
-  SIDEBAR_ACTIVE_SECTION_COOKIE,
   DEFAULT_COLLAPSED_SECTIONS,
-  type SectionId,
 } from "@/components/Sidebar";
 import { FinancialYearSwitcher } from "@/components/FinancialYearSwitcher";
 
@@ -61,11 +59,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       // keep the default
     }
   }
-  const activeSectionCookie = cookieStore.get(SIDEBAR_ACTIVE_SECTION_COOKIE)?.value;
-  const initialActiveSection: SectionId | null =
-    activeSectionCookie === "sdbip" || activeSectionCookie === "epas" || activeSectionCookie === "mandate"
-      ? activeSectionCookie
-      : null;
 
   return (
     <div className="flex min-h-screen max-[900px]:flex-col">
@@ -77,7 +70,6 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         canManageOrgs={canManageOrgs}
         initialCollapsed={initialCollapsed}
         initialCollapsedSections={initialCollapsedSections}
-        initialActiveSection={initialActiveSection}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-white px-6 py-3 max-[900px]:px-4 max-[900px]:py-2.5">

@@ -114,6 +114,6 @@ export async function saveKpiLibraryEntry(formData: FormData) {
     if (error) throw error;
   }
 
-  revalidatePath("/kpi-library");
-  redirect("/kpi-library");
+  revalidatePath("/scorecards/kpi-library");
+  redirect("/scorecards/kpi-library");
 }

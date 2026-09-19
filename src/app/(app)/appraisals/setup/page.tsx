@@ -68,7 +68,7 @@ export default async function EpasSetupPage({
             {municipalities.map((m) => (
               <Link
                 key={m.id}
-                href={`/epas-setup?org=${m.id}`}
+                href={`/appraisals/setup?org=${m.id}`}
                 className={`stag ${m.id === activeOrgId ? "stag-blue" : "stag-pending"}`}
               >
                 {m.name}

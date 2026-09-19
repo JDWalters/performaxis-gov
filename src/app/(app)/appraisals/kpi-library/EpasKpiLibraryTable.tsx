@@ -270,7 +270,7 @@ export function EpasKpiLibraryTable({
                               Add to plan
                             </button>
                             <Link
-                              href={`/epas-kpi-library/${k.id}`}
+                              href={`/appraisals/kpi-library/${k.id}`}
                               prefetch={false}
                               title="Edit indicator"
                               aria-label="Edit indicator"

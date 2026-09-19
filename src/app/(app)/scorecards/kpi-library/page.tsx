@@ -17,7 +17,7 @@ export default async function KpiLibraryListPage() {
           </p>
         </div>
         <Link
-          href="/kpi-library/new"
+          href="/scorecards/kpi-library/new"
           className="rounded-md bg-ink px-4 py-2 text-sm font-bold text-white hover:bg-ink/90"
         >
           + New KPI type

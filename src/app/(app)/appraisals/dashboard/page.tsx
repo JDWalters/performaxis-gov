@@ -50,7 +50,7 @@ export default async function EpasDashboardPage({
             Viewing scope: <span className="text-gold">{scope.org.name}</span> and everything under it
           </span>
           <form action={clearScope}>
-            <input type="hidden" name="returnTo" value="/appraisals" />
+            <input type="hidden" name="returnTo" value="/appraisals/dashboard" />
             <button type="submit" className="ml-1 text-xs font-bold text-ink2 underline hover:text-ink">
               Clear
             </button>
@@ -63,7 +63,7 @@ export default async function EpasDashboardPage({
           {[1, 2, 3, 4].map((qq) => (
             <Link
               key={qq}
-              href={`/appraisals?q=${qq}`}
+              href={`/appraisals/dashboard?q=${qq}`}
               prefetch={false}
               className={`rounded-md px-3 py-1.5 text-xs font-bold ${
                 qq === quarter ? "bg-ink text-white" : "border border-line bg-white text-ink2 hover:border-ink"

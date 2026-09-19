@@ -15,7 +15,7 @@ import { FY_COOKIE } from "@/lib/data/financial-years";
  */
 export async function setFinancialYear(formData: FormData) {
   const fyId = String(formData.get("fyId") ?? "").trim();
-  const returnTo = String(formData.get("returnTo") ?? "/scorecards");
+  const returnTo = String(formData.get("returnTo") ?? "/scorecards/dashboard");
   if (fyId) {
     const store = await cookies();
     store.set(FY_COOKIE, fyId, { path: "/", maxAge: 60 * 60 * 24 * 365 });

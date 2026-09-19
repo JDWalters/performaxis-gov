@@ -64,8 +64,8 @@ export async function saveAppraisalKpiLibraryEntry(formData: FormData) {
     if (error) throw error;
   }
 
-  revalidatePath("/epas-kpi-library");
-  redirect(`/epas-kpi-library?org=${orgId}`);
+  revalidatePath("/appraisals/kpi-library");
+  redirect(`/appraisals/kpi-library?org=${orgId}`);
 }
 
 /**
@@ -83,7 +83,7 @@ export async function deleteAppraisalKpiLibraryEntry(formData: FormData) {
   const { error } = await supabase.from("appraisal_kpi_library").delete().eq("id", id);
   if (error) throw error;
 
-  revalidatePath("/epas-kpi-library");
+  revalidatePath("/appraisals/kpi-library");
 }
 
 /** Bulk-removes several indicators at once - the reference's "Delete selected". */
@@ -95,7 +95,7 @@ export async function bulkDeleteAppraisalKpiLibraryEntries(formData: FormData) {
   const { error } = await supabase.from("appraisal_kpi_library").delete().in("id", ids);
   if (error) throw error;
 
-  revalidatePath("/epas-kpi-library");
+  revalidatePath("/appraisals/kpi-library");
 }
 
 async function fetchWeightRows(cycleId: string): Promise<WeightKpi[]> {
@@ -190,6 +190,6 @@ export async function addLibraryEntriesToPlan(formData: FormData): Promise<{ add
   }
 
   revalidatePath(`/appraisals/${cycleId}`);
-  revalidatePath("/epas-kpi-library");
+  revalidatePath("/appraisals/kpi-library");
   return { added: toInsert.length, skipped: picks.length - toInsert.length };
 }

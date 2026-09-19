@@ -19,7 +19,7 @@ export default async function EditKpiLibraryPage({
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link href="/kpi-library" className="text-xs font-semibold text-ink2 hover:underline">
+        <Link href="/scorecards/kpi-library" className="text-xs font-semibold text-ink2 hover:underline">
           ← KPI Type Generator
         </Link>
         <h1 className="mt-1 text-xl font-extrabold text-ink">{entry.name}</h1>

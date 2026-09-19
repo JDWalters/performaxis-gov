@@ -8,13 +8,6 @@ import { signOut } from "@/app/(app)/actions";
 
 export const SIDEBAR_COLLAPSE_COOKIE = "px_sidebar_collapsed";
 export const SIDEBAR_SECTIONS_COOKIE = "px_sidebar_sections";
-// Remembers which product section the sidebar was last scoped to, so a route
-// that can't be resolved to a section from its own path alone (currently
-// just /reports, shared by SDBIP and EPAS) still renders a sensible scoped
-// nav instead of falling back to the neutral hub state. Written client-side
-// whenever the path DOES resolve to a section (see the effect below), read
-// back server-side on the next load exactly like the other sidebar cookies.
-export const SIDEBAR_ACTIVE_SECTION_COOKIE = "px_active_section";
 
 type NavItem = { href: string; icon: string; label: string };
 type NavSection = { id: string; label: string; items: NavItem[] };
@@ -28,12 +21,11 @@ export type SectionId = "sdbip" | "epas" | "mandate";
  * visually flat. */
 const SYSTEM_HUB_ITEM: NavItem = { href: "/dashboard", icon: "⌖", label: "System Hub" };
 
-// Reports covers both SDBIP and EPAS data (the scorecards ZIP export is
-// SDBIP, the org-wide summary + CSV export are EPAS), so it's deliberately
-// listed in both sections' nav rather than picking one home for it - see
-// SIDEBAR_ACTIVE_SECTION_COOKIE above for how the sidebar decides which
-// section's chrome to show while sitting on that shared route.
-const REPORTS_ITEM: NavItem = { href: "/reports", icon: "␙", label: "Reports" };
+// Reports now lives as a genuinely separate page per section
+// (/appraisals/reports for EPAS, /scorecards/reports for SDBIP) - each
+// section's nav points at its own copy rather than sharing one ambiguous
+// /reports route. See appraisals/reports/page.tsx and
+// scorecards/reports/page.tsx.
 
 // Order follows the client's own stated list verbatim: Dashboard first (it's
 // the section's landing view), then the day-to-day capture/progress/reports
@@ -41,17 +33,17 @@ const REPORTS_ITEM: NavItem = { href: "/reports", icon: "␙", label: "Reports" 
 // Setup is a *separate*, pinned-bottom item - see getPinnedBottomItems -
 // so it isn't duplicated up here).
 const SDBIP_NAV: NavItem[] = [
-  { href: "/scorecards", icon: "◴", label: "Dashboard" },
+  { href: "/scorecards/dashboard", icon: "◴", label: "Dashboard" },
   { href: "/scorecards/capture", icon: "▦", label: "Capture Scorecards" },
-  { href: "/progress", icon: "↗", label: "Performance Progress" },
-  REPORTS_ITEM,
+  { href: "/scorecards/progress", icon: "↗", label: "Performance Progress" },
+  { href: "/scorecards/reports", icon: "␙", label: "Reports" },
   { href: "/scorecards/setup", icon: "⚒", label: "Setup Scorecards" },
-  { href: "/kpi-library", icon: "≡", label: "KPI Library" },
+  { href: "/scorecards/kpi-library", icon: "≡", label: "KPI Library" },
 ];
 const EPAS_NAV: NavItem[] = [
-  { href: "/appraisals", icon: "◴", label: "Dashboard" },
-  { href: "/epas-kpi-library", icon: "☰", label: "KPI Library" },
-  REPORTS_ITEM,
+  { href: "/appraisals/dashboard", icon: "◴", label: "Dashboard" },
+  { href: "/appraisals/kpi-library", icon: "☰", label: "KPI Library" },
+  { href: "/appraisals/reports", icon: "␙", label: "Reports" },
 ];
 // The delegation-of-powers register, folded in from the client's standalone
 // Mandate app. Grouping and icons are ported literally from the reference
@@ -103,7 +95,7 @@ const ORG_GLOBAL_NAV: NavItem[] = [
   { href: "/orgs", icon: "⌂", label: "Org Management" },
   { href: "/employees", icon: "☺", label: "Employees" },
 ];
-const EPAS_SETUP_EXTRA: NavItem = { href: "/epas-setup", icon: "⚙", label: "EPAS Setup" };
+const EPAS_SETUP_EXTRA: NavItem = { href: "/appraisals/setup", icon: "⚙", label: "EPAS Setup" };
 const USER_GLOBAL_NAV: NavItem[] = [{ href: "/users", icon: "☷", label: "Manage Users" }];
 
 function getPinnedBottomItems(
@@ -120,20 +112,23 @@ function getPinnedBottomItems(
   return items;
 }
 
-// Path prefixes that resolve unambiguously to one product section. Checked
-// against the live pathname on every render (see usePathname below) - this
-// is the primary, most-robust signal. /reports is deliberately absent: it's
-// shared by SDBIP and EPAS, so it can't be resolved from its path alone and
-// falls through to SIDEBAR_ACTIVE_SECTION_COOKIE instead.
-const SECTION_PREFIXES: { id: SectionId; prefixes: string[] }[] = [
-  { id: "sdbip", prefixes: ["/scorecards", "/progress", "/kpi-library"] },
-  { id: "epas", prefixes: ["/appraisals", "/epas-kpi-library", "/epas-setup"] },
-  { id: "mandate", prefixes: ["/mandate"] },
+// Every product now lives entirely under its own single URL namespace
+// (/scorecards/* for SDBIP, /appraisals/* for EPAS, /mandate/* for Mandate),
+// so which section a route belongs to is a pure, unambiguous prefix match -
+// no shared routes (the old /reports, /kpi-library etc. each got split into
+// a section-owned copy - see appraisals/reports/page.tsx +
+// scorecards/reports/page.tsx) and no cookie fallback needed. Anything
+// outside these three prefixes (the hub itself, and the deliberately
+// cross-cutting /orgs, /employees, /users) resolves to no section at all.
+const SECTION_PREFIXES: { id: SectionId; prefix: string }[] = [
+  { id: "sdbip", prefix: "/scorecards" },
+  { id: "epas", prefix: "/appraisals" },
+  { id: "mandate", prefix: "/mandate" },
 ];
 
 function detectSection(pathname: string): SectionId | null {
-  for (const { id, prefixes } of SECTION_PREFIXES) {
-    if (prefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) return id;
+  for (const { id, prefix } of SECTION_PREFIXES) {
+    if (pathname === prefix || pathname.startsWith(`${prefix}/`)) return id;
   }
   return null;
 }
@@ -148,10 +143,6 @@ export const DEFAULT_COLLAPSED_SECTIONS: string[] = [];
 // `document.cookie = ...` statement inside it.
 function writeSectionsCookie(ids: string[]) {
   document.cookie = `${SIDEBAR_SECTIONS_COOKIE}=${encodeURIComponent(JSON.stringify(ids))}; path=/; max-age=${60 * 60 * 24 * 365}`;
-}
-
-function writeActiveSectionCookie(id: SectionId) {
-  document.cookie = `${SIDEBAR_ACTIVE_SECTION_COOKIE}=${id}; path=/; max-age=${60 * 60 * 24 * 365}`;
 }
 
 /** Chevron + label header that toggles a section's items open/closed - hidden entirely in the icon-only rail (nothing to collapse when there are no labels to hide). */
@@ -215,7 +206,6 @@ export function Sidebar({
   canManageOrgs,
   initialCollapsed,
   initialCollapsedSections,
-  initialActiveSection,
 }: {
   activeMunicipality: { name: string; logoUrl: string | null } | null;
   userName: string;
@@ -224,39 +214,19 @@ export function Sidebar({
   canManageOrgs: boolean;
   initialCollapsed: boolean;
   initialCollapsedSections: string[];
-  initialActiveSection: SectionId | null;
 }) {
   const [collapsed, setCollapsed] = useState(initialCollapsed);
   const [collapsedSections, setCollapsedSections] = useState<string[]>(initialCollapsedSections);
   const pathname = usePathname();
 
-  // The path resolves the section directly whenever it can (SDBIP/EPAS/
-  // Mandate routes all say unambiguously which product they belong to,
-  // available synchronously from usePathname with no extra render needed).
-  // Only a route the path can't resolve (currently just /reports, and the
-  // hub itself) falls back to whatever section was last active, from the
-  // cookie the server read at request time.
-  const detected = detectSection(pathname);
-  // The hub itself always renders the neutral state, even if a section was
-  // active before - landing back on /dashboard is a deliberate "let me pick
-  // again" action, so it shouldn't silently keep showing the last section's
-  // nav. Every other unresolved route (currently just /reports) still falls
-  // back to the last active section via the cookie, since those routes are
-  // reached FROM inside a scoped section, not from the hub.
+  // The path alone always says which section (if any) is active now - every
+  // product lives under its own single URL prefix (see SECTION_PREFIXES
+  // above), so this is a pure function of the current route with no cookie,
+  // no server round-trip, and no stale state: a fresh session landing
+  // directly on e.g. /appraisals/reports via a bookmark resolves to "epas"
+  // on the very first render, same as clicking there from inside the app.
+  const activeSection = detectSection(pathname);
   const isHub = pathname === "/dashboard";
-  const activeSection: SectionId | null = isHub ? null : (detected ?? initialActiveSection);
-
-  if (
-    typeof window !== "undefined" &&
-    detected &&
-    document.cookie.indexOf(`${SIDEBAR_ACTIVE_SECTION_COOKIE}=${detected}`) === -1
-  ) {
-    // Cheap idempotent write on render rather than a useEffect: this only
-    // ever writes when the cookie is already out of date, so it can't loop,
-    // and it means the very first click into a section persists immediately
-    // instead of waiting a tick for an effect to flush.
-    writeActiveSectionCookie(detected);
-  }
 
   function toggle() {
     const next = !collapsed;
@@ -290,10 +260,10 @@ export function Sidebar({
 
   // The link back to the hub should be available everywhere except the hub
   // itself - including on global/cross-cutting routes (e.g. /orgs) that
-  // don't belong to any product section and have no active-section cookie
-  // to fall back on. Without this, a route detectSection() can't resolve
-  // and that has no prior section cookie renders a dead end: no nav, no way
-  // back except the browser's own Back button.
+  // don't belong to any product section at all (detectSection() returns
+  // null for them). Without this, landing on one of those routes with no
+  // resolvable section renders a dead end: no nav, no way back except the
+  // browser's own Back button.
   const topItems: NavItem[] = isHub ? [] : [SYSTEM_HUB_ITEM];
   const bottomSection: NavSection | null =
     pinnedBottomItems.length > 0 ? { id: "setup", label: "Organisation Setup", items: pinnedBottomItems } : null;

@@ -91,7 +91,7 @@ export default async function ScorecardsDashboardPage({
           {PERIOD_OPTIONS.map((p) => (
             <Link
               key={p.key}
-              href={`/scorecards?sc=${dashboard.selectedScorecardId}&period=${p.key}`}
+              href={`/scorecards/dashboard?sc=${dashboard.selectedScorecardId}&period=${p.key}`}
               prefetch={false}
               className={`rounded-md px-3 py-1.5 text-xs font-bold ${
                 p.key === activeOption.key
@@ -144,7 +144,7 @@ export default async function ScorecardsDashboardPage({
                 {dashboard.departments.map((d) => (
                   <Link
                     key={d.orgId}
-                    href={`/scorecards?sc=${scorecardList.find((s) => s.orgId === d.orgId)?.scorecardId ?? "top"}&period=${activeOption.key}`}
+                    href={`/scorecards/dashboard?sc=${scorecardList.find((s) => s.orgId === d.orgId)?.scorecardId ?? "top"}&period=${activeOption.key}`}
                     className="rounded-xl border border-line bg-white p-4 transition hover:border-gold"
                   >
                     <div className="flex items-start justify-between gap-2">
