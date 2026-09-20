@@ -60,6 +60,11 @@ export type KpiLibraryItem = {
   baseline: string | null;
   annualTarget: string | null;
   poe: string | null;
+  // Non-null for a National Treasury Circular 88 catalogue indicator copied
+  // into this org's library (its C88 code, e.g. "B12"); null for a KPI the
+  // department authored itself. The one field that distinguishes "Circular
+  // 88 indicators" from "My own KPIs" in the library add-from-library flow.
+  c88Code: string | null;
 };
 
 type KpiLibraryRow = {
@@ -77,6 +82,7 @@ type KpiLibraryRow = {
   baseline: string | null;
   annual_target: string | null;
   poe: string | null;
+  c88_code: string | null;
   org: { id: string; name: string } | null;
 };
 
@@ -86,7 +92,7 @@ export async function getKpiLibraryList(): Promise<KpiLibraryItem[]> {
   const { data, error } = await supabase
     .from("kpi_library")
     .select(
-      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, org:orgs(id, name)"
+      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, c88_code, org:orgs(id, name)"
     );
   if (error) throw error;
 
@@ -110,6 +116,7 @@ export async function getKpiLibraryList(): Promise<KpiLibraryItem[]> {
       baseline: r.baseline,
       annualTarget: r.annual_target,
       poe: r.poe,
+      c88Code: r.c88_code,
     }))
     .sort((a, b) => a.orgName.localeCompare(b.orgName) || a.name.localeCompare(b.name));
 }
@@ -119,7 +126,7 @@ export async function getKpiLibraryEntry(id: string): Promise<KpiLibraryItem | n
   const { data, error } = await supabase
     .from("kpi_library")
     .select(
-      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, org:orgs(id, name)"
+      "id, name, description, kpa, idp_ref, unit_of_measure, target_type, calc_config, method, kpi_type, wards, baseline, annual_target, poe, c88_code, org:orgs(id, name)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -142,6 +149,7 @@ export async function getKpiLibraryEntry(id: string): Promise<KpiLibraryItem | n
     method: row.method,
     kpiType: row.kpi_type,
     wards: row.wards,
+    c88Code: row.c88_code,
     baseline: row.baseline,
     annualTarget: row.annual_target,
     poe: row.poe,

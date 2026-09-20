@@ -35,6 +35,13 @@ export type CaptureKpi = {
   baseline: string | null;
   annualTarget: string | null;
   poe: string | null;
+  /** IDP reference number this KPI supports - free text, per placement. */
+  idpRef: string | null;
+  /** Percentage weighting of this KPI within the scorecard's overall score - captured but not yet consumed by any scoring/rollup logic (see sdbip-dashboard.ts / performance-progress.ts, both still assume equal weighting). */
+  weight: number;
+  /** Top Layer SDBIP only: which department this KPI is tagged as belonging to, independent of the library entry it was copied from (see kpi-admin-actions.ts). Null on ordinary department scorecards. */
+  deptOrgId: string | null;
+  deptName: string | null;
   /** The kpi_library row this scorecard row was copied from, if any - used to detect "already on this scorecard" when offering more library KPIs to add. */
   libraryId: string | null;
   /** The Circular 88 code this KPI was created from, if any - drives the "C88: <code>" tag shown wherever the KPI appears. */

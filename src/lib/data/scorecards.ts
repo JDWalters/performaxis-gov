@@ -141,6 +141,10 @@ type ScorecardKpiRow = {
   baseline: string | null;
   annual_target: string | null;
   poe: string | null;
+  idp_ref: string | null;
+  weight: number | null;
+  dept_org_id: string | null;
+  dept: { id: string; name: string } | null;
   kpi_library: { c88_code: string | null } | null;
   kpi_targets: { quarter: number; target_value: string | null }[];
   kpi_results: {
@@ -191,7 +195,7 @@ export async function getScorecardDetail(
   const { data: kpis, error: kpiErr } = await supabase
     .from("scorecard_kpis")
     .select(
-      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, calc_config, method, kpi_type, wards, baseline, annual_target, poe, kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due), kpi_evidence_files(id, quarter, file_name, file_path, file_size, content_type, created_at)"
+      "id, ref_code, name, kpa, unit_of_measure, target_type, kpi_library_id, calc_config, method, kpi_type, wards, baseline, annual_target, poe, idp_ref, weight, dept_org_id, dept:dept_org_id(id, name), kpi_library:kpi_library_id(c88_code), kpi_targets(quarter, target_value), kpi_results(quarter, actual, inputs, evidence_url, evidence_description, comment, corrective_action, corrective_action_owner, corrective_action_due), kpi_evidence_files(id, quarter, file_name, file_path, file_size, content_type, created_at)"
     )
     .eq("scorecard_id", scorecardId);
   if (kpiErr) throw kpiErr;
@@ -255,6 +259,10 @@ export async function getScorecardDetail(
         baseline: k.baseline,
         annualTarget: k.annual_target,
         poe: k.poe,
+        idpRef: k.idp_ref,
+        weight: k.weight ?? 0,
+        deptOrgId: k.dept_org_id,
+        deptName: k.dept?.name ?? null,
         libraryId: k.kpi_library_id,
         c88Code: k.kpi_library?.c88_code ?? null,
         quarters: [1, 2, 3, 4].map((q) => ({

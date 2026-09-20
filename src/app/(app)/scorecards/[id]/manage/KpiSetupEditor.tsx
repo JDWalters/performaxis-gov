@@ -11,7 +11,7 @@ const LABEL_CLASS = "flex flex-col gap-1 text-[11px] font-semibold text-ink2";
 // The reference tool's "Results across quarters" dropdown - "none" is its
 // own literal id (not just "no accumulation set"), matching how acc is
 // stored on scorecard_kpis and read back by accOf() in sdbip-status.ts.
-const ACC_OPTIONS: { id: string; label: string }[] = [
+export const ACC_OPTIONS: { id: string; label: string }[] = [
   { id: "none", label: "Standard — each quarter separate" },
   { id: "cum", label: "Cumulative — results add up (YTD)" },
   { id: "carry", label: "Carry-over — achieved stays achieved" },
@@ -19,7 +19,12 @@ const ACC_OPTIONS: { id: string; label: string }[] = [
 
 export type EditableKpi = {
   id: string;
+  refCode: string | null;
   name: string;
+  kpa: string | null;
+  idpRef: string | null;
+  weight: number;
+  deptOrgId: string | null;
   calc: KpiCalc | null;
   lower: boolean;
   acc: string | null;
@@ -42,10 +47,15 @@ export function KpiSetupEditor({
   scorecardId,
   kpi,
   onClose,
+  isTopLayer,
+  departmentOptions,
 }: {
   scorecardId: string;
   kpi: EditableKpi;
   onClose: () => void;
+  /** Top Layer SDBIP only: shows an editable Dept select wired to dept_org_id - ordinary department scorecards never render or submit this field. */
+  isTopLayer?: boolean;
+  departmentOptions?: { id: string; name: string }[];
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
@@ -78,6 +88,54 @@ export function KpiSetupEditor({
         }}
         className="flex flex-col gap-3"
       >
+        <div>
+          <div className="mb-2 text-[10px] font-bold uppercase tracking-wide text-ink2">Register fields</div>
+          <div className="flex flex-col gap-2">
+            <label className={LABEL_CLASS}>
+              Key Performance Indicator
+              <input name="name" defaultValue={kpi.name} required className={FIELD_CLASS} />
+            </label>
+            <div className={`grid gap-2 ${isTopLayer ? "grid-cols-4" : "grid-cols-3"}`}>
+              <label className={LABEL_CLASS}>
+                Ref
+                <input name="refCode" defaultValue={kpi.refCode ?? ""} className={`${FIELD_CLASS} font-mono`} />
+              </label>
+              <label className={LABEL_CLASS}>
+                KPA
+                <input name="kpa" defaultValue={kpi.kpa ?? ""} className={FIELD_CLASS} />
+              </label>
+              <label className={LABEL_CLASS}>
+                IDP Ref
+                <input name="idpRef" defaultValue={kpi.idpRef ?? ""} className={FIELD_CLASS} />
+              </label>
+              {isTopLayer && (
+                <label className={LABEL_CLASS}>
+                  Dept
+                  <select name="deptOrgId" defaultValue={kpi.deptOrgId ?? ""} className={FIELD_CLASS}>
+                    <option value="">—</option>
+                    {(departmentOptions ?? []).map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+            <label className={`${LABEL_CLASS} max-w-[10rem]`}>
+              Weight (%)
+              <input
+                name="weight"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={kpi.weight}
+                className={FIELD_CLASS}
+              />
+            </label>
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-2">
           <label className={LABEL_CLASS}>
             Capture setup (answer type)

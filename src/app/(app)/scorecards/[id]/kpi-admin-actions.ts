@@ -39,7 +39,29 @@ import { suggestNextRefCodes } from "@/lib/data/scorecards-shared";
  */
 export async function addLibraryKpisToScorecard(
   scorecardId: string,
-  items: { libraryId: string; refCode?: string; deptOrgId?: string }[]
+  items: {
+    libraryId: string;
+    refCode?: string;
+    deptOrgId?: string;
+    // Optional per-item text overrides - used only by the single-item
+    // "Add" preview/edit modal (LibraryKpiPreviewModal.tsx), which lets the
+    // user tweak a KPI's scorecard-setup fields before it's copied onto the
+    // scorecard. Bulk multi-select add never sends these, so it keeps
+    // copying the library row's fields verbatim, matching the reference
+    // tool's "Add selected (N)" (no per-item review). An override of "" is
+    // treated the same as "not provided" (falls back to the library value)
+    // so clearing a field in the modal doesn't accidentally null it out.
+    overrides?: {
+      name?: string;
+      kpa?: string;
+      method?: string;
+      kpiType?: string;
+      wards?: string;
+      baseline?: string;
+      annualTarget?: string;
+      poe?: string;
+    };
+  }[]
 ): Promise<{ added: number; skipped: string[] }> {
   if (!scorecardId || items.length === 0) return { added: 0, skipped: [] };
 
@@ -110,22 +132,24 @@ export async function addLibraryKpisToScorecard(
       continue;
     }
     const refCode = item.refCode?.trim() || suggestions[suggestionIdx++] || null;
+    const ov = item.overrides;
+    const pick = (override: string | undefined, fallback: string | null) => override?.trim() || fallback;
     rows.push({
       scorecard_id: scorecardId,
       kpi_library_id: lib.id,
       ref_code: refCode,
-      name: lib.name,
-      kpa: lib.kpa,
+      name: pick(ov?.name, lib.name) ?? lib.name,
+      kpa: pick(ov?.kpa, lib.kpa),
       idp_ref: lib.idp_ref,
       unit_of_measure: lib.unit_of_measure,
       target_type: lib.target_type,
       calc_config: lib.calc_config ?? {},
-      method: lib.method,
-      kpi_type: lib.kpi_type,
-      wards: lib.wards,
-      baseline: lib.baseline,
-      annual_target: lib.annual_target,
-      poe: lib.poe,
+      method: pick(ov?.method, lib.method),
+      kpi_type: pick(ov?.kpiType, lib.kpi_type),
+      wards: pick(ov?.wards, lib.wards),
+      baseline: pick(ov?.baseline, lib.baseline),
+      annual_target: pick(ov?.annualTarget, lib.annual_target),
+      poe: pick(ov?.poe, lib.poe),
       weight: 0,
       dept_org_id: isTopLayer ? (item.deptOrgId ?? lib.org_id) : null,
     });
@@ -248,6 +272,37 @@ export async function updateScorecardKpiSetup(scorecardId: string, scorecardKpiI
 
   const textOrNull = (key: string) => String(formData.get(key) ?? "").trim() || null;
 
+  // Register fields (Ref/KPA/KPI name/IDP ref/Weight/Dept) - added so the
+  // wide register table (ManageKpisClient.tsx) can edit every visible column
+  // from the same one inline form, not just the capture-setup fields this
+  // action originally handled. `name` is NOT NULL on scorecard_kpis, so an
+  // empty submission leaves it untouched rather than writing a blank string.
+  // `deptOrgId` is only ever present in the submitted form on Top Layer
+  // scorecards (KpiSetupEditor only renders that field there) - its absence
+  // (formData.get returns null) means "don't touch dept_org_id" rather than
+  // "clear it", so ordinary department scorecards (which never send this
+  // field) can never have dept_org_id overwritten by this action.
+  const nameRaw = String(formData.get("name") ?? "").trim();
+  const weightRaw = String(formData.get("weight") ?? "").trim();
+  const weight = weightRaw === "" ? 0 : Number(weightRaw);
+
+  const updateRow: Record<string, unknown> = {
+    calc_config: { calc, lower, acc },
+    method: textOrNull("method"),
+    kpi_type: textOrNull("kpiType"),
+    wards: textOrNull("wards"),
+    baseline: textOrNull("baseline"),
+    annual_target: textOrNull("annualTarget"),
+    poe: textOrNull("poe"),
+    ref_code: textOrNull("refCode"),
+    kpa: textOrNull("kpa"),
+    idp_ref: textOrNull("idpRef"),
+    weight: Number.isFinite(weight) ? weight : 0,
+  };
+  if (nameRaw) updateRow.name = nameRaw;
+  const deptOrgIdRaw = formData.get("deptOrgId");
+  if (deptOrgIdRaw !== null) updateRow.dept_org_id = String(deptOrgIdRaw).trim() || null;
+
   const supabase = await createClient();
   // Cast: same pragmatic workaround used throughout this data layer for
   // supabase-js's generic update() overload resolution.
@@ -258,15 +313,7 @@ export async function updateScorecardKpiSetup(scorecardId: string, scorecardKpiI
       };
     }
   )
-    .update({
-      calc_config: { calc, lower, acc },
-      method: textOrNull("method"),
-      kpi_type: textOrNull("kpiType"),
-      wards: textOrNull("wards"),
-      baseline: textOrNull("baseline"),
-      annual_target: textOrNull("annualTarget"),
-      poe: textOrNull("poe"),
-    })
+    .update(updateRow)
     .eq("id", scorecardKpiId)
     .eq("scorecard_id", scorecardId);
   if (error) throw new Error(error.message);

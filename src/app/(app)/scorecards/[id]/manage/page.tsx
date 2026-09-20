@@ -50,6 +50,13 @@ export default async function ManageKpisPage({
       deptOrgId: k.orgId,
       deptName: k.orgName,
       alreadyOnScorecard: detail.kpis.some((existing) => existing.libraryId === k.id),
+      c88Code: k.c88Code,
+      method: k.method,
+      kpiType: k.kpiType,
+      wards: k.wards,
+      baseline: k.baseline,
+      annualTarget: k.annualTarget,
+      poe: k.poe,
     }));
 
   const municipalityOrgId = await getMunicipalityOrgId(detail.orgId);
@@ -91,6 +98,10 @@ export default async function ManageKpisPage({
           baseline: k.baseline,
           annualTarget: k.annualTarget,
           poe: k.poe,
+          idpRef: k.idpRef,
+          weight: k.weight,
+          deptOrgId: k.deptOrgId,
+          deptName: k.deptName,
         }))}
         availableLibrary={available}
         circular88Catalogue={catalogue}
