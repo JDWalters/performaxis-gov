@@ -1,6 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { FY_COOKIE } from "@/lib/data/financial-years";
 import { createClient } from "@/lib/supabase/server";
 import { CREATABLE_KINDS, type OrgKind } from "@/lib/data/orgs-shared";
 
@@ -221,4 +224,164 @@ export async function updateMunicipalityIdentity(formData: FormData) {
 
   revalidatePath("/orgs");
   revalidatePath("/appraisals/setup");
+}
+
+/**
+ * Edits one org's name and short code. `kind`, `parent_id` and `path` are
+ * deliberately NOT editable here. `path` (an ltree, unique, the basis of
+ * has_org_access / RLS containment) is built once at creation from a slug of
+ * the *name* - the code is never part of it - and every descendant's path
+ * embeds its ancestors' labels. Renaming therefore only changes the display
+ * `name`; the stored path stays as-is so containment/RLS and any bookmarked
+ * references are untouched. The schema has no unique constraint on `code`,
+ * so uniqueness is only enforced softly: a changed code may not duplicate a
+ * sibling's code (same parent), case-insensitively.
+ */
+export async function updateOrg(formData: FormData) {
+  const orgId = str(formData, "orgId");
+  const name = str(formData, "name");
+  const code = str(formData, "code");
+  if (!orgId) throw new Error("Missing org.");
+  if (!name) throw new Error("Name is required.");
+  if (name.length > 200) throw new Error("Name is too long.");
+  if (code.length > 30) throw new Error("Code is too long (30 characters max).");
+
+  const supabase = await createClient();
+
+  const { data: allowed, error: accessErr } = await (
+    supabase.rpc as unknown as (
+      fn: string,
+      args: Record<string, unknown>
+    ) => Promise<{ data: boolean | null; error: { message: string } | null }>
+  )("has_org_access", {
+    required_permission: "manage_org_setup",
+    target_org_id: orgId,
+  });
+  if (accessErr) throw accessErr;
+  if (!allowed) throw new Error("You don't have permission to edit this org.");
+
+  const { data: currentData, error: curErr } = await supabase
+    .from("orgs")
+    .select("id, parent_id, code")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (curErr) throw curErr;
+  const current = currentData as unknown as { id: string; parent_id: string | null; code: string | null } | null;
+  if (!current) throw new Error("Org not found, or you don't have access to it.");
+
+  if (code && code.toLowerCase() !== (current.code ?? "").toLowerCase() && current.parent_id) {
+    const { data: sibData, error: sibErr } = await supabase
+      .from("orgs")
+      .select("id, code")
+      .eq("parent_id", current.parent_id)
+      .neq("id", orgId);
+    if (sibErr) throw sibErr;
+    const clash = ((sibData ?? []) as unknown as { code: string | null }[]).some(
+      (s) => (s.code ?? "").toLowerCase() === code.toLowerCase()
+    );
+    if (clash) throw new Error(`Another org under the same parent already uses the code "${code}".`);
+  }
+
+  const table = supabase.from("orgs") as unknown as {
+    update: (values: Record<string, unknown>) => {
+      eq: (col: string, val: string) => {
+        select: (cols: string) => Promise<{ data: unknown[] | null; error: { message: string } | null }>;
+      };
+    };
+  };
+  const { data: updated, error } = await table
+    .update({ name, code: code || null })
+    .eq("id", orgId)
+    .select("id");
+  if (error) throw error;
+  if (!updated || updated.length === 0) throw new Error("Update was not applied - you may not have access to this org.");
+
+  revalidatePath("/orgs");
+  revalidatePath("/appraisals/setup");
+  revalidatePath("/scorecards", "layout");
+}
+
+/**
+ * Idempotent "Create scorecard" shortcut for the Org tree: finds (or creates)
+ * the scorecard for `orgId` in the caller's active financial year for that
+ * org's municipality, then redirects to its Scorecard setup. Only
+ * municipality (Top Layer) and department orgs own scorecards. The FY is
+ * resolved the same way getActiveFinancialYear does (px_fy cookie if it is
+ * one of this municipality's years, else is_current, else latest). The
+ * unique (org_id, financial_year_id) constraint makes a double-click safe;
+ * RLS (scorecards_insert, manage_scorecard_setup) is the real gatekeeper.
+ */
+export async function ensureScorecard(formData: FormData) {
+  const orgId = str(formData, "orgId");
+  if (!orgId) throw new Error("Missing org.");
+
+  const supabase = await createClient();
+  const { data: orgData, error: orgErr } = await supabase
+    .from("orgs")
+    .select("id, kind, parent_id")
+    .eq("id", orgId)
+    .maybeSingle();
+  if (orgErr) throw orgErr;
+  const org = orgData as unknown as { id: string; kind: OrgKind; parent_id: string | null } | null;
+  if (!org) throw new Error("Org not found, or you don't have access to it.");
+  if (org.kind !== "municipality" && org.kind !== "department") {
+    throw new Error("Only a municipality (Top Layer) or a department can own a scorecard.");
+  }
+  const muniId = org.kind === "municipality" ? org.id : org.parent_id;
+  if (!muniId) throw new Error("Could not resolve this department's municipality.");
+
+  const { data: fyData, error: fyErr } = await supabase
+    .from("financial_years")
+    .select("id, start_year, is_current")
+    .eq("org_id", muniId)
+    .order("start_year");
+  if (fyErr) throw fyErr;
+  const years = (fyData ?? []) as unknown as { id: string; start_year: number; is_current: boolean }[];
+  const cookieId = (await cookies()).get(FY_COOKIE)?.value;
+  const fy = years.find((y) => y.id === cookieId) ?? years.find((y) => y.is_current) ?? years[years.length - 1];
+  if (!fy) throw new Error("This municipality has no financial year yet - create one first.");
+
+  const { data: existingData, error: exErr } = await supabase
+    .from("scorecards")
+    .select("id")
+    .eq("org_id", orgId)
+    .eq("financial_year_id", fy.id)
+    .maybeSingle();
+  if (exErr) throw exErr;
+  let scorecardId = (existingData as unknown as { id: string } | null)?.id ?? null;
+
+  if (!scorecardId) {
+    const table = supabase.from("scorecards") as unknown as {
+      insert: (rows: Record<string, unknown>[]) => {
+        select: (cols: string) => {
+          single: () => Promise<{ data: unknown; error: { message: string; code?: string } | null }>;
+        };
+      };
+    };
+    const { data: created, error: insErr } = await table
+      .insert([{ org_id: orgId, financial_year_id: fy.id }])
+      .select("id")
+      .single();
+    if (insErr) {
+      if (insErr.code === "23505") {
+        // Lost a race with a concurrent create - the row exists now.
+        const { data: again } = await supabase
+          .from("scorecards")
+          .select("id")
+          .eq("org_id", orgId)
+          .eq("financial_year_id", fy.id)
+          .maybeSingle();
+        scorecardId = (again as unknown as { id: string } | null)?.id ?? null;
+      } else {
+        throw new Error(insErr.message);
+      }
+    } else {
+      scorecardId = (created as unknown as { id: string }).id;
+    }
+  }
+  if (!scorecardId) throw new Error("Could not create the scorecard.");
+
+  revalidatePath("/orgs");
+  revalidatePath("/scorecards", "layout");
+  redirect(`/scorecards/${scorecardId}/manage`);
 }

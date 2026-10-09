@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import { getMyAccessibleOrgs, getMyMemberships } from "@/lib/data/access";
 import { isMetroOf, parentKindFor } from "@/lib/data/orgs-shared";
+import { cookies } from "next/headers";
+import { FY_COOKIE } from "@/lib/data/financial-years";
 import type { OrgKind, OrgNode, OrgOption } from "@/lib/data/orgs-shared";
 
 export type { OrgKind, OrgNode, OrgOption } from "@/lib/data/orgs-shared";
@@ -166,4 +168,54 @@ export async function getDepartmentsWithStats(
     isActive: d.is_active,
     kpiTopLayerCount: topLayerScorecardId ? counts.get(d.id) ?? 0 : null,
   }));
+}
+
+export type OrgScorecardInfo = { scorecardId: string | null; fyLabel: string };
+
+/**
+ * For the Org tree's scorecard shortcuts: per municipality / department org
+ * the user can see, whether a scorecard already exists in that org's
+ * municipality's active financial year (px_fy cookie if it is one of that
+ * municipality's years, else is_current, else latest - the same resolution
+ * as getActiveFinancialYear). Orgs whose municipality has no financial year
+ * are omitted, so the tree shows no shortcut for them.
+ */
+export async function getOrgScorecardInfo(orgs: { id: string; kind: OrgKind; parentId: string | null }[]): Promise<Record<string, OrgScorecardInfo>> {
+  const supabase = await createClient();
+  const muniIds = orgs.filter((o) => o.kind === "municipality").map((o) => o.id);
+  if (muniIds.length === 0) return {};
+
+  const { data: fyData, error: fyErr } = await supabase
+    .from("financial_years")
+    .select("id, org_id, start_year, label, is_current")
+    .in("org_id", muniIds)
+    .order("start_year");
+  if (fyErr) throw fyErr;
+  type Fy = { id: string; org_id: string; start_year: number; label: string; is_current: boolean };
+  const cookieId = (await cookies()).get(FY_COOKIE)?.value;
+  const fyByMuni = new Map<string, Fy>();
+  for (const muniId of muniIds) {
+    const years = ((fyData ?? []) as unknown as Fy[]).filter((y) => y.org_id === muniId);
+    const pick = years.find((y) => y.id === cookieId) ?? years.find((y) => y.is_current) ?? years[years.length - 1];
+    if (pick) fyByMuni.set(muniId, pick);
+  }
+  if (fyByMuni.size === 0) return {};
+
+  const { data: scData, error: scErr } = await supabase
+    .from("scorecards")
+    .select("id, org_id, financial_year_id")
+    .in("financial_year_id", [...fyByMuni.values()].map((y) => y.id));
+  if (scErr) throw scErr;
+  const scorecards = (scData ?? []) as unknown as { id: string; org_id: string; financial_year_id: string }[];
+
+  const out: Record<string, OrgScorecardInfo> = {};
+  for (const o of orgs) {
+    if (o.kind !== "municipality" && o.kind !== "department") continue;
+    const muniId = o.kind === "municipality" ? o.id : o.parentId;
+    const fy = muniId ? fyByMuni.get(muniId) : undefined;
+    if (!fy) continue;
+    const sc = scorecards.find((s) => s.org_id === o.id && s.financial_year_id === fy.id);
+    out[o.id] = { scorecardId: sc?.id ?? null, fyLabel: fy.label };
+  }
+  return out;
 }

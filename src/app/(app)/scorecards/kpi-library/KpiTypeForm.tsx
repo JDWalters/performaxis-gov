@@ -72,7 +72,7 @@ export function KpiTypeForm({
           </div>
           <div className="flex flex-col gap-3">
             <label className={LABEL_CLASS}>
-              Department
+              Department / Top Layer
               <select
                 name="orgId"
                 value={orgId}

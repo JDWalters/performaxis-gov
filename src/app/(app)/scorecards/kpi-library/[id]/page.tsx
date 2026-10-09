@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getDepartmentOrgs, getDistinctKpas, getKpiLibraryEntry } from "@/lib/data/kpi-library";
+import { getKpiOwnerOrgs, getDistinctKpas, getKpiLibraryEntry } from "@/lib/data/kpi-library";
 import { KpiTypeForm } from "../KpiTypeForm";
 
 export default async function EditKpiLibraryPage({
@@ -11,7 +11,7 @@ export default async function EditKpiLibraryPage({
   const { id } = await params;
   const [entry, departments, kpas] = await Promise.all([
     getKpiLibraryEntry(id),
-    getDepartmentOrgs(),
+    getKpiOwnerOrgs(),
     getDistinctKpas(),
   ]);
   if (!entry) notFound();

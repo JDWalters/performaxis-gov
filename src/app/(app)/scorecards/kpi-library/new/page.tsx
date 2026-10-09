@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDepartmentOrgs, getDistinctKpas } from "@/lib/data/kpi-library";
+import { getKpiOwnerOrgs, getDistinctKpas } from "@/lib/data/kpi-library";
 import { KpiTypeForm } from "../KpiTypeForm";
 
 export default async function NewKpiLibraryPage({
@@ -7,7 +7,7 @@ export default async function NewKpiLibraryPage({
 }: {
   searchParams: Promise<{ org?: string }>;
 }) {
-  const [{ org }, departments, kpas] = await Promise.all([searchParams, getDepartmentOrgs(), getDistinctKpas()]);
+  const [{ org }, departments, kpas] = await Promise.all([searchParams, getKpiOwnerOrgs(), getDistinctKpas()]);
 
   return (
     <div className="flex flex-col gap-4">

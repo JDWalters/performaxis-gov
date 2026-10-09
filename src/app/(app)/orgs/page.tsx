@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { getOrgManageScopes, getOrgTree, getFlatOrgs, getDepartmentsWithStats } from "@/lib/data/orgs";
+import { getOrgManageScopes, getOrgTree, getFlatOrgs, getDepartmentsWithStats, getOrgScorecardInfo } from "@/lib/data/orgs";
 import { getPolicyConfig } from "@/lib/data/policy";
 import { getActiveFinancialYear } from "@/lib/data/financial-years";
+import type { OrgKind, OrgNode } from "@/lib/data/orgs-shared";
 import { OrgTree } from "./OrgTree";
 import { CreateOrgForm } from "./CreateOrgForm";
 import { DepartmentsTable } from "./DepartmentsTable";
@@ -28,6 +29,15 @@ export default async function OrgsPage({
   }
 
   const [tree, orgs] = await Promise.all([getOrgTree(), getFlatOrgs()]);
+  const flatNodes: { id: string; kind: OrgKind; parentId: string | null }[] = [];
+  const walk = (list: OrgNode[]) => {
+    for (const n of list) {
+      flatNodes.push({ id: n.id, kind: n.kind, parentId: n.parentId });
+      walk(n.children);
+    }
+  };
+  walk(tree);
+  const scorecardInfo = await getOrgScorecardInfo(flatNodes);
   const municipalities = orgs.filter((o) => o.kind === "municipality").sort((a, b) => a.name.localeCompare(b.name));
   const activeOrgId = municipalities.find((m) => m.id === org)?.id ?? municipalities[0]?.id ?? null;
 
@@ -90,7 +100,7 @@ export default async function OrgsPage({
 
       <CreateOrgForm orgs={orgs} />
 
-      <OrgTree roots={tree} />
+      <OrgTree roots={tree} scorecards={scorecardInfo} />
     </div>
   );
 }

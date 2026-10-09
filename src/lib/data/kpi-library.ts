@@ -30,6 +30,27 @@ export async function getDepartmentOrgs(): Promise<DepartmentOrg[]> {
     .sort((a, b) => (a.municipalityName ?? "").localeCompare(b.municipalityName ?? "") || a.name.localeCompare(b.name));
 }
 
+/**
+ * Orgs a KPI type can be owned by: every department (as getDepartmentOrgs)
+ * plus each municipality itself, which owns the Top Layer SDBIP's own KPIs
+ * (kpi_library already holds municipality-owned rows). Municipality entries
+ * are labelled "<name> - Top Layer SDBIP" so they read distinctly in a picker.
+ */
+export async function getKpiOwnerOrgs(): Promise<DepartmentOrg[]> {
+  const supabase = await createClient();
+  const [depts, { data, error }] = await Promise.all([
+    getDepartmentOrgs(),
+    supabase.from("orgs").select("id, name").eq("kind", "municipality").order("name"),
+  ]);
+  if (error) throw error;
+  const munis = ((data ?? []) as unknown as { id: string; name: string }[]).map((m) => ({
+    id: m.id,
+    name: `${m.name} - Top Layer SDBIP`,
+    municipalityName: null,
+  }));
+  return [...munis, ...depts];
+}
+
 /** Every distinct KPA name already in use, for the KPI form's KPA dropdown - avoids typo'd near-duplicates like "BSD" vs "B.S.D.". */
 export async function getDistinctKpas(): Promise<string[]> {
   const supabase = await createClient();
